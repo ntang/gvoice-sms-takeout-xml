@@ -19,6 +19,7 @@ import inspect
 import logging
 import hashlib
 import mmap
+import threading
 import os
 import re
 import sys
@@ -106,7 +107,8 @@ STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
 
 # File I/O optimization
 FILE_READ_BUFFER_SIZE = 32768  # 32KB buffer for file reading
-ENABLE_MMAP_FOR_LARGE_FILES = True  # Use memory mapping for files > 10MB
+# Default to buffered I/O; memory mapping can be enabled via CLI option
+ENABLE_MMAP_FOR_LARGE_FILES = False  # Use memory mapping for files > 10MB
 MMAP_THRESHOLD = 10 * 1024 * 1024  # 10MB threshold for mmap
 
 # ====================================================================
@@ -386,6 +388,9 @@ class ConversationManager:
         )
         self.message_buffer = {}  # Buffer messages before writing to reduce I/O
 
+        # Thread-safety for concurrent writes and file creation
+        self._lock = threading.RLock()
+
         # Pre-allocate common data structures for better performance
         self._empty_list = []
         self._empty_dict = {}
@@ -483,111 +488,114 @@ class ConversationManager:
 
     def write_message(self, conversation_id: str, message_content: str, timestamp: int):
         """Write a message to the conversation file with optimized buffering."""
-        if conversation_id not in self.conversation_files:
-            # Create new conversation file with optimized buffer size
-            filename = self.get_conversation_filename(conversation_id)
-            file_handle = open(
-                filename, "w", encoding="utf-8", buffering=self.write_buffer_size
-            )
+        with self._lock:
+            if conversation_id not in self.conversation_files:
+                # Create new conversation file with optimized buffer size
+                filename = self.get_conversation_filename(conversation_id)
+                file_handle = open(
+                    filename, "w", encoding="utf-8", buffering=self.write_buffer_size
+                )
 
-            self.conversation_files[conversation_id] = {
-                "file": file_handle,
-                "messages": [],
-                "buffer_size": 0,
-                "max_buffer_size": self.write_buffer_size
-                * 2,  # Allow buffer to grow up to 2x
-            }
+                self.conversation_files[conversation_id] = {
+                    "file": file_handle,
+                    "messages": [],
+                    "buffer_size": 0,
+                    "max_buffer_size": self.write_buffer_size
+                    * 2,  # Allow buffer to grow up to 2x
+                }
 
-            # Initialize conversation statistics
-            self.conversation_stats[conversation_id] = {
-                "num_sms": 0,
-                "num_img": 0,
-                "num_vcf": 0,
-                "num_calls": 0,
-                "num_voicemails": 0,
-            }
+                # Initialize conversation statistics
+                self.conversation_stats[conversation_id] = {
+                    "num_sms": 0,
+                    "num_img": 0,
+                    "num_vcf": 0,
+                    "num_calls": 0,
+                    "num_voicemails": 0,
+                }
 
-        file_info = self.conversation_files[conversation_id]
+            file_info = self.conversation_files[conversation_id]
 
-        # Add message to buffer
-        file_info["messages"].append((timestamp, message_content))
-        file_info["buffer_size"] += len(message_content)
+            # Add message to buffer
+            file_info["messages"].append((timestamp, message_content))
+            file_info["buffer_size"] += len(message_content)
 
-        # Flush buffer if it gets too large
-        if file_info["buffer_size"] > file_info["max_buffer_size"]:
-            file_info["file"].flush()
-            file_info["buffer_size"] = 0
+            # Flush buffer if it gets too large
+            if file_info["buffer_size"] > file_info["max_buffer_size"]:
+                file_info["file"].flush()
+                file_info["buffer_size"] = 0
 
     def write_message_with_content(
         self, conversation_id: str, message_text: str, attachments: list, timestamp: int
     ):
         """Write a message with pre-extracted text and attachment information for HTML output."""
-        if conversation_id not in self.conversation_files:
-            # Create new conversation file with optimized buffer size
-            filename = self.get_conversation_filename(conversation_id)
-            file_handle = open(
-                filename, "w", encoding="utf-8", buffering=self.write_buffer_size
-            )
+        with self._lock:
+            if conversation_id not in self.conversation_files:
+                # Create new conversation file with optimized buffer size
+                filename = self.get_conversation_filename(conversation_id)
+                file_handle = open(
+                    filename, "w", encoding="utf-8", buffering=self.write_buffer_size
+                )
 
-            self.conversation_files[conversation_id] = {
-                "file": file_handle,
-                "messages": [],
-                "buffer_size": 0,
-                "max_buffer_size": self.write_buffer_size
-                * 2,  # Allow buffer to grow up to 2x
+                self.conversation_files[conversation_id] = {
+                    "file": file_handle,
+                    "messages": [],
+                    "buffer_size": 0,
+                    "max_buffer_size": self.write_buffer_size
+                    * 2,  # Allow buffer to grow up to 2x
+                }
+
+                # Initialize conversation statistics
+                self.conversation_stats[conversation_id] = {
+                    "num_sms": 0,
+                    "num_img": 0,
+                    "num_vcf": 0,
+                    "num_calls": 0,
+                    "num_voicemails": 0,
+                }
+
+            file_info = self.conversation_files[conversation_id]
+
+            # Store message with pre-extracted content for HTML output
+            message_data = {
+                "text": message_text,
+                "attachments": attachments,
+                "raw_content": None,  # Not needed for HTML output
             }
+            file_info["messages"].append((timestamp, message_data))
+            file_info["buffer_size"] += len(message_text)
 
-            # Initialize conversation statistics
-            self.conversation_stats[conversation_id] = {
-                "num_sms": 0,
-                "num_img": 0,
-                "num_vcf": 0,
-                "num_calls": 0,
-                "num_voicemails": 0,
-            }
-
-        file_info = self.conversation_files[conversation_id]
-
-        # Store message with pre-extracted content for HTML output
-        message_data = {
-            "text": message_text,
-            "attachments": attachments,
-            "raw_content": None,  # Not needed for HTML output
-        }
-        file_info["messages"].append((timestamp, message_data))
-        file_info["buffer_size"] += len(message_text)
-
-        # Flush buffer if it gets too large
-        if file_info["buffer_size"] > file_info["max_buffer_size"]:
-            file_info["file"].flush()
-            file_info["buffer_size"] = 0
+            # Flush buffer if it gets too large
+            if file_info["buffer_size"] > file_info["max_buffer_size"]:
+                file_info["file"].flush()
+                file_info["buffer_size"] = 0
 
     def finalize_conversation_files(self):
         """Finalize all conversation files by writing headers and closing tags."""
-        for conversation_id, file_info in self.conversation_files.items():
-            try:
-                # Sort messages by timestamp (using tuple unpacking for better performance)
-                sorted_messages = sorted(file_info["messages"], key=lambda x: x[0])
+        with self._lock:
+            for conversation_id, file_info in self.conversation_files.items():
+                try:
+                    # Sort messages by timestamp (using tuple unpacking for better performance)
+                    sorted_messages = sorted(file_info["messages"], key=lambda x: x[0])
 
-                if self.output_format == "xml":
-                    self._finalize_xml_file(file_info, sorted_messages, conversation_id)
-                elif self.output_format == "html":
-                    self._finalize_html_file(
-                        file_info, sorted_messages, conversation_id
+                    if self.output_format == "xml":
+                        self._finalize_xml_file(file_info, sorted_messages, conversation_id)
+                    elif self.output_format == "html":
+                        self._finalize_html_file(
+                            file_info, sorted_messages, conversation_id
+                        )
+                    else:
+                        logger.error(f"Unknown output format: {self.output_format}")
+                        continue
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to finalize conversation file {conversation_id}: {e}"
                     )
-                else:
-                    logger.error(f"Unknown output format: {self.output_format}")
-                    continue
+                    if "file" in file_info:
+                        file_info["file"].close()
 
-            except Exception as e:
-                logger.error(
-                    f"Failed to finalize conversation file {conversation_id}: {e}"
-                )
-                if "file" in file_info:
-                    file_info["file"].close()
-
-        # Clear the conversation files dictionary
-        self.conversation_files.clear()
+            # Clear the conversation files dictionary
+            self.conversation_files.clear()
 
     def generate_index_html(self, stats: Dict[str, int], elapsed_time: float):
         """Generate an index.html file with summary stats and conversation file links."""
@@ -2482,8 +2490,9 @@ def build_attachment_mapping_cached() -> Dict[str, str]:
         dict: Mapping from src elements to attachment filenames
     """
     try:
-        src_elements = extract_src(".")
-        att_filenames = list_att_filenames(".")
+        # Use the configured processing directory for both scans
+        src_elements = extract_src(str(PROCESSING_DIRECTORY))
+        att_filenames = list_att_filenames(str(PROCESSING_DIRECTORY))
         return src_to_filename_mapping(src_elements, att_filenames)
     except Exception as e:
         logger.warning(f"Failed to build attachment mapping: {e}")
