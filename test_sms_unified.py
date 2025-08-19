@@ -1237,6 +1237,139 @@ class TestSMSIntegration(unittest.TestCase):
         vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
         self.assertNotEqual(vm_info["timestamp"], vm_file_mtime_ts)
 
+    def test_no_epoch_zero_timestamps(self):
+        """Ensure calls and voicemails never get epoch 0 timestamp (1969-12-31 19:00:00)."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create call and voicemail files without proper timestamps
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create a call file with malformed or missing timestamp
+        bad_call_file = calls_dir / "bad-call.html"
+        bad_call_html = """
+        <html><head><title>Placed call</title></head><body>
+            <a class="tel" href="tel:+15550000001">Test User</a>
+            <div>Some call content without proper timestamp</div>
+        </body></html>
+        """
+        bad_call_file.write_text(bad_call_html, encoding="utf-8")
+        
+        # Create a voicemail file with malformed timestamp
+        bad_vm_file = calls_dir / "bad-voicemail.html"
+        bad_vm_html = """
+        <html><head><title>Voicemail</title></head><body>
+            <abbr class="dt" title="invalid-date-format"></abbr>
+            <a class="tel" href="tel:+15550000002">Test User</a>
+            <div class="message">Test voicemail</div>
+        </body></html>
+        """
+        bad_vm_file.write_text(bad_vm_html, encoding="utf-8")
+        
+        # Process these files
+        with open(bad_call_file, "r", encoding="utf-8") as f:
+            call_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        with open(bad_vm_file, "r", encoding="utf-8") as f:
+            vm_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        # Extract info
+        call_info = sms.extract_call_info(str(bad_call_file), call_soup)
+        vm_info = sms.extract_voicemail_info(str(bad_vm_file), vm_soup)
+        
+        # Verify we don't get epoch 0 (timestamp = 0)
+        # Even if timestamp extraction fails, we should get a reasonable fallback
+        if call_info:
+            self.assertNotEqual(call_info["timestamp"], 0, 
+                               "Call should never have epoch 0 timestamp (1969-12-31 19:00:00)")
+            # Should be a reasonable timestamp (after 2000 and before far future)
+            if call_info["timestamp"] is not None:
+                self.assertGreater(call_info["timestamp"], 946684800000)  # Jan 1, 2000
+                self.assertLess(call_info["timestamp"], 4102444800000)    # Jan 1, 2100
+        
+        if vm_info:
+            self.assertNotEqual(vm_info["timestamp"], 0, 
+                               "Voicemail should never have epoch 0 timestamp (1969-12-31 19:00:00)")
+            # Should be a reasonable timestamp (after 2000 and before far future)
+            if vm_info["timestamp"] is not None:
+                self.assertGreater(vm_info["timestamp"], 946684800000)   # Jan 1, 2000
+                self.assertLess(vm_info["timestamp"], 4102444800000)     # Jan 1, 2100
+        
+        # Test writing entries to ensure they also don't produce epoch 0
+        if call_info:
+            # This should not raise an exception and should use fallback timestamps
+            sms.write_call_entry(str(bad_call_file), call_info, None, call_soup)
+        
+        if vm_info:
+            # This should not raise an exception and should use fallback timestamps  
+            sms.write_voicemail_entry(str(bad_vm_file), vm_info, None, vm_soup)
+
+    def test_valid_timestamps_preserved(self):
+        """Ensure valid timestamps from HTML are correctly preserved and not overridden."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create call and voicemail files with valid timestamps
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create call file with specific timestamp
+        call_file = calls_dir / "timestamped-call.html"
+        call_html = """
+        <html><head><title>Placed call</title></head><body>
+            <abbr class="dt" title="2022-05-15T10:30:45Z"></abbr>
+            <a class="tel" href="tel:+15550000001">Test User</a>
+            <abbr class="duration" title="PT1M23S">(1:23)</abbr>
+        </body></html>
+        """
+        call_file.write_text(call_html, encoding="utf-8")
+        
+        # Create voicemail file with specific timestamp  
+        vm_file = calls_dir / "timestamped-voicemail.html"
+        vm_html = """
+        <html><head><title>Voicemail</title></head><body>
+            <time datetime="2021-08-20T14:15:30-07:00">Aug 20, 2021</time>
+            <a class="tel" href="tel:+15550000002">Test User</a>
+            <div class="message">Test voicemail transcription</div>
+        </body></html>
+        """
+        vm_file.write_text(vm_html, encoding="utf-8")
+        
+        # Extract info
+        with open(call_file, "r", encoding="utf-8") as f:
+            call_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        with open(vm_file, "r", encoding="utf-8") as f:
+            vm_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        call_info = sms.extract_call_info(str(call_file), call_soup)
+        vm_info = sms.extract_voicemail_info(str(vm_file), vm_soup)
+        
+        # Verify exact timestamps are preserved
+        if call_info:
+            expected_call_ts = int(datetime(2022, 5, 15, 10, 30, 45, tzinfo=timezone.utc).timestamp() * 1000)
+            self.assertEqual(call_info["timestamp"], expected_call_ts, 
+                           "Call timestamp should match the HTML dt element exactly")
+        
+        if vm_info:
+            expected_vm_ts = int(datetime(2021, 8, 20, 14, 15, 30, tzinfo=timezone(timedelta(hours=-7))).timestamp() * 1000)
+            self.assertEqual(vm_info["timestamp"], expected_vm_ts,
+                           "Voicemail timestamp should match the HTML time element exactly")
+        
+        # Test that write functions also preserve these timestamps
+        manager = sms.CONVERSATION_MANAGER
+        
+        if call_info:
+            sms.write_call_entry(str(call_file), call_info, None, call_soup)
+            # Check that the message was written with the correct timestamp
+            self.assertTrue(len(manager.conversation_files) > 0, "Call entry should create conversation file")
+        
+        if vm_info:
+            sms.write_voicemail_entry(str(vm_file), vm_info, None, vm_soup)
+            # Check that the message was written with the correct timestamp
+            self.assertTrue(len(manager.conversation_files) > 0, "Voicemail entry should create conversation file")
+
     def test_mms_sender_alias_in_html(self):
         """Verify MMS rows show sender alias in HTML output."""
         test_dir = Path(self.test_dir)

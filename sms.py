@@ -5417,9 +5417,7 @@ def extract_call_info(
 
         # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)
-        if timestamp is None:
-            # No timestamp found in HTML - use 0 to indicate missing data
-            timestamp = 0
+        # Note: Keep timestamp as None if extraction fails - will be handled in write functions
 
         # Extract duration if available
         duration = extract_duration_from_call(soup)
@@ -5449,9 +5447,7 @@ def extract_voicemail_info(
 
         # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)  # Reuse call timestamp extraction
-        if timestamp is None:
-            # No timestamp found in HTML - use 0 to indicate missing data
-            timestamp = 0
+        # Note: Keep timestamp as None if extraction fails - will be handled in write functions
 
         # Extract voicemail transcription if available
         transcription = extract_voicemail_transcription(soup)
@@ -5675,13 +5671,17 @@ def write_call_entry(
                 with open(file_path, "r", encoding="utf-8") as f:
                     soup2 = BeautifulSoup(f.read(), "html.parser")
                 call_ts = extract_timestamp_from_call(soup2)
+                if call_ts is None:
+                    # If still no timestamp, use file modification time as last resort
+                    call_ts = int(file_path.stat().st_mtime * 1000)
             except Exception:
-                call_ts = 0
+                # If all else fails, use current time
+                call_ts = int(time.time() * 1000)
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message
             "message": message_text,
-            "time": call_ts or 0,
+            "time": call_ts,
         }
 
         # Format SMS XML
@@ -5699,13 +5699,13 @@ def write_call_entry(
                 conversation_id,
                 message_text,
                 attachments,
-                call_ts or 0,
+                call_ts,
                 sender=alias,
             )
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, call_ts or 0
+                conversation_id, sms_text, call_ts
             )
 
         # Update conversation statistics
@@ -5868,13 +5868,17 @@ def write_voicemail_entry(
                 with open(file_path, "r", encoding="utf-8") as f:
                     soup2 = BeautifulSoup(f.read(), "html.parser")
                 vm_ts = extract_timestamp_from_call(soup2)
+                if vm_ts is None:
+                    # If still no timestamp, use file modification time as last resort
+                    vm_ts = int(file_path.stat().st_mtime * 1000)
             except Exception:
-                vm_ts = 0
+                # If all else fails, use current time
+                vm_ts = int(time.time() * 1000)
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message
             "message": message_text,
-            "time": vm_ts or 0,
+            "time": vm_ts,
         }
 
         # Format SMS XML
@@ -5894,13 +5898,13 @@ def write_voicemail_entry(
                 conversation_id,
                 message_text,
                 attachments,
-                vm_ts or 0,
+                vm_ts,
                 sender=alias,
             )
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, vm_ts or 0
+                conversation_id, sms_text, vm_ts
             )
 
         # Update conversation statistics
