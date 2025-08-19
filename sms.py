@@ -4930,6 +4930,7 @@ class StringPool:
         "vcard_links": "a.vcard[href]",
         "fn_elements": "span.fn, abbr.fn, div.fn",
         "dt_elements": "abbr.dt",
+        "published_elements": "abbr.published",  # For call/voicemail timestamps
         "time_elements": "time[datetime], span[datetime]",
         "duration_elements": "abbr.duration",
         "transcription_elements": ".message",
@@ -5527,7 +5528,22 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
     """Extract timestamp from call/voicemail HTML."""
     try:
         # Look for timestamp in various formats - use cached selectors for performance
-        # Try to find abbr elements with datetime
+        # First, try to find published elements (this is where call/voicemail timestamps are stored)
+        published_elements = soup.select(STRING_POOL.CSS_SELECTORS["published_elements"])
+        for element in published_elements:
+            datetime_attr = element.get("title", "")
+            if datetime_attr:
+                try:
+                    # Parse ISO format datetime; fall back to dateutil for robustness
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
+                    except Exception:
+                        dt = dateutil.parser.parse(datetime_attr)
+                    return int(dt.timestamp() * 1000)  # Convert to milliseconds
+                except Exception:
+                    continue
+
+        # Try to find abbr elements with datetime (fallback)
         time_elements = soup.select(STRING_POOL.CSS_SELECTORS["dt_elements"])
         for element in time_elements:
             datetime_attr = element.get("title", "")

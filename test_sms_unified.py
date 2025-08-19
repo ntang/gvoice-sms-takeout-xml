@@ -21,6 +21,7 @@ import shutil
 import os
 import sys
 import argparse
+import time
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import phonenumbers
@@ -1178,10 +1179,10 @@ class TestSMSIntegration(unittest.TestCase):
         calls_dir.mkdir(parents=True, exist_ok=True)
         call_file = calls_dir / "test-call-2020.html"
         
-        # HTML with timestamp from 2020
+        # HTML with timestamp from 2020 - using published class like real Google Voice data
         call_html = """
         <html><head><title>Placed call</title></head><body>
-            <abbr class="dt" title="2020-06-15T14:30:00Z"></abbr>
+            <abbr class="published" title="2020-06-15T14:30:00.000-04:00">Jun 15, 2020</abbr>
             <a class="tel" href="tel:+15550000001">Test User</a>
             <abbr class="duration" title="PT2M30S">(2:30)</abbr>
         </body></html>
@@ -1204,7 +1205,7 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertEqual(call_info["phone_number"], "+15550000001")
         
         # Timestamp should be from 2020, not current time
-        expected_ts = int(datetime(2020, 6, 15, 14, 30, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        expected_ts = int(datetime(2020, 6, 15, 14, 30, 0, tzinfo=timezone(timedelta(hours=-4))).timestamp() * 1000)
         self.assertEqual(call_info["timestamp"], expected_ts)
         
         # Verify file mtime is different (should be current time)
@@ -1236,6 +1237,55 @@ class TestSMSIntegration(unittest.TestCase):
         # Verify it's not using file mtime
         vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
         self.assertNotEqual(vm_info["timestamp"], vm_file_mtime_ts)
+
+    def test_published_timestamp_extraction(self):
+        """Test that published timestamps are correctly extracted from call/voicemail HTML."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create a voicemail file with the exact structure from real Google Voice data
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        
+        vm_file = calls_dir / "real-voicemail.html"
+        vm_html = '''<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Voicemail from Charles Tang</title>
+</head>
+<body>
+<div class="haudio">
+<span class="fn">Voicemail from Charles Tang</span>
+<div class="contributor vcard">Voicemail from
+<a class="tel" href="tel:+17184080080"><span class="fn">Charles Tang</span></a></div>
+<abbr class="published" title="2011-02-26T15:19:40.000-05:00">Feb 26, 2011, 3:19:40 PM Eastern Time</abbr>
+<span class="description"><span class="full-text">Test voicemail message</span></span>
+</div>
+</body>
+</html>'''
+        vm_file.write_text(vm_html, encoding="utf-8")
+        
+        # Extract timestamp directly
+        with open(vm_file, "r", encoding="utf-8") as f:
+            vm_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        timestamp = sms.extract_timestamp_from_call(vm_soup)
+        
+        # Verify the timestamp matches the published element
+        expected_ts = int(datetime(2011, 2, 26, 15, 19, 40, tzinfo=timezone(timedelta(hours=-5))).timestamp() * 1000)
+        self.assertEqual(timestamp, expected_ts, 
+                       "Should extract timestamp from abbr.published element")
+        
+        # Test that it's not using script execution time
+        current_time = int(time.time() * 1000)
+        self.assertNotEqual(timestamp, current_time, 
+                           "Timestamp should not be current script execution time")
+        
+        # Test that it's not using file modification time
+        vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
+        self.assertNotEqual(timestamp, vm_file_mtime_ts,
+                           "Timestamp should not be file modification time")
 
     def test_no_epoch_zero_timestamps(self):
         """Ensure calls and voicemails never get epoch 0 timestamp (1969-12-31 19:00:00)."""
