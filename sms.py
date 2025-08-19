@@ -91,23 +91,23 @@ def set_test_mode(enabled: bool, limit: int = 100):
 TEST_MODE = False
 TEST_LIMIT = 100
 
-# Performance configuration
+# Performance configuration - Optimized for large datasets by default
 ENABLE_BATCH_PROCESSING = True
-LARGE_DATASET_THRESHOLD = 1000  # Files
-BATCH_SIZE_OPTIMAL = 200  # Files per batch
-BUFFER_SIZE_OPTIMAL = 16384  # Bytes (16KB)
+LARGE_DATASET_THRESHOLD = 5000  # Files (increased for better large dataset handling)
+BATCH_SIZE_OPTIMAL = 1000  # Files per batch (increased for better efficiency)
+BUFFER_SIZE_OPTIMAL = 32768  # Bytes (32KB - increased for better I/O performance)
 
-# Advanced performance configuration for large datasets (10,000+ files)
+# Advanced performance configuration for large datasets (50,000+ files) - High performance defaults
 ENABLE_PARALLEL_PROCESSING = True
-MAX_WORKERS = min(12, os.cpu_count() or 6)  # Limit to 12 workers max for better parallelization
-CHUNK_SIZE_OPTIMAL = 750  # Files per chunk for parallel processing (optimized for better efficiency)
-MEMORY_EFFICIENT_THRESHOLD = 5000  # Switch to memory-efficient mode above this
+MAX_WORKERS = min(16, os.cpu_count() or 8)  # Increased to 16 workers max for better parallelization
+CHUNK_SIZE_OPTIMAL = 1000  # Files per chunk for parallel processing (optimized for large datasets)
+MEMORY_EFFICIENT_THRESHOLD = 10000  # Increased threshold for memory-efficient mode
 ENABLE_STREAMING_PARSING = True  # Use streaming for very large files
-STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
+STREAMING_CHUNK_SIZE = 2 * 1024 * 1024  # 2MB chunks for streaming (increased for better performance)
 
-# File I/O optimization
-FILE_READ_BUFFER_SIZE = 131072  # 128KB buffer for file reading
-# Default to buffered I/O; memory mapping can be enabled via CLI option
+# File I/O optimization - High performance defaults
+FILE_READ_BUFFER_SIZE = 262144  # 256KB buffer for file reading (doubled for better performance)
+# Memory mapping enabled by default for better performance on large files
 ENABLE_MMAP_FOR_LARGE_FILES = True  # Use memory mapping for files > 5MB
 MMAP_THRESHOLD = 5 * 1024 * 1024  # 5MB threshold for mmap
 
@@ -3148,6 +3148,7 @@ def write_sms_messages(
                             break
                 except Exception:
                     pass
+            chunk = future_to_chunk[future]
             # Fallback 2: parse the source HTML file for any tel: numbers
             if not is_valid_phone_number(phone_number):
                 try:
@@ -5924,10 +5925,10 @@ if __name__ == "__main__":
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
-  # Process files in default directory (../gvoice-convert/)
+  # Process files in default directory (../gvoice-convert/) with high-performance defaults
   python sms.py
 
-  # Process files in specified directory
+  # Process files in specified directory with high-performance defaults
   python sms.py /path/to/gvoice/data
 
   # Process files with verbose logging
@@ -5942,16 +5943,16 @@ Examples:
   # Process files with phone number alias prompts (interactive)
   python sms.py /path/to/gvoice/data --phone-prompts
 
-  # Process files with custom performance settings
-  python sms.py /path/to/gvoice/data --buffer-size 16384 --cache-size 50000
+  # Process files with custom performance settings (overriding high-performance defaults)
+  python sms.py /path/to/gvoice/data --buffer-size 16384 --cache-size 25000
 
-  # Process large datasets with optimized settings
+  # Process large datasets with optimized settings (using high-performance defaults)
   python sms.py /path/to/gvoice/data --large-dataset --batch-size 2000
 
-  # Performance tuning for large datasets (50,000+ entries)
+  # Performance tuning for large datasets (50,000+ entries) - using high-performance defaults
   python sms.py /path/to/gvoice/data --workers 16 --chunk-size 1000 --enable-mmap
 
-  # Memory-efficient processing for very large datasets
+  # Memory-efficient processing for very large datasets (overriding high-performance defaults)
   python sms.py /path/to/gvoice/data --memory-efficient --buffer-size 256
 
   # Test mode with limited processing (default: 100 entries, auto-enables debug + strict mode)
@@ -5966,8 +5967,8 @@ Examples:
   # Full run mode (process all entries)
   python sms.py /path/to/gvoice/data --full-run
 
-  # Output in HTML format instead of XML
-  python sms.py /path/to/gvoice/data --output-format html
+  # Output in XML format instead of HTML (HTML is now default)
+  python sms.py /path/to/gvoice/data --output-format xml
 
   # Enable strict parameter validation (catches errors early)
   python sms.py /path/to/gvoice/data --strict-mode
@@ -5986,16 +5987,17 @@ Directory Structure:
 
 Output:
   - Creates a 'conversations' subdirectory in the processing directory
-  - Generates separate XML or HTML files for each sender/group conversation
+  - Generates separate HTML or XML files for each sender/group conversation (HTML is default)
   - Messages are sorted chronologically within each conversation file
+  - HTML output: Human-readable table format with styling and attachment indicators (default)
   - XML output: Standard SMS backup format compatible with SMS backup apps
-  - HTML output: Human-readable table format with styling and attachment indicators
   - Phone numbers are mapped to user-friendly aliases (phone prompts disabled by default)
-  - Optimized file I/O with configurable buffer sizes
-  - Enhanced caching for improved performance
-  - Batch processing for large datasets (50,000+ messages)
+  - High-performance defaults optimized for large datasets (50,000+ messages)
+  - Optimized file I/O with large buffer sizes (32KB default)
+  - Enhanced caching with large cache sizes (50,000 default)
+  - Batch processing optimized for large datasets (1,000 default)
   - Memory-efficient data structures and string pooling
-  - Optimized parallel processing with configurable workers and chunk sizes
+  - Optimized parallel processing with increased workers (16 max) and chunk sizes (1,000 default)
   - Smart memory mapping for large files (>5MB) with fallback to buffered I/O
   - String pooling reduces memory allocations and garbage collection pressure
   - Test mode enabled by default (processes 100 entries for safety)
@@ -6113,22 +6115,22 @@ Output:
         parser.add_argument(
             "--buffer-size",
             type=int,
-            default=8192,
-            help="File I/O buffer size in bytes (default: 8192)",
+            default=32768,
+            help="File I/O buffer size in bytes (default: 32768 - optimized for large datasets)",
         )
 
         parser.add_argument(
             "--cache-size",
             type=int,
-            default=25000,
-            help="LRU cache size for performance optimization (default: 25000)",
+            default=50000,
+            help="LRU cache size for performance optimization (default: 50000 - optimized for large datasets)",
         )
 
         parser.add_argument(
             "--batch-size",
             type=int,
             default=1000,
-            help="Batch size for processing large datasets (default: 1000)",
+            help="Batch size for processing large datasets (default: 1000 - optimized for large datasets)",
         )
 
         parser.add_argument(
@@ -6160,8 +6162,8 @@ Output:
             "--output-format",
             "-f",
             choices=["xml", "html"],
-            default="xml",
-            help="Output format for conversation files: xml (default) or html",
+            default="html",
+            help="Output format for conversation files: html (default) or xml",
         )
 
         args = parser.parse_args()
@@ -6244,8 +6246,8 @@ Output:
             enable_phone_prompts,
             args.buffer_size,
             args.batch_size,
-            25000,
-            False,  # cache_size and large_dataset with defaults
+            args.cache_size,  # Use the new high-performance default (50000)
+            False,  # large_dataset with defaults
             args.output_format,
         )
 
@@ -6272,7 +6274,7 @@ Output:
             logger.info("Parallel processing disabled")
 
         if args.workers != MAX_WORKERS:
-            MAX_WORKERS = max(1, min(args.workers, 16))  # Limit to 1-16 workers
+            MAX_WORKERS = max(1, min(args.workers, 20))  # Limit to 1-20 workers (increased for high performance)
             logger.info(f"Parallel workers set to: {MAX_WORKERS}")
 
         if args.chunk_size != CHUNK_SIZE_OPTIMAL:
