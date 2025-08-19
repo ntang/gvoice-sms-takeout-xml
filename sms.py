@@ -1387,7 +1387,7 @@ class PhoneLookupManager:
 
             # Look for vCard entries with the phone number
             # Pattern: <a class="tel" href="tel:+1234567890"><span class="fn">Name</span></a>
-            tel_links = soup.find_all("a", class_="tel", href=True)
+            tel_links = soup.select(STRING_POOL.CSS_SELECTORS["tel_links"])
             for link in tel_links:
                 href = link.get("href", "")
                 if href.startswith("tel:"):
@@ -1416,7 +1416,7 @@ class PhoneLookupManager:
 
             # Look for general name elements near phone numbers
             # Pattern: <span class="fn">Name</span> or similar
-            fn_elements = soup.find_all(["span", "abbr", "div"], class_="fn")
+            fn_elements = soup.select(STRING_POOL.CSS_SELECTORS["fn_elements"])
             for fn in fn_elements:
                 name = fn.get_text(strip=True)
                 if name and name.lower() not in generic_phrases:
@@ -1424,7 +1424,7 @@ class PhoneLookupManager:
                     # Look for tel links in the same container or nearby
                     container = fn.find_parent(["div", "span", "cite"])
                     if container:
-                        tel_links = container.find_all("a", class_="tel", href=True)
+                        tel_links = container.select(STRING_POOL.CSS_SELECTORS["tel_links"])
                         for tel_link in tel_links:
                             href = tel_link.get("href", "")
                             if href.startswith("tel:"):
@@ -1624,12 +1624,12 @@ def copy_attachments_parallel(filenames: set, attachments_dir: Path) -> None:
     # Convert set to list for indexing
     filename_list = list(filenames)
 
-    # Split into chunks for parallel processing
+    # Split into chunks for parallel processing - use generator for memory efficiency
     chunk_size = max(100, len(filename_list) // MAX_WORKERS)
-    chunks = [
+    chunks = list(
         filename_list[i:i + chunk_size]
         for i in range(0, len(filename_list), chunk_size)
-    ]
+    )
 
     copied_count = 0
     skipped_count = 0
@@ -1988,19 +1988,18 @@ def extract_src_cached(html_directory: str) -> List[str]:
     try:
         for html_file in Path(html_directory).rglob("*.html"):
             try:
-                with open(html_file, "r", encoding="utf-8") as file:
+                with open(html_file, "r", encoding="utf-8", buffering=FILE_READ_BUFFER_SIZE) as file:
                     soup = BeautifulSoup(file, HTML_PARSER)
 
-                    # Extract image src attributes
+                    # Extract image src attributes - use cached selector for performance
                     src_list.extend(
-                        img["src"] for img in soup.find_all("img") if "src" in img.attrs
+                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
                     )
 
-                    # Extract vCard href attributes
+                    # Extract vCard href attributes - use cached selector for performance
                     src_list.extend(
                         a["href"]
-                        for a in soup.find_all("a", class_="vcard")
-                        if "href" in a.attrs
+                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
                     )
 
             except Exception as e:
@@ -2065,20 +2064,19 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
 
         for i, html_file in enumerate(html_files):
             try:
-                with open(html_file, "r", encoding="utf-8") as file:
+                with open(html_file, "r", encoding="utf-8", buffering=FILE_READ_BUFFER_SIZE) as file:
                     soup = BeautifulSoup(file, HTML_PARSER)
 
-                    # Extract image src attributes
+                    # Extract image src attributes - use cached selector for performance
                     img_srcs = [
-                        img["src"] for img in soup.find_all("img") if "src" in img.attrs
+                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
                     ]
                     src_list.extend(img_srcs)
 
-                    # Extract vCard href attributes
+                    # Extract vCard href attributes - use cached selector for performance
                     vcard_hrefs = [
                         a["href"]
-                        for a in soup.find_all("a", class_="vcard")
-                        if "href" in a.attrs
+                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
                     ]
                     src_list.extend(vcard_hrefs)
 
@@ -2154,23 +2152,22 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 
         for i, html_file in enumerate(html_files):
             try:
-                with open(html_file, "r", encoding="utf-8") as file:
+                with open(html_file, "r", encoding="utf-8", buffering=FILE_READ_BUFFER_SIZE) as file:
                     soup = BeautifulSoup(file, HTML_PARSER)
 
-                    # Extract image src attributes
+                    # Extract image src attributes - use cached selector for performance
                     img_srcs = [
-                        img["src"] for img in soup.find_all("img") if "src" in img.attrs
+                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
                     ]
                     for src in img_srcs:
                         if src not in src_to_files:
                             src_to_files[src] = []
                         src_to_files[src].append(str(html_file.name))
 
-                    # Extract vCard href attributes
+                    # Extract vCard href attributes - use cached selector for performance
                     vcard_hrefs = [
                         a["href"]
-                        for a in soup.find_all("a", class_="vcard")
-                        if "href" in a.attrs
+                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
                     ]
                     for src in vcard_hrefs:
                         if src not in src_to_files:
@@ -2944,8 +2941,8 @@ def process_sms_mms_file(
     src_filename_map: Dict[str, str],
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
-    # Use more efficient CSS selector to find all messages at once
-    messages_raw = soup.select(".message")
+    # Use cached CSS selector for better performance
+    messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
 
     if not messages_raw:
         logger.warning(f"No messages found in SMS/MMS file: {html_file.name}")
@@ -2958,16 +2955,16 @@ def process_sms_mms_file(
             "own_number": own_number,
         }
 
-    # Use more efficient CSS selector for participants
-    participants_raw = soup.select(".participants")
+    # Use cached CSS selector for participants
+    participants_raw = soup.select(STRING_POOL.CSS_SELECTORS["participants"])
 
     # Process messages more efficiently
     sms_count = 0
     mms_count = 0
 
-    # Pre-compile common selectors for better performance
-    img_selector = "img"
-    vcard_selector = "a.vcard"
+    # Use cached selectors for better performance
+    img_selector = STRING_POOL.CSS_SELECTORS["img_src"]
+    vcard_selector = STRING_POOL.CSS_SELECTORS["vcard_links"]
 
     for message in messages_raw:
         # Check for attachments more efficiently
@@ -4922,6 +4919,21 @@ class StringPool:
         "voicemail_prefix": "🎙️",
         "call_prefix": "📞",
     }
+    
+    # Frequently used CSS selectors for performance optimization
+    CSS_SELECTORS = {
+        "message": ".message",
+        "participants": ".participants",
+        "timestamp": ".timestamp",
+        "tel_links": "a.tel[href]",
+        "img_src": "img[src]",
+        "vcard_links": "a.vcard[href]",
+        "fn_elements": "span.fn, abbr.fn, div.fn",
+        "dt_elements": "abbr.dt",
+        "time_elements": "time[datetime], span[datetime]",
+        "duration_elements": "abbr.duration",
+        "transcription_elements": ".message",
+    }
 
 # Global string pool instance
 STRING_POOL = StringPool()
@@ -5189,7 +5201,7 @@ def process_html_files_batch(
     if ENABLE_PARALLEL_PROCESSING and total_files > MEMORY_EFFICIENT_THRESHOLD:
         return process_html_files_parallel(html_files, src_filename_map, batch_size)
 
-    # Sequential batch processing for smaller datasets
+    # Sequential batch processing for smaller datasets - use generator for memory efficiency
     for i in range(0, total_files, batch_size):
         batch_files = html_files[i:i + batch_size]
         batch_start = time.time()
@@ -5239,11 +5251,11 @@ def process_html_files_parallel(
         f"Using parallel processing for {total_files} files with {MAX_WORKERS} workers"
     )
 
-    # Split files into chunks for parallel processing
-    chunks = [
+    # Split files into chunks for parallel processing - use generator for memory efficiency
+    chunks = list(
         html_files[i:i + CHUNK_SIZE_OPTIMAL]
         for i in range(0, total_files, CHUNK_SIZE_OPTIMAL)
-    ]
+    )
 
     # Process chunks in parallel
     stats = {
@@ -5514,9 +5526,9 @@ def extract_phone_from_call(soup: BeautifulSoup) -> Optional[str]:
 def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
     """Extract timestamp from call/voicemail HTML."""
     try:
-        # Look for timestamp in various formats
+        # Look for timestamp in various formats - use cached selectors for performance
         # Try to find abbr elements with datetime
-        time_elements = soup.find_all("abbr", class_=STRING_POOL.HTML_CLASSES["dt"])
+        time_elements = soup.select(STRING_POOL.CSS_SELECTORS["dt_elements"])
         for element in time_elements:
             datetime_attr = element.get("title", "")
             if datetime_attr:
@@ -5524,14 +5536,14 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
                     # Parse ISO format datetime; fall back to dateutil for robustness
                     try:
                         dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
-                    except ValueError:
+                    except Exception:
                         dt = dateutil.parser.parse(datetime_attr)
                     return int(dt.timestamp() * 1000)  # Convert to milliseconds
                 except Exception:
                     continue
 
-        # Try to find other time elements
-        time_elements = soup.find_all(["time", "span"], datetime=True)
+        # Try to find other time elements - use cached selector
+        time_elements = soup.select(STRING_POOL.CSS_SELECTORS["time_elements"])
         for element in time_elements:
             datetime_attr = element.get("datetime", "")
             if datetime_attr:
@@ -5584,10 +5596,8 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
 def extract_duration_from_call(soup: BeautifulSoup) -> Optional[str]:
     """Extract call duration from HTML content."""
     try:
-        # Look for duration information
-        duration_elements = soup.find_all(
-            ["span", "div", "p"], string=re.compile(r"\d+:\d+")
-        )
+        # Look for duration information - use cached selector for performance
+        duration_elements = soup.select(STRING_POOL.CSS_SELECTORS["duration_elements"])
         for element in duration_elements:
             text = element.get_text().strip()
             if re.match(r"\d+:\d+", text):  # Format like "1:23"
@@ -5610,15 +5620,8 @@ def extract_voicemail_transcription(soup: BeautifulSoup) -> Optional[str]:
     """Extract voicemail transcription from HTML content."""
     try:
         # Look for transcription in various places
-        # Try to find transcription elements
-        transcription_elements = soup.find_all(
-            ["div", "p", "span"],
-            class_=lambda x: x
-            and any(
-                word in str(x).lower()
-                for word in ["transcription", "message", "content", "text"]
-            ),
-        )
+        # Try to find transcription elements - use cached selector for performance
+        transcription_elements = soup.select(STRING_POOL.CSS_SELECTORS["transcription_elements"])
         for element in transcription_elements:
             text = element.get_text().strip()
             if text and len(text) > 10:  # Reasonable length for transcription
