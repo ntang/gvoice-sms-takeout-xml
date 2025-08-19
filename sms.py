@@ -106,7 +106,7 @@ ENABLE_STREAMING_PARSING = True  # Use streaming for very large files
 STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
 
 # File I/O optimization
-FILE_READ_BUFFER_SIZE = 32768  # 32KB buffer for file reading
+FILE_READ_BUFFER_SIZE = 131072  # 128KB buffer for file reading
 # Default to buffered I/O; memory mapping can be enabled via CLI option
 ENABLE_MMAP_FOR_LARGE_FILES = False  # Use memory mapping for files > 10MB
 MMAP_THRESHOLD = 10 * 1024 * 1024  # 10MB threshold for mmap
@@ -525,7 +525,12 @@ class ConversationManager:
                 file_info["buffer_size"] = 0
 
     def write_message_with_content(
-        self, conversation_id: str, message_text: str, attachments: list, timestamp: int
+        self,
+        conversation_id: str,
+        message_text: str,
+        attachments: list,
+        timestamp: int,
+        sender: Optional[str] = None,
     ):
         """Write a message with pre-extracted text and attachment information for HTML output."""
         with self._lock:
@@ -559,6 +564,7 @@ class ConversationManager:
             message_data = {
                 "text": message_text,
                 "attachments": attachments,
+                "sender": sender or "-",
                 "raw_content": None,  # Not needed for HTML output
             }
             file_info["messages"].append((timestamp, message_data))
@@ -871,14 +877,23 @@ class ConversationManager:
     def _extract_conversation_stats(
         self, file_path: Path
     ) -> Dict[str, Union[int, str]]:
-        """Extract statistics from a conversation HTML file."""
+        """Extract statistics from a conversation file (HTML or XML)."""
         try:
-            # Read the HTML file
+            # Read the file
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Parse with BeautifulSoup
-            soup = BeautifulSoup(content, "html.parser")
+            # Determine parser based on file extension
+            if file_path.suffix.lower() == ".xml":
+                # Try to use XML parser for XML files to avoid warnings
+                try:
+                    soup = BeautifulSoup(content, "xml")
+                except Exception:
+                    # Fall back to HTML parser if XML parser is not available
+                    soup = BeautifulSoup(content, "html.parser")
+            else:
+                # Use HTML parser for HTML files
+                soup = BeautifulSoup(content, "html.parser")
 
             # Initialize counters
             sms_count = 0
@@ -1049,6 +1064,7 @@ class ConversationManager:
         builder.append_line("        <thead>")
         builder.append_line("            <tr>")
         builder.append_line("                <th>Timestamp</th>")
+        builder.append_line("                <th>Sender</th>")
         builder.append_line("                <th>Message</th>")
         builder.append_line("                <th>Attachments</th>")
         builder.append_line("            </tr>")
@@ -1066,11 +1082,14 @@ class ConversationManager:
                     attachments = " ".join(message_content["attachments"])
                 else:
                     attachments = "-"
+                sender_display = message_content.get("sender", "-")
             else:
                 # Old format: raw XML content - extract message text and attachments
                 message_text, attachments = self._extract_message_content(
                     message_content
                 )
+                # Best-effort sender extraction from raw content
+                sender_display = self._extract_sender_from_raw(message_content)
 
             # Format timestamp
             formatted_time = self._format_timestamp(timestamp)
@@ -1079,6 +1098,9 @@ class ConversationManager:
             builder.append_line("            <tr>")
             builder.append_line(
                 f"                <td class='timestamp'>{formatted_time}</td>"
+            )
+            builder.append_line(
+                f"                <td class='sender'>{sender_display}</td>"
             )
             builder.append_line(
                 f"                <td class='message'>{message_text}</td>"
@@ -1184,6 +1206,22 @@ class ConversationManager:
         except Exception as e:
             logger.warning(f"Failed to extract message content: {e}")
             return "[Error parsing message]", "-"
+
+    def _extract_sender_from_raw(self, message_content: str) -> str:
+        """Best-effort sender extraction from raw XML/HTML content for legacy writes."""
+        try:
+            # Look for addr entries in MMS XML
+            m = re.search(r'<addr[^>]*address="([^"]+)"[^>]*type="137"', message_content)
+            if m:
+                return m.group(1)
+            # Look for tel: links
+            m = TEL_HREF_PATTERN.search(message_content)
+            if m:
+                return m.group(1)
+            # Fallback
+            return "-"
+        except Exception:
+            return "-"
 
     def _format_timestamp(self, timestamp: int) -> str:
         """Format timestamp for display."""
@@ -1292,6 +1330,15 @@ class PhoneLookupManager:
             )
         except Exception as e:
             logger.error(f"Failed to save phone aliases: {e}")
+        
+    def save_aliases_batched(self, batch_every: int = 100):
+        """Save aliases only every N new entries to reduce disk IO."""
+        if not hasattr(self, "_unsaved_count"):
+            self._unsaved_count = 0
+        self._unsaved_count += 1
+        if self._unsaved_count >= batch_every:
+            self.save_aliases()
+            self._unsaved_count = 0
 
     def sanitize_alias(self, alias: str) -> str:
         """Sanitize alias by removing special characters and replacing spaces with underscores."""
@@ -1403,7 +1450,7 @@ class PhoneLookupManager:
                 if extracted_alias:
                     # Store the automatically extracted alias
                     self.phone_aliases[phone_number] = extracted_alias
-                    self.save_aliases()
+                    self.save_aliases_batched()
                     logger.info(
                         f"Automatically extracted alias '{extracted_alias}' for {phone_number}"
                     )
@@ -1428,8 +1475,8 @@ class PhoneLookupManager:
                 # Store the mapping
                 self.phone_aliases[phone_number] = sanitized_alias
 
-                # Save to file
-                self.save_aliases()
+                # Save batched
+                self.save_aliases_batched()
 
                 return sanitized_alias
             else:
@@ -1452,7 +1499,7 @@ class PhoneLookupManager:
         """Manually add a phone number to alias mapping."""
         sanitized_alias = self.sanitize_alias(alias)
         self.phone_aliases[phone_number] = sanitized_alias
-        self.save_aliases()
+        self.save_aliases_batched()
         logger.info(f"Added alias '{sanitized_alias}' for phone number {phone_number}")
 
 
@@ -2932,17 +2979,21 @@ def process_sms_mms_file(
         else:
             sms_count += 1
 
-    # Process SMS messages if any exist
-    if sms_count > 0:
-        logger.info(f"Processing {sms_count} SMS messages from {html_file.name}")
-        write_sms_messages(html_file.name, messages_raw, own_number, src_filename_map)
+    # Process all messages in a single pass. SMS will be written directly,
+    # MMS will be forwarded by write_sms_messages to write_mms_messages.
+    logger.info(
+        f"Processing {len(messages_raw)} messages (SMS and MMS) from {html_file.name}"
+    )
+    write_sms_messages(
+        html_file.name,
+        messages_raw,
+        own_number,
+        src_filename_map,
+        page_participants_raw=participants_raw,
+    )
 
-    # Process MMS messages if any exist
-    if mms_count > 0:
-        logger.info(f"Processing {mms_count} MMS messages from {html_file.name}")
-        write_mms_messages(
-            html_file.name, participants_raw, messages_raw, own_number, src_filename_map
-        )
+    # NOTE: MMS messages with attachments are forwarded from write_sms_messages
+    # to write_mms_messages to avoid double-processing.
 
     # Count attachments more efficiently
     img_count = len(soup.select(img_selector))
@@ -3051,6 +3102,7 @@ def write_sms_messages(
     messages_raw: List,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    page_participants_raw: Optional[List] = None,
 ):
     """
     Write SMS messages to conversation files.
@@ -3080,6 +3132,48 @@ def write_sms_messages(
 
         # Skip processing if we still can't get a valid phone number
         if not is_valid_phone_number(phone_number):
+            # Fallback: try to derive from page-level participants
+            if page_participants_raw:
+                try:
+                    participants, _aliases = get_participant_phone_numbers_and_aliases(
+                        page_participants_raw
+                    )
+                    # Prefer a participant that is not own_number
+                    for p in participants:
+                        if not own_number or p != own_number:
+                            phone_number = p
+                            participant_raw = create_dummy_participant(p)
+                            break
+                except Exception:
+                    pass
+            # Fallback 2: parse the source HTML file for any tel: numbers
+            if not is_valid_phone_number(phone_number):
+                try:
+                    html_path = PROCESSING_DIRECTORY / "Calls" / file
+                    if html_path.exists():
+                        with open(html_path, "r", encoding="utf-8") as f:
+                            soup_all = BeautifulSoup(f.read(), HTML_PARSER)
+                        for link in soup_all.find_all("a", href=True):
+                            href = link.get("href", "")
+                            if href.startswith("tel:"):
+                                m = TEL_HREF_PATTERN.search(href)
+                                candidate = m.group(1) if m else ""
+                                if candidate:
+                                    try:
+                                        formatted = format_number(
+                                            phonenumbers.parse(candidate, None)
+                                        )
+                                        if not own_number or formatted != own_number:
+                                            phone_number = formatted
+                                            participant_raw = create_dummy_participant(
+                                                phone_number
+                                            )
+                                            break
+                                    except Exception:
+                                        continue
+                except Exception:
+                    pass
+        if not is_valid_phone_number(phone_number):
             logger.warning(
                 f"Could not determine valid phone number for {file}, skipping SMS processing"
             )
@@ -3106,10 +3200,14 @@ def write_sms_messages(
             try:
                 # Check if message contains images or vCards (treat as MMS)
                 if message.find_all("img") or message.find_all("a", class_="vcard"):
-                    # Process as MMS instead of SMS
+                    # Process as MMS instead of SMS. Prefer page-level participants
+                    # to capture full group membership; fall back to per-message cite.
+                    participants_context = (
+                        page_participants_raw if page_participants_raw else [[participant_raw]]
+                    )
                     write_mms_messages(
                         file,
-                        [[participant_raw]],
+                        participants_context,
                         [message],
                         own_number,
                         src_filename_map,
@@ -3147,8 +3245,14 @@ def write_sms_messages(
                     if not message_text or message_text.strip() == "":
                         message_text = "[Empty message]"
                     attachments = []
+                    # Determine sender display for SMS
+                    sender_display = "Me" if sms_values.get("type") == 2 else alias
                     CONVERSATION_MANAGER.write_message_with_content(
-                        conversation_id, message_text, attachments, sms_values["time"]
+                        conversation_id,
+                        message_text,
+                        attachments,
+                        sms_values["time"],
+                        sender=sender_display,
                     )
                 else:
                     # For XML output, use the XML format
@@ -3670,11 +3774,25 @@ def write_mms_messages(
                     if has_vcards:
                         attachments.append("📇 vCard")
 
+                    # Sender for MMS: prefer page alias, then phone lookup alias
+                    sender_display = sender
+                    try:
+                        # Prefer alias from participant_aliases if available
+                        if sender in participants:
+                            idx = participants.index(sender)
+                            if idx < len(participant_aliases) and participant_aliases[idx]:
+                                sender_display = participant_aliases[idx]
+                        # Fall back to phone lookup alias
+                        if PHONE_LOOKUP_MANAGER:
+                            sender_display = PHONE_LOOKUP_MANAGER.get_alias(sender_display, None)
+                    except Exception:
+                        pass
                     CONVERSATION_MANAGER.write_message_with_content(
                         conversation_id,
                         message_text,
                         attachments,
                         get_time_unix(message),
+                        sender=sender_display,
                     )
                 else:
                     # For XML output, use the XML format
@@ -5237,13 +5355,16 @@ def extract_call_info(
         # Extract phone number/participant
         phone_number = extract_phone_from_call(soup)
 
-        # Extract timestamp
+        # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)
+        if timestamp is None:
+            # No timestamp found in HTML - use 0 to indicate missing data
+            timestamp = 0
 
         # Extract duration if available
         duration = extract_duration_from_call(soup)
 
-        if phone_number and timestamp:
+        if phone_number:
             return {
                 "type": call_type,
                 "phone_number": phone_number,
@@ -5266,8 +5387,11 @@ def extract_voicemail_info(
         # Extract phone number/participant
         phone_number = extract_phone_from_call(soup)  # Reuse call phone extraction
 
-        # Extract timestamp
+        # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)  # Reuse call timestamp extraction
+        if timestamp is None:
+            # No timestamp found in HTML - use 0 to indicate missing data
+            timestamp = 0
 
         # Extract voicemail transcription if available
         transcription = extract_voicemail_transcription(soup)
@@ -5275,7 +5399,7 @@ def extract_voicemail_info(
         # Extract duration if available
         duration = extract_duration_from_call(soup)  # Reuse call duration extraction
 
-        if phone_number and timestamp:
+        if phone_number:
             return {
                 "phone_number": phone_number,
                 "timestamp": timestamp,
@@ -5340,10 +5464,13 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
             datetime_attr = element.get("title", "")
             if datetime_attr:
                 try:
-                    # Parse ISO format datetime
-                    dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
+                    # Parse ISO format datetime; fall back to dateutil for robustness
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
+                    except ValueError:
+                        dt = dateutil.parser.parse(datetime_attr)
                     return int(dt.timestamp() * 1000)  # Convert to milliseconds
-                except ValueError:
+                except Exception:
                     continue
 
         # Try to find other time elements
@@ -5352,17 +5479,49 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
             datetime_attr = element.get("datetime", "")
             if datetime_attr:
                 try:
-                    dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr.replace("Z", "+00:00"))
+                    except ValueError:
+                        dt = dateutil.parser.parse(datetime_attr)
                     return int(dt.timestamp() * 1000)
-                except ValueError:
+                except Exception:
                     continue
 
-        # Fallback: use current time
-        return int(time.time() * 1000)
+        # Try to find timestamp in text content (look for date patterns)
+        text_content = soup.get_text()
+        
+        # Look for ISO format dates in text
+        iso_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?)')
+        iso_match = iso_pattern.search(text_content)
+        if iso_match:
+            try:
+                dt = dateutil.parser.parse(iso_match.group(1))
+                return int(dt.timestamp() * 1000)
+            except Exception:
+                pass
+        
+        # Look for other date formats
+        date_patterns = [
+            r'(\d{4}-\d{2}-\d{2})',  # YYYY-MM-DD
+            r'(\d{1,2}/\d{1,2}/\d{4})',  # MM/DD/YYYY
+            r'(\d{1,2}-\d{1,2}-\d{4})',  # MM-DD-YYYY
+        ]
+        
+        for pattern in date_patterns:
+            date_match = re.search(pattern, text_content)
+            if date_match:
+                try:
+                    dt = dateutil.parser.parse(date_match.group(1))
+                    return int(dt.timestamp() * 1000)
+                except Exception:
+                    continue
+
+        # Do not default to current time here; indicate failure by returning None
+        return None
 
     except Exception as e:
         logger.debug(f"Failed to extract timestamp from call: {e}")
-        return int(time.time() * 1000)
+        return None
 
 
 def extract_duration_from_call(soup: BeautifulSoup) -> Optional[str]:
@@ -5446,11 +5605,23 @@ def write_call_entry(
         message_text = call_details["message_text"]
 
         # Create SMS-like entry for the call
+        call_ts = call_info.get("timestamp")
+        if call_ts is None:
+            # Attempt to re-extract directly from the file content
+            try:
+                file_path = Path(filename)
+                if not file_path.is_absolute():
+                    file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+                with open(file_path, "r", encoding="utf-8") as f:
+                    soup2 = BeautifulSoup(f.read(), "html.parser")
+                call_ts = extract_timestamp_from_call(soup2)
+            except Exception:
+                call_ts = 0
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message
             "message": message_text,
-            "time": call_info["timestamp"],
+            "time": call_ts or 0,
         }
 
         # Format SMS XML
@@ -5465,12 +5636,16 @@ def write_call_entry(
             message_text = call_details["message_text"]
             attachments = []
             CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id, message_text, attachments, call_info["timestamp"]
+                conversation_id,
+                message_text,
+                attachments,
+                call_ts or 0,
+                sender=alias,
             )
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, call_info["timestamp"]
+                conversation_id, sms_text, call_ts or 0
             )
 
         # Update conversation statistics
@@ -5486,8 +5661,11 @@ def extract_call_details(filename: str) -> Dict[str, str]:
     """Extract detailed call information from the HTML file."""
     try:
         logger.debug(f"Extracting call details from: {filename}")
-        # Read the call HTML file
-        with open(filename, "r", encoding="utf-8") as f:
+        # Read the call HTML file (resolve under processing Calls dir if needed)
+        file_path = Path(filename)
+        if not file_path.is_absolute():
+            file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Parse with BeautifulSoup
@@ -5621,11 +5799,22 @@ def write_voicemail_entry(
             message_text += f"\n\nTranscription:\n{transcription}"
 
         # Create SMS-like entry for the voicemail
+        vm_ts = voicemail_info.get("timestamp")
+        if vm_ts is None:
+            try:
+                file_path = Path(filename)
+                if not file_path.is_absolute():
+                    file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+                with open(file_path, "r", encoding="utf-8") as f:
+                    soup2 = BeautifulSoup(f.read(), "html.parser")
+                vm_ts = extract_timestamp_from_call(soup2)
+            except Exception:
+                vm_ts = 0
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message
             "message": message_text,
-            "time": voicemail_info["timestamp"],
+            "time": vm_ts or 0,
         }
 
         # Format SMS XML
@@ -5642,12 +5831,16 @@ def write_voicemail_entry(
                 message_text = "[Voicemail entry]"
             attachments = []
             CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id, message_text, attachments, voicemail_info["timestamp"]
+                conversation_id,
+                message_text,
+                attachments,
+                vm_ts or 0,
+                sender=alias,
             )
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, voicemail_info["timestamp"]
+                conversation_id, sms_text, vm_ts or 0
             )
 
         # Update conversation statistics

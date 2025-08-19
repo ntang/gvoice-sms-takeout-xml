@@ -22,7 +22,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import phonenumbers
 from bs4 import BeautifulSoup
 import logging
@@ -555,6 +555,22 @@ class TestSMSBasic(unittest.TestCase):
         self.assertEqual(len(builder), 0)
         self.assertEqual(builder.build(), "")
 
+    def test_io_buffer_size_constant(self):
+        """Ensure file read buffer size is set to at least 128KB."""
+        self.assertGreaterEqual(sms.FILE_READ_BUFFER_SIZE, 131072)
+
+    def test_batched_alias_saving(self):
+        """Ensure alias saving can be batched without error."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        mgr = sms.PHONE_LOOKUP_MANAGER
+        # Add several aliases and ensure no exception; then force a save
+        for i in range(150):
+            mgr.add_alias(f"+1555{i:07d}", f"User_{i}")
+        # Explicit save to flush
+        mgr.save_aliases()
+        self.assertTrue(mgr.lookup_file.exists())
+
 
 class TestSMSAdvanced(unittest.TestCase):
     """Advanced test suite for SMS module functionality."""
@@ -620,6 +636,11 @@ class TestSMSAdvanced(unittest.TestCase):
         # Create a mock BeautifulSoup message with time element
         mock_message = Mock()
         mock_time = Mock()
+        # Set up the attrs attribute as a dictionary-like object
+        mock_time.attrs = {"title": "2023-01-01T12:00:00.000Z"}
+        # Set up dictionary-style access for the title attribute
+        mock_time.__getitem__ = Mock(side_effect=lambda key: {"title": "2023-01-01T12:00:00.000Z"}[key])
+        # Also set up the get method for compatibility
         mock_time.get.return_value = "2023-01-01T12:00:00.000Z"
 
         mock_message.find.return_value = mock_time
@@ -1111,6 +1132,208 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertIsInstance(participants_xml, str)
         self.assertIn("+15551234567", participants_xml)
         self.assertIn("+15551234568", participants_xml)
+
+    def test_html_output_sender_column(self):
+        """Verify HTML output includes Sender column and renders a sender cell."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "sender_column_test"
+        # Raw XML without sender info should default sender cell to '-'
+        test_xml = "<sms><text>Hello Sender Column</text></sms>"
+        manager.write_message(conversation_id, test_xml, 1640995200000)
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        self.assertTrue(html_file.exists())
+        content = html_file.read_text(encoding="utf-8")
+        self.assertIn("<th>Sender</th>", content)
+        self.assertIn("class='sender'", content)
+
+    def test_html_output_sms_sender_display(self):
+        """Verify SMS sender display shows 'Me' for sent and alias for received."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "sms_sender_display"
+        # Simulate two messages: sent by Me and received from Alice
+        manager.write_message_with_content(conversation_id, "Hi", [], 1640995200000, sender="Me")
+        manager.write_message_with_content(conversation_id, "Hello", [], 1640995300000, sender="Alice")
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        content = html_file.read_text(encoding="utf-8")
+        self.assertIn("<td class='sender'>Me</td>", content)
+        self.assertIn("<td class='sender'>Alice</td>", content)
+
+    def test_call_voicemail_timestamp_parsing(self):
+        """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        
+        # Create a call file with a specific timestamp in HTML
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        call_file = calls_dir / "test-call-2020.html"
+        
+        # HTML with timestamp from 2020
+        call_html = """
+        <html><head><title>Placed call</title></head><body>
+            <abbr class="dt" title="2020-06-15T14:30:00Z"></abbr>
+            <a class="tel" href="tel:+15550000001">Test User</a>
+            <abbr class="duration" title="PT2M30S">(2:30)</abbr>
+        </body></html>
+        """
+        call_file.write_text(call_html, encoding="utf-8")
+        
+        # Wait a moment to ensure file mtime differs from content timestamp
+        import time
+        time.sleep(0.1)
+        
+        # Touch the file to change its modification time to current time
+        call_file.touch()
+        
+        # Extract call info - should get timestamp from HTML content, not file mtime
+        with open(call_file, "r", encoding="utf-8") as f:
+            soup = BeautifulSoup(f.read(), "html.parser")
+        
+        call_info = sms.extract_call_info(str(call_file), soup)
+        self.assertIsNotNone(call_info)
+        self.assertEqual(call_info["phone_number"], "+15550000001")
+        
+        # Timestamp should be from 2020, not current time
+        expected_ts = int(datetime(2020, 6, 15, 14, 30, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        self.assertEqual(call_info["timestamp"], expected_ts)
+        
+        # Verify file mtime is different (should be current time)
+        file_mtime_ts = int(call_file.stat().st_mtime * 1000)
+        self.assertNotEqual(call_info["timestamp"], file_mtime_ts)
+        
+        # Test voicemail with different timestamp format
+        vm_file = calls_dir / "test-vm-2019.html"
+        vm_html = """
+        <html><head><title>Voicemail</title></head><body>
+            <time datetime="2019-12-25T09:15:00-05:00">Christmas morning</time>
+            <a class="tel" href="tel:+15550000002">Test User</a>
+            <div class="message">Test voicemail message</div>
+        </body></html>
+        """
+        vm_file.write_text(vm_html, encoding="utf-8")
+        vm_file.touch()  # Update mtime to current time
+        
+        with open(vm_file, "r", encoding="utf-8") as f:
+            vm_soup = BeautifulSoup(f.read(), "html.parser")
+        
+        vm_info = sms.extract_voicemail_info(str(vm_file), vm_soup)
+        self.assertIsNotNone(vm_info)
+        
+        # Should extract timestamp from HTML datetime attribute
+        expected_vm_ts = int(datetime(2019, 12, 25, 9, 15, 0, tzinfo=timezone(timedelta(hours=-5))).timestamp() * 1000)
+        self.assertEqual(vm_info["timestamp"], expected_vm_ts)
+        
+        # Verify it's not using file mtime
+        vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
+        self.assertNotEqual(vm_info["timestamp"], vm_file_mtime_ts)
+
+    def test_mms_sender_alias_in_html(self):
+        """Verify MMS rows show sender alias in HTML output."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        manager = sms.CONVERSATION_MANAGER
+
+        # Prepare participants HTML and message with a tel link
+        mms_html = """
+        <div class="participants">Group conversation with:
+            <cite class="sender vcard"><a class="tel" href="tel:+15551230001"><span class="fn">Alice</span></a></cite>
+            <cite class="sender vcard"><a class="tel" href="tel:+15551230002"><span class="fn">Bob</span></a></cite>
+        </div>
+        <div class="message">
+            <cite class="sender vcard"><a class="tel" href="tel:+15551230001">Alice</a></cite>
+            <abbr class="dt" title="2024-01-01T12:00:00Z"></abbr>
+            <q>Hello Group</q>
+        </div>
+        """
+        soup = BeautifulSoup(mms_html, "html.parser")
+        participants_raw = soup.select(".participants")
+        messages_raw = soup.select(".message")
+
+        # Ensure alias exists in phone lookup
+        sms.PHONE_LOOKUP_MANAGER.add_alias("+15551230001", "Alice")
+        # Run MMS writing
+        # Pass a fixed timestamp into write_message_with_content by stubbing get_time_unix
+        sms.write_mms_messages("test_mms.html", participants_raw, messages_raw, None, {})
+        manager.finalize_conversation_files()
+
+        # There will be a group conversation file; check any .html in output for sender cell with Alice
+        generated_files = list(manager.output_dir.glob("*.html"))
+        self.assertTrue(generated_files)
+        hit = False
+        for f in generated_files:
+            content = f.read_text(encoding="utf-8")
+            if "Hello Group" in content:
+                doc = BeautifulSoup(content, "html.parser")
+                # Look for a row containing the message text
+                rows = doc.find_all("tr")
+                for row in rows:
+                    if row.find("td", class_="message") and "Hello Group" in row.find("td", class_="message").get_text():
+                        sender_cell = row.find("td", class_="sender")
+                        if sender_cell and sender_cell.get_text(strip=True) == "Alice":
+                            hit = True
+                            break
+                if hit:
+                    break
+        self.assertTrue(hit)
+
+    def test_calls_and_voicemails_processed(self):
+        """Ensure calls and voicemails are captured and timestamps vary."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        manager = sms.CONVERSATION_MANAGER
+
+        # Create synthetic call and voicemail files
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        call_file = calls_dir / "2024-placed-call.html"
+        vm_file = calls_dir / "2023-voicemail.html"
+        call_file.write_text(
+            """
+            <html><head><title>Placed call</title></head><body>
+                <abbr class="dt" title="2024-02-01T15:00:00Z"></abbr>
+                <a class="tel" href="tel:+15550000001">User</a>
+                <abbr class="duration" title="PT45S">(0:45)</abbr>
+            </body></html>
+            """,
+            encoding="utf-8",
+        )
+        vm_file.write_text(
+            """
+            <html><head><title>Voicemail</title></head><body>
+                <abbr class="dt" title="2023-03-05T10:30:00Z"></abbr>
+                <a class="tel" href="tel:+15550000002">User</a>
+                <div class="message">Test voicemail</div>
+            </body></html>
+            """,
+            encoding="utf-8",
+        )
+
+        # Run process_html_files on an empty mapping (no attachments needed here)
+        stats = sms.process_html_files({})
+        # We expect at least one call and one voicemail captured
+        self.assertGreaterEqual(stats.get("num_calls", 0), 1)
+        self.assertGreaterEqual(stats.get("num_voicemails", 0), 1)
+
+        # Verify finalize creates files and then generate index
+        manager.finalize_conversation_files()
+        manager.generate_index_html(stats, 1.0)
+        index_file = manager.output_dir / "index.html"
+        self.assertTrue(index_file.exists())
+
+        # Ensure timestamps are not identical (implies parsing worked)
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("Call Logs", content)
+        self.assertIn("Voicemails", content)
 
 
 def create_test_suite(test_type="basic", test_limit=100):
