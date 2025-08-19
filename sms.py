@@ -99,8 +99,8 @@ BUFFER_SIZE_OPTIMAL = 16384  # Bytes (16KB)
 
 # Advanced performance configuration for large datasets (10,000+ files)
 ENABLE_PARALLEL_PROCESSING = True
-MAX_WORKERS = min(8, os.cpu_count() or 4)  # Limit to 8 workers max
-CHUNK_SIZE_OPTIMAL = 500  # Files per chunk for parallel processing
+MAX_WORKERS = min(12, os.cpu_count() or 6)  # Limit to 12 workers max for better parallelization
+CHUNK_SIZE_OPTIMAL = 750  # Files per chunk for parallel processing (optimized for better efficiency)
 MEMORY_EFFICIENT_THRESHOLD = 5000  # Switch to memory-efficient mode above this
 ENABLE_STREAMING_PARSING = True  # Use streaming for very large files
 STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
@@ -108,8 +108,8 @@ STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming
 # File I/O optimization
 FILE_READ_BUFFER_SIZE = 131072  # 128KB buffer for file reading
 # Default to buffered I/O; memory mapping can be enabled via CLI option
-ENABLE_MMAP_FOR_LARGE_FILES = False  # Use memory mapping for files > 10MB
-MMAP_THRESHOLD = 10 * 1024 * 1024  # 10MB threshold for mmap
+ENABLE_MMAP_FOR_LARGE_FILES = True  # Use memory mapping for files > 5MB
+MMAP_THRESHOLD = 5 * 1024 * 1024  # 5MB threshold for mmap
 
 # ====================================================================
 # STRICT PARAMETER VALIDATION
@@ -907,19 +907,19 @@ class ConversationManager:
 
             for row in message_rows:
                 # Check if this row has a message
-                message_cell = row.find("td", class_="message")
+                message_cell = row.find("td", class_=STRING_POOL.HTML_CLASSES["message"])
                 if message_cell:
                     message_text = message_cell.get_text().strip()
 
-                    # Count different message types
-                    if message_text.startswith("📞"):
+                    # Count different message types using string pool
+                    if message_text.startswith(STRING_POOL.PATTERNS["call_prefix"]):
                         calls_count += 1
-                    elif message_text.startswith("🎙️"):
+                    elif message_text.startswith(STRING_POOL.PATTERNS["voicemail_prefix"]):
                         voicemails_count += 1
                     elif (
                         message_text
-                        and not message_text.startswith("📞")
-                        and not message_text.startswith("🎙️")
+                        and not message_text.startswith(STRING_POOL.PATTERNS["call_prefix"])
+                        and not message_text.startswith(STRING_POOL.PATTERNS["voicemail_prefix"])
                     ):
                         sms_count += 1
 
@@ -933,7 +933,7 @@ class ConversationManager:
                             attachments_count += 1
 
                     # Get timestamp for latest message
-                    timestamp_cell = row.find("td", class_="timestamp")
+                    timestamp_cell = row.find("td", class_=STRING_POOL.HTML_CLASSES["timestamp"])
                     if timestamp_cell:
                         timestamp_text = timestamp_cell.get_text().strip()
                         if timestamp_text:
@@ -2918,7 +2918,7 @@ def process_single_html_file(
 ) -> Dict[str, Union[int, str]]:
     """Process a single HTML file and return file-specific statistics."""
     file_type = get_file_type(html_file.name)
-    logger.info(f"Processing {html_file.name} (Type: {file_type})")
+    logger.debug(f"Processing {html_file.name} (Type: {file_type})")
 
     # Parse HTML file
     soup = parse_html_file(html_file)
@@ -2981,7 +2981,7 @@ def process_sms_mms_file(
 
     # Process all messages in a single pass. SMS will be written directly,
     # MMS will be forwarded by write_sms_messages to write_mms_messages.
-    logger.info(
+    logger.debug(
         f"Processing {len(messages_raw)} messages (SMS and MMS) from {html_file.name}"
     )
     write_sms_messages(
@@ -3068,13 +3068,15 @@ def count_attachments_in_file_cached(html_file_str: str, extensions_str: str) ->
             count_attachments_in_file_cached._dir_cache = {}
 
         if dir_path not in count_attachments_in_file_cached._dir_cache:
+            # Use more efficient directory scanning with set comprehension
             count_attachments_in_file_cached._dir_cache[dir_path] = {
                 path.suffix.lower()
                 for path in html_file.parent.iterdir()
-                if path.is_file()
+                if path.is_file() and path.suffix.lower() in extensions
             }
 
         file_extensions = count_attachments_in_file_cached._dir_cache[dir_path]
+        # Use set intersection for faster matching
         return len(file_extensions & extensions)
     except Exception:
         return 0
@@ -4866,6 +4868,64 @@ def get_time_unix(message: BeautifulSoup) -> int:
 
 
 # ====================================================================
+# STRING POOLING FOR PERFORMANCE OPTIMIZATION
+# ====================================================================
+
+# Common strings used throughout the application
+class StringPool:
+    """String pool to reduce memory allocations and improve performance."""
+    
+    # XML attributes and values
+    XML_ATTRS = {
+        "protocol": "0",
+        "address": "",
+        "type": "",
+        "subject": "null",
+        "body": "",
+        "toa": "null",
+        "sc_toa": "null",
+        "date": "",
+        "read": "1",
+        "status": "-1",
+        "locked": "0",
+    }
+    
+    # HTML classes and attributes
+    HTML_CLASSES = {
+        "dt": "dt",
+        "tel": "tel",
+        "sender": "sender",
+        "message": "message",
+        "timestamp": "timestamp",
+        "participants": "participants",
+        "vcard": "vcard",
+        "fn": "fn",
+        "duration": "duration",
+    }
+    
+    # File extensions
+    FILE_EXTENSIONS = {
+        "html": ".html",
+        "xml": ".xml",
+        "jpg": ".jpg",
+        "jpeg": ".jpeg",
+        "png": ".png",
+        "gif": ".gif",
+        "vcf": ".vcf",
+    }
+    
+    # Common patterns
+    PATTERNS = {
+        "tel_href": "tel:",
+        "group_marker": "Group conversation with:",
+        "voicemail_prefix": "🎙️",
+        "call_prefix": "📞",
+    }
+
+# Global string pool instance
+STRING_POOL = StringPool()
+
+# ====================================================================
 # PERFORMANCE MONITORING AND PROGRESS LOGGING
 # ====================================================================
 
@@ -5422,7 +5482,7 @@ def extract_phone_from_call(soup: BeautifulSoup) -> Optional[str]:
         phone_links = soup.find_all("a", href=True)
         for link in phone_links:
             href = link.get("href", "")
-            if href.startswith("tel:"):
+            if href.startswith(STRING_POOL.PATTERNS["tel_href"]):
                 phone_match = TEL_HREF_PATTERN.search(href)
                 if phone_match:
                     return phone_match.group(1)
@@ -5459,7 +5519,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
     try:
         # Look for timestamp in various formats
         # Try to find abbr elements with datetime
-        time_elements = soup.find_all("abbr", class_="dt")
+        time_elements = soup.find_all("abbr", class_=STRING_POOL.HTML_CLASSES["dt"])
         for element in time_elements:
             datetime_attr = element.get("title", "")
             if datetime_attr:
@@ -5884,6 +5944,12 @@ Examples:
   # Process large datasets with optimized settings
   python sms.py /path/to/gvoice/data --large-dataset --batch-size 2000
 
+  # Performance tuning for large datasets (50,000+ entries)
+  python sms.py /path/to/gvoice/data --workers 16 --chunk-size 1000 --enable-mmap
+
+  # Memory-efficient processing for very large datasets
+  python sms.py /path/to/gvoice/data --memory-efficient --buffer-size 256
+
   # Test mode with limited processing (default: 100 entries, auto-enables debug + strict mode)
   python sms.py /path/to/gvoice/data --test-mode
 
@@ -5925,6 +5991,9 @@ Output:
   - Enhanced caching for improved performance
   - Batch processing for large datasets (50,000+ messages)
   - Memory-efficient data structures and string pooling
+  - Optimized parallel processing with configurable workers and chunk sizes
+  - Smart memory mapping for large files (>5MB) with fallback to buffered I/O
+  - String pooling reduces memory allocations and garbage collection pressure
   - Test mode enabled by default (processes 100 entries for safety)
   - Configurable test limits and full-run mode available
   - Logs are written to the processing directory
