@@ -1712,6 +1712,9 @@ def main():
         logger.info(f"Processing directory: {PROCESSING_DIRECTORY}")
         logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
 
+        # Check and increase system file descriptor limits
+        check_and_increase_file_limits()
+
         # Performance configuration logging
         logger.info("Performance Configuration:")
         logger.info(f"  Parallel processing: {ENABLE_PARALLEL_PROCESSING}")
@@ -4968,6 +4971,60 @@ def format_progress_message(
 
 
 # ====================================================================
+# SYSTEM RESOURCE MANAGEMENT
+# ====================================================================
+
+
+def check_and_increase_file_limits():
+    """Check and attempt to increase system file descriptor limits."""
+    try:
+        import resource
+        import os
+        
+        # Get current limits
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        logger.info(f"Current file descriptor limits - Soft: {soft}, Hard: {hard}")
+        
+        # Try to increase soft limit to hard limit
+        if soft < hard:
+            try:
+                resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+                new_soft, new_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+                logger.info(f"Successfully increased file descriptor limit to: {new_soft}")
+            except Exception as e:
+                logger.warning(f"Could not increase file descriptor limit: {e}")
+        
+        # Check if we have enough file descriptors for processing
+        if soft < 1000:
+            logger.warning(f"File descriptor limit ({soft}) may be too low for large datasets")
+            logger.warning("Consider increasing with: ulimit -n 4096")
+        
+    except ImportError:
+        logger.warning("resource module not available, cannot check file descriptor limits")
+    except Exception as e:
+        logger.warning(f"Error checking file descriptor limits: {e}")
+
+
+def safe_file_operation(file_path: Path, operation: str = "read", encoding: str = "utf-8", **kwargs):
+    """Safe file operation wrapper with proper error handling and resource cleanup."""
+    try:
+        if operation == "read":
+            with open(file_path, "r", encoding=encoding, buffering=FILE_READ_BUFFER_SIZE) as f:
+                return f.read()
+        elif operation == "write":
+            with open(file_path, "w", encoding=encoding) as f:
+                return f.write(kwargs.get("content", ""))
+        elif operation == "append":
+            with open(file_path, "a", encoding=encoding) as f:
+                return f.write(kwargs.get("content", ""))
+        else:
+            raise ValueError(f"Unsupported operation: {operation}")
+    except Exception as e:
+        logger.error(f"File operation failed on {file_path}: {e}")
+        raise
+
+
+# ====================================================================
 # PATH CONFIGURATION
 # ====================================================================
 
@@ -5674,8 +5731,13 @@ def write_call_entry(
         phone_number = str(call_info["phone_number"])
         alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
-        # Parse the call HTML file to extract detailed metadata
-        call_details = extract_call_details(filename)
+        # Extract call details from the already parsed soup if available, otherwise from file
+        if soup:
+            # Use the already parsed soup to avoid re-opening the file
+            call_details = extract_call_details_from_soup(soup)
+        else:
+            # Fallback to file-based extraction (should be rare)
+            call_details = extract_call_details(filename)
 
         # Use the rich call details from the HTML file
         message_text = call_details["message_text"]
@@ -5683,20 +5745,24 @@ def write_call_entry(
         # Create SMS-like entry for the call
         call_ts = call_info.get("timestamp")
         if call_ts is None:
-            # Attempt to re-extract directly from the file content
-            try:
-                file_path = Path(filename)
-                if not file_path.is_absolute():
-                    file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
-                with open(file_path, "r", encoding="utf-8") as f:
-                    soup2 = BeautifulSoup(f.read(), "html.parser")
-                call_ts = extract_timestamp_from_call(soup2)
-                if call_ts is None:
-                    # If still no timestamp, use file modification time as last resort
-                    call_ts = int(file_path.stat().st_mtime * 1000)
-            except Exception:
-                # If all else fails, use current time
-                call_ts = int(time.time() * 1000)
+            # Use the already parsed soup if available, otherwise re-parse
+            if soup:
+                call_ts = extract_timestamp_from_call(soup)
+            else:
+                # Attempt to re-extract directly from the file content
+                try:
+                    file_path = Path(filename)
+                    if not file_path.is_absolute():
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        soup2 = BeautifulSoup(f.read(), "html.parser")
+                    call_ts = extract_timestamp_from_call(soup2)
+                    if call_ts is None:
+                        # If still no timestamp, use file modification time as last resort
+                        call_ts = int(file_path.stat().st_mtime * 1000)
+                except Exception:
+                    # If all else fails, use current time
+                    call_ts = int(time.time() * 1000)
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message
@@ -5735,6 +5801,72 @@ def write_call_entry(
 
     except Exception as e:
         logger.error(f"Failed to write call entry: {e}")
+
+
+def extract_call_details_from_soup(soup: BeautifulSoup) -> Dict[str, str]:
+    """Extract detailed call information from an already parsed BeautifulSoup object."""
+    try:
+        # Extract call type from title or content
+        title = soup.find("title")
+        call_type = "Unknown"
+        if title:
+            title_text = title.get_text().lower()
+            if "missed" in title_text:
+                call_type = "Missed"
+            elif "placed" in title_text:
+                call_type = "Placed"
+            elif "received" in title_text:
+                call_type = "Received"
+
+        # Extract duration
+        duration_elem = soup.find("abbr", class_="duration")
+        duration = ""
+        if duration_elem:
+            duration_title = duration_elem.get("title", "")
+            duration_text = duration_elem.get_text()
+            if duration_title:
+                # Parse ISO 8601 duration (PT4S, PT9M16S, etc.)
+                duration = parse_iso_duration(duration_title)
+            elif duration_text:
+                duration = duration_text.strip("()")
+
+        # Extract contact name if available
+        contributor = soup.find("div", class_="contributor")
+        contact_name = ""
+        if contributor:
+            fn_elem = contributor.find("span", class_="fn")
+            if fn_elem:
+                contact_name = fn_elem.get_text().strip()
+
+        # Build rich message text
+        if call_type == "Missed":
+            message_text = f"📞 Missed call from {contact_name or 'Unknown'}"
+        elif call_type == "Placed":
+            message_text = f"📞 Outgoing call to {contact_name or 'Unknown'}"
+        elif call_type == "Received":
+            message_text = f"📞 Incoming call from {contact_name or 'Unknown'}"
+        else:
+            message_text = f"📞 Call from {contact_name or 'Unknown'}"
+
+        # Add duration if available
+        if duration:
+            message_text += f" (Duration: {duration})"
+
+        return {
+            "call_type": call_type,
+            "duration": duration,
+            "contact_name": contact_name,
+            "message_text": message_text,
+        }
+
+    except Exception as e:
+        logger.warning(f"Failed to extract call details from soup: {e}")
+        return {
+            "call_type": "Unknown",
+            "duration": "",
+            "contact_name": "",
+            "message_text": "📞 Call log entry",
+        }
 
 
 def extract_call_details(filename: str) -> Dict[str, str]:
@@ -5881,19 +6013,23 @@ def write_voicemail_entry(
         # Create SMS-like entry for the voicemail
         vm_ts = voicemail_info.get("timestamp")
         if vm_ts is None:
-            try:
-                file_path = Path(filename)
-                if not file_path.is_absolute():
-                    file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
-                with open(file_path, "r", encoding="utf-8") as f:
-                    soup2 = BeautifulSoup(f.read(), "html.parser")
-                vm_ts = extract_timestamp_from_call(soup2)
-                if vm_ts is None:
-                    # If still no timestamp, use file modification time as last resort
-                    vm_ts = int(file_path.stat().st_mtime * 1000)
-            except Exception:
-                # If all else fails, use current time
-                vm_ts = int(time.time() * 1000)
+            # Use the already parsed soup if available, otherwise re-parse
+            if soup:
+                vm_ts = extract_timestamp_from_call(soup)
+            else:
+                try:
+                    file_path = Path(filename)
+                    if not file_path.is_absolute():
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        soup2 = BeautifulSoup(f.read(), "html.parser")
+                    vm_ts = extract_timestamp_from_call(soup2)
+                    if vm_ts is None:
+                        # If still no timestamp, use file modification time as last resort
+                        vm_ts = int(file_path.stat().st_mtime * 1000)
+                except Exception:
+                    # If all else fails, use current time
+                    vm_ts = int(time.time() * 1000)
         sms_values = {
             "alias": alias,
             "type": 1,  # Treat as received message

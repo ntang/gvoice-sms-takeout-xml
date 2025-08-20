@@ -1287,6 +1287,58 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertNotEqual(timestamp, vm_file_mtime_ts,
                            "Timestamp should not be file modification time")
 
+    def test_file_handle_management(self):
+        """Test that file handles are properly managed to avoid 'too many open files' errors."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create multiple call files to test file handle management
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create several call files
+        call_files = []
+        for i in range(10):
+            call_file = calls_dir / f"test-call-{i}.html"
+            call_html = f"""
+            <html><head><title>Placed call</title></head><body>
+                <abbr class="published" title="2022-05-15T10:30:45.000-04:00">May 15, 2022</abbr>
+                <a class="tel" href="tel:+1555000000{i:02d}">Test User {i}</a>
+                <abbr class="duration" title="PT1M23S">(1:23)</abbr>
+            </body></html>
+            """
+            call_file.write_text(call_html, encoding="utf-8")
+            call_files.append(call_file)
+        
+        # Process all call files to test file handle management
+        for call_file in call_files:
+            try:
+                with open(call_file, "r", encoding="utf-8") as f:
+                    soup = BeautifulSoup(f.read(), "html.parser")
+                
+                # Extract call info
+                call_info = sms.extract_call_info(str(call_file), soup)
+                self.assertIsNotNone(call_info, f"Should extract info from {call_file.name}")
+                
+                # Write call entry (this should not open additional file handles)
+                sms.write_call_entry(str(call_file), call_info, None, soup)
+                
+            except Exception as e:
+                self.fail(f"File handle management failed for {call_file.name}: {e}")
+        
+        # Verify that conversation files were created
+        manager = sms.CONVERSATION_MANAGER
+        self.assertTrue(len(manager.conversation_files) > 0, 
+                       "Call entries should create conversation files")
+        
+        # Test that we can still open new files (no file handle leaks)
+        test_file = test_dir / "test_file_handle_test.txt"
+        test_file.write_text("test content", encoding="utf-8")
+        
+        with open(test_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertEqual(content, "test content", "Should still be able to open new files")
+
     def test_no_epoch_zero_timestamps(self):
         """Ensure calls and voicemails never get epoch 0 timestamp (1969-12-31 19:00:00)."""
         test_dir = Path(self.test_dir)
