@@ -823,7 +823,7 @@ class ConversationManager:
                     builder.append_line("                </tr>")
 
                 except Exception as e:
-                    logger.warning(f"Failed to get stats for {file_path}: {e}")
+                    logger.error(f"Failed to get stats for {file_path}: {e}")
                     # Still add the row with basic info
                     conversation_name = file_path.stem
                     builder.append_line("                <tr>")
@@ -965,7 +965,7 @@ class ConversationManager:
             }
 
         except Exception as e:
-            logger.warning(f"Failed to extract stats from {file_path}: {e}")
+            logger.error(f"Failed to extract stats from {file_path}: {e}")
             return {
                 "sms_count": 0,
                 "calls_count": 0,
@@ -1204,7 +1204,7 @@ class ConversationManager:
             return message_text, attachments_str
 
         except Exception as e:
-            logger.warning(f"Failed to extract message content: {e}")
+            logger.error(f"Failed to extract message content: {e}")
             return "[Error parsing message]", "-"
 
     def _extract_sender_from_raw(self, message_content: str) -> str:
@@ -1314,7 +1314,7 @@ class PhoneLookupManager:
                     f.write("# Lines starting with # are comments\n")
                 logger.info(f"Created new phone lookup file: {self.lookup_file}")
         except Exception as e:
-            logger.warning(f"Failed to load phone aliases: {e}")
+            logger.error(f"Failed to load phone aliases: {e}")
 
     def save_aliases(self):
         """Save phone number aliases to file."""
@@ -1488,7 +1488,7 @@ class PhoneLookupManager:
             print("\nUsing phone number as alias.")
             return phone_number
         except Exception as e:
-            logger.warning(f"Failed to get alias for {phone_number}: {e}")
+            logger.error(f"Failed to get alias for {phone_number}: {e}")
             return phone_number
 
     def get_all_aliases(self) -> Dict[str, str]:
@@ -1579,7 +1579,7 @@ def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
             source_file = PROCESSING_DIRECTORY / "Calls" / filename
 
             if not source_file.exists():
-                logger.warning(f"Source attachment not found: {source_file}")
+                logger.error(f"Source attachment not found: {source_file}")
                 error_count += 1
                 continue
 
@@ -1913,7 +1913,7 @@ def remove_problematic_files() -> None:
             logger.info("Removed existing log file")
 
     except Exception as e:
-        logger.warning(f"Failed to remove problematic files: {e}")
+        logger.error(f"Failed to remove problematic files: {e}")
 
 
 def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") -> None:
@@ -1945,7 +1945,7 @@ def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") 
                 os.remove(file_path)
                 logger.info(f"Removed {file_path} ({reason})")
             except Exception as e:
-                logger.warning(f"Failed to remove {file_path}: {e}")
+                logger.error(f"Failed to remove {file_path}: {e}")
 
     except Exception as e:
         logger.error(f"Failed to remove files by pattern {pattern}: {e}")
@@ -2006,7 +2006,7 @@ def extract_src_cached(html_directory: str) -> List[str]:
                     )
 
             except Exception as e:
-                logger.warning(f"Failed to process {html_file}: {e}")
+                logger.error(f"Failed to process {html_file}: {e}")
                 continue
 
     except Exception as e:
@@ -2050,7 +2050,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
         total_files = len(html_files)
 
         if total_files == 0:
-            logger.warning(f"No HTML files found in {html_directory}")
+            logger.error(f"No HTML files found in {html_directory}")
             return src_list
 
         logger.info(f"Starting src extraction from {total_files} HTML files")
@@ -2096,7 +2096,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                     last_reported_progress = current_progress
 
             except Exception as e:
-                logger.warning(f"Failed to process {html_file}: {e}")
+                logger.error(f"Failed to process {html_file}: {e}")
                 continue
 
         # Log final performance metrics
@@ -2132,7 +2132,7 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
         total_files = len(html_files)
 
         if total_files == 0:
-            logger.warning(f"No HTML files found in {html_directory}")
+            logger.error(f"No HTML files found in {html_directory}")
             return src_to_files
 
         logger.info(
@@ -2298,7 +2298,7 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
                         )
 
                 except Exception as e:
-                    logger.warning(f"Failed to process {file_path}: {e}")
+                    logger.error(f"Failed to process {file_path}: {e}")
                     continue
         else:
             # Traditional approach for smaller datasets
@@ -2306,7 +2306,7 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
             total_files = len(all_files)
 
             if total_files == 0:
-                logger.warning(f"No files found in {directory}")
+                logger.error(f"No files found in {directory}")
                 return []
 
             logger.info(
@@ -2473,7 +2473,7 @@ def src_to_filename_mapping_with_progress(
 
     total_src_elements = len(src_elements)
     if total_src_elements == 0:
-        logger.warning("No src elements to map")
+        logger.error("No src elements to map")
         return mapping
 
     logger.info(
@@ -2542,7 +2542,7 @@ def build_attachment_mapping_cached() -> Dict[str, str]:
         att_filenames = list_att_filenames(str(PROCESSING_DIRECTORY))
         return src_to_filename_mapping(src_elements, att_filenames)
     except Exception as e:
-        logger.warning(f"Failed to build attachment mapping: {e}")
+        logger.error(f"Failed to build attachment mapping: {e}")
         return {}
 
 
@@ -2704,14 +2704,14 @@ def build_attachment_mapping_with_progress() -> Dict[str, str]:
         src for src, filename in mapping.items() if filename == "No unused match found"
     ]
     if failed_matches:
-        logger.warning(
+        logger.error(
             f"Found {len(failed_matches)} failed matches out of {total_mappings} total mappings"
         )
-        logger.warning("Sample failed matches:")
+        logger.error("Sample failed matches:")
         for src in failed_matches[:5]:  # Show first 5 failed matches
-            logger.warning(f"  '{src}'")
+            logger.error(f"  '{src}'")
         if len(failed_matches) > 5:
-            logger.warning(f"  ... and {len(failed_matches) - 5} more")
+            logger.error(f"  ... and {len(failed_matches) - 5} more")
 
     # Log final performance metrics
 
@@ -2722,27 +2722,27 @@ def build_attachment_mapping_with_progress() -> Dict[str, str]:
         src for src, filename in mapping.items() if filename == "No unused match found"
     ]
     if failed_matches:
-        logger.warning(
+        logger.error(
             f"Found {len(failed_matches)} failed matches out of {len(mapping)} total mappings"
         )
-        logger.warning("Sample failed matches:")
+        logger.error("Sample failed matches:")
         for src in failed_matches[:5]:  # Show first 5 failed matches
-            logger.warning(f"  '{src}'")
+            logger.error(f"  '{src}'")
         if len(failed_matches) > 5:
-            logger.warning(f"  ... and {len(failed_matches) - 5} more")
+            logger.error(f"  ... and {len(failed_matches) - 5} more")
 
         # With the new HTML-filename approach, we should have 100% success rate
         # Log any failed matches for debugging
         if failed_matches:
-            logger.warning(
+            logger.error(
                 f"Found {len(failed_matches)} failed matches - this is unexpected with the new algorithm"
             )
-            logger.warning("Sample failed matches:")
+            logger.error("Sample failed matches:")
             for src in failed_matches[:5]:  # Show first 5 failed matches
-                logger.warning(f"  '{src}'")
+                logger.error(f"  '{src}'")
             if len(failed_matches) > 5:
-                logger.warning(f"  ... and {len(failed_matches) - 5} more")
-            logger.warning("Please check if this indicates a data corruption issue")
+                logger.error(f"  ... and {len(failed_matches) - 5} more")
+            logger.error("Please check if this indicates a data corruption issue")
 
     return mapping
 
@@ -2835,7 +2835,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
     total_files = len(html_files_list)
 
     if total_files == 0:
-        logger.warning(f"No HTML files found in Calls directory: {calls_directory}")
+        logger.error(f"No HTML files found in Calls directory: {calls_directory}")
         return stats
 
     # Process all files, not just SMS/MMS files
@@ -2948,7 +2948,7 @@ def process_sms_mms_file(
     messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
 
     if not messages_raw:
-        logger.warning(f"No messages found in SMS/MMS file: {html_file.name}")
+        logger.error(f"No messages found in SMS/MMS file: {html_file.name}")
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -3176,7 +3176,7 @@ def write_sms_messages(
                 except Exception:
                     pass
         if not is_valid_phone_number(phone_number):
-            logger.warning(
+            logger.error(
                 f"Could not determine valid phone number for {file}, skipping SMS processing"
             )
             return
@@ -3184,7 +3184,7 @@ def write_sms_messages(
         # Get total message count for progress tracking
         total_messages = len(messages_raw)
         if total_messages == 0:
-            logger.warning(f"No messages to process in {file}")
+            logger.error(f"No messages to process in {file}")
             return
 
         logger.info(f"Processing {total_messages} SMS messages from {file}")
@@ -3280,7 +3280,7 @@ def write_sms_messages(
                     last_reported_progress = current_progress
 
             except Exception as e:
-                logger.warning(f"Failed to process SMS message: {e}")
+                logger.error(f"Failed to process SMS message: {e}")
                 skipped_count += 1
                 continue
 
@@ -3526,7 +3526,7 @@ def search_fallback_numbers(
         return fallback_number
 
     except Exception as e:
-        logger.warning(f"Failed to search fallback numbers: {e}")
+        logger.error(f"Failed to search fallback numbers: {e}")
         return fallback_number
 
 
@@ -3562,11 +3562,11 @@ def search_files_for_phone_number(
                                 return phone_number
 
             except Exception as e:
-                logger.warning(f"Failed to search fallback file {fallback_file}: {e}")
+                logger.error(f"Failed to search fallback file {fallback_file}: {e}")
                 continue
 
     except Exception as e:
-        logger.warning(f"Failed to search pattern {pattern}: {e}")
+        logger.error(f"Failed to search pattern {pattern}: {e}")
 
     return 0
 
@@ -3592,7 +3592,7 @@ def write_mms_messages(
         # Get total message count for progress tracking
         total_messages = len(messages_raw)
         if total_messages == 0:
-            logger.warning(f"No MMS messages to process in {file}")
+            logger.error(f"No MMS messages to process in {file}")
             return
 
         logger.info(f"Processing {total_messages} MMS messages from {file}")
@@ -3690,7 +3690,7 @@ def write_mms_messages(
                     f"Extracted {len(participants)} participants from messages for {file}"
                 )
             else:
-                logger.warning(f"No participants found for MMS in {file}")
+                logger.error(f"No participants found for MMS in {file}")
                 return
 
         # Process MMS messages and write to conversation files
@@ -3822,13 +3822,13 @@ def write_mms_messages(
             except Exception as e:
                 # Provide more detailed error information for debugging
                 if "Unable to determine sender" in str(e):
-                    logger.warning(
+                    logger.error(
                         f"Failed to process MMS message (sender determination issue): {e}"
                     )
                     logger.debug(f"Message HTML structure: {message}")
                     logger.debug(f"Participants: {participants}")
                 else:
-                    logger.warning(f"Failed to process MMS message: {e}")
+                    logger.error(f"Failed to process MMS message: {e}")
                 skipped_count += 1
                 continue
 
@@ -3885,7 +3885,7 @@ def process_attachments(
                             extracted_url = src
 
                     except Exception as e:
-                        logger.warning(
+                        logger.error(
                             f"Failed to process {attachment_type} {filename}: {e}"
                         )
 
@@ -3947,7 +3947,7 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                             data="attachments/" + filename,
                         )
                     except Exception as e:
-                        logger.warning(f"Failed to process image {filename}: {e}")
+                        logger.error(f"Failed to process image {filename}: {e}")
 
     return image_parts
 
@@ -3998,7 +3998,7 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                             data="attachments/" + filename,
                         )
                     except Exception as e:
-                        logger.warning(f"Failed to process vCard {filename}: {e}")
+                        logger.error(f"Failed to process vCard {filename}: {e}")
 
     return vcard_parts
 
@@ -4128,10 +4128,10 @@ def find_attachment_file(
 
     # Validate results
     if not paths:
-        logger.warning(f"No matching files found for src: {src}")
+        logger.error(f"No matching files found for src: {src}")
         return None
     if len(paths) > 1:
-        logger.warning(f"Multiple matching files found for src {src}: {paths}")
+        logger.error(f"Multiple matching files found for src {src}: {paths}")
 
     return paths[0]
 
@@ -4174,7 +4174,7 @@ def encode_file_content(file_path: Path) -> str:
             content = f.read()
         return b64encode(content).decode("utf-8")
     except Exception as e:
-        logger.warning(f"Failed to encode file {file_path}: {e}")
+        logger.error(f"Failed to encode file {file_path}: {e}")
         return ""
 
 
@@ -4191,7 +4191,7 @@ def extract_location_url(vcard_path: Path) -> str:
                     return escape_xml(url.replace("\\", ""))
         return ""
     except Exception as e:
-        logger.warning(f"Failed to extract location URL from {vcard_path}: {e}")
+        logger.error(f"Failed to extract location URL from {vcard_path}: {e}")
         return ""
 
 
@@ -4355,7 +4355,7 @@ def get_message_type(message: BeautifulSoup) -> int:
         author_raw = message.cite
         return 2 if not author_raw.span else 1  # 2=sent, 1=received
     except Exception as e:
-        logger.warning(f"Failed to determine message type: {e}")
+        logger.error(f"Failed to determine message type: {e}")
         return 1  # Default to received
 
 
@@ -4387,7 +4387,7 @@ def get_message_text(message: BeautifulSoup) -> str:
         return inner
 
     except Exception as e:
-        logger.warning(f"Failed to extract message text: {e}")
+        logger.error(f"Failed to extract message text: {e}")
         return ""
 
 
@@ -4438,7 +4438,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
                     try:
                         return format_number(phonenumbers.parse(number_text, None))
                     except phonenumbers.phonenumberutil.NumberParseException as e:
-                        logger.warning(
+                        logger.error(
                             f"Failed to parse phone number {number_text}: {e}"
                         )
                         # Continue to fallback methods instead of failing
@@ -4585,7 +4585,7 @@ def create_dummy_participant(phone_number: Union[str, int]) -> BeautifulSoup:
         html_content = f'<cite class="sender vcard"><a class="tel" href="tel:{phone_number}"><abbr class="fn" title="">Unknown</abbr></a></cite>'
         return BeautifulSoup(html_content, features="html.parser")
     except Exception as e:
-        logger.warning(f"Failed to create dummy participant: {e}")
+        logger.error(f"Failed to create dummy participant: {e}")
         return BeautifulSoup("<cite></cite>", features="html.parser")
 
 
@@ -4818,7 +4818,7 @@ def format_number(phone_number: phonenumbers.PhoneNumber) -> str:
             phone_number, phonenumbers.PhoneNumberFormat.E164
         )
     except Exception as e:
-        logger.warning(f"Failed to format phone number: {e}")
+        logger.error(f"Failed to format phone number: {e}")
         return str(phone_number)
 
 
@@ -5130,24 +5130,24 @@ def validate_processing_directory(processing_dir: Path) -> bool:
     phones_vcf = processing_path / "Phones.vcf"
 
     if not calls_dir.exists():
-        logger.warning(f"Calls directory not found: {calls_dir}")
-        logger.warning(
+        logger.error(f"Calls directory not found: {calls_dir}")
+        logger.error(
             "This may indicate the directory structure is different than expected"
         )
 
     if not phones_vcf.exists():
-        logger.warning(f"Phones.vcf file not found: {phones_vcf}")
-        logger.warning(
+        logger.error(f"Phones.vcf file not found: {phones_vcf}")
+        logger.error(
             "This may indicate the directory structure is different than expected"
         )
 
     # Check for HTML files
     html_files = list(processing_path.rglob("*.html"))
     if not html_files:
-        logger.warning(
+        logger.error(
             f"No HTML files found in processing directory: {processing_path}"
         )
-        logger.warning(
+        logger.error(
             "This may indicate the directory is empty or contains no Google Voice data"
         )
 
@@ -5400,7 +5400,7 @@ def process_call_file(
                 "own_number": own_number,
             }
         else:
-            logger.warning(f"Could not extract call information from {html_file.name}")
+            logger.error(f"Could not extract call information from {html_file.name}")
             return {
                 "num_sms": 0,
                 "num_img": 0,
@@ -5443,7 +5443,7 @@ def process_voicemail_file(
                 "own_number": own_number,
             }
         else:
-            logger.warning(
+            logger.error(
                 f"Could not extract voicemail information from {html_file.name}"
             )
             return {
@@ -5503,7 +5503,7 @@ def extract_call_info(
         return None
 
     except Exception as e:
-        logger.warning(f"Failed to extract call info: {e}")
+        logger.error(f"Failed to extract call info: {e}")
         return None
 
 
@@ -5536,7 +5536,7 @@ def extract_voicemail_info(
         return None
 
     except Exception as e:
-        logger.warning(f"Failed to extract voicemail info: {e}")
+        logger.error(f"Failed to extract voicemail info: {e}")
         return None
 
 
@@ -5859,7 +5859,7 @@ def extract_call_details_from_soup(soup: BeautifulSoup) -> Dict[str, str]:
         }
 
     except Exception as e:
-        logger.warning(f"Failed to extract call details from soup: {e}")
+        logger.error(f"Failed to extract call details from soup: {e}")
         return {
             "call_type": "Unknown",
             "duration": "",
@@ -5936,7 +5936,7 @@ def extract_call_details(filename: str) -> Dict[str, str]:
         }
 
     except Exception as e:
-        logger.warning(f"Failed to extract call details from {filename}: {e}")
+        logger.error(f"Failed to extract call details from {filename}: {e}")
         return {
             "call_type": "Unknown",
             "duration": "",
@@ -5982,7 +5982,7 @@ def parse_iso_duration(duration_str: str) -> str:
             return f"{seconds}s"
 
     except Exception as e:
-        logger.warning(f"Failed to parse duration '{duration_str}': {e}")
+        logger.error(f"Failed to parse duration '{duration_str}': {e}")
         return duration_str
 
 
