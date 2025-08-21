@@ -156,7 +156,7 @@ legacy-test: check-syntax
 legacy-test-full: check-syntax
 	@echo "⚠️  Running legacy full test compatibility..."
 	@echo "Note: This runs the deprecated test files for backward compatibility"
-	@python3 test_sms.py
+	@python3 test_sms_unified.py --basic
 
 # Performance testing targets
 test-fast: check-syntax

@@ -14,23 +14,28 @@ The testing framework provides:
 ## 📁 Test Files
 
 ### Core Test Files
-- **`test_sms.py`** - Main test suite with all test cases
+- **`test_sms_unified.py`** - Main unified test suite with all test cases
 - **`run_tests.py`** - Test runner script with multiple execution modes
 - **`test_requirements.txt`** - Dependencies for advanced testing features
 
 ### Test Structure
 ```
-test_sms.py
-├── TestSMSModule (Unit Tests)
+test_sms_unified.py
+├── TestSMSBasic (Unit Tests)
 │   ├── Configuration & Constants
 │   ├── Core Functions
 │   ├── XML Generation
 │   ├── File Processing
 │   ├── Error Handling
 │   └── Performance Optimizations
+├── TestSMSAdvanced (Advanced Tests)
+│   ├── Message Processing
+│   ├── Phone Number Handling
+│   └── Edge Cases
 └── TestSMSIntegration (Integration Tests)
     ├── Full Workflow Testing
-    └── Attachment Processing
+    ├── Attachment Processing
+    └── Filename-based Extraction
 ```
 
 ## 🚀 Running Tests
@@ -53,13 +58,13 @@ python3 run_tests.py --coverage
 ### Manual Execution
 ```bash
 # Using unittest directly
-python3 -m unittest test_sms -v
+python3 -m unittest test_sms_unified -v
 
 # Using pytest (if installed)
-python3 -m pytest test_sms.py -v
+python3 -m pytest test_sms_unified.py -v
 
 # Using pytest with coverage
-python3 -m pytest test_sms.py --cov=sms --cov-report=html
+python3 -m pytest test_sms_unified.py --cov=sms --cov-report=html
 ```
 
 ## 📋 Test Categories

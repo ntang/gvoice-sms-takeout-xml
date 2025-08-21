@@ -61,12 +61,12 @@ python test_sms_unified.py --integration -v
 
 ## 🚫 Deprecated Test Files
 
-The following test files are deprecated and will be removed in a future version:
+The following test files have been removed and replaced by the unified test suite:
 
-- `test_sms.py` - Replaced by unified test suite
-- `test_sms_basic.py` - Replaced by unified test suite
+- `test_sms.py` - Replaced by `test_sms_unified.py`
+- `test_sms_basic.py` - Replaced by `test_sms_unified.py`
 
-These files still work for backward compatibility but will show deprecation warnings and redirect to the unified approach.
+**All testing should now use `test_sms_unified.py` for consistency and maintainability.**
 
 ## Test Structure
 
@@ -190,8 +190,8 @@ If you were using the old test files:
 
 ```bash
 # Old way
-python test_sms.py
-python test_sms_basic.py
+python test_sms_unified.py
+python test_sms_unified.py --basic
 
 # New way
 python test_sms_unified.py --full
