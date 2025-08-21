@@ -3337,8 +3337,16 @@ def write_sms_messages(
                     skipped_count += 1
                     continue
 
-                # Get alias for the phone number
+                # Get alias for the phone number, with filename-based fallback
                 alias = PHONE_LOOKUP_MANAGER.get_alias(str(phone_number), None)
+                
+                # If no alias found, try to extract from filename
+                if not alias and file and " - Text -" in file:
+                    name_part = file.split(" - Text -")[0]
+                    # Use the name part as alias if it looks like a person's name
+                    if len(name_part.strip()) > 2 and not name_part.strip().isdigit():
+                        alias = name_part.strip()
+                        logger.debug(f"Using filename-based alias for SMS: {alias}")
 
                 # Prepare SMS message data
                 sms_values = {
@@ -3884,10 +3892,11 @@ def write_mms_messages(
                     filename_participants = []
                     filename_aliases = []
                     
-                    # Look for name patterns in filename before the " - Text -" part
+                    # Enhanced filename parsing for various patterns
                     if " - Text -" in file:
                         name_part = file.split(" - Text -")[0]
-                        # Try to extract phone numbers from the name part
+                        
+                        # Try to extract phone numbers from the name part first
                         phone_matches = re.findall(r"(\+\d{1,3}\s?\d{1,3}\s?\d{1,4}\s?\d{1,4})", name_part)
                         for phone_match in phone_matches:
                             try:
@@ -3899,6 +3908,44 @@ def write_mms_messages(
                             except Exception as e:
                                 logger.debug(f"Failed to parse phone number from filename: {e}")
                                 continue
+                        
+                        # If no phone numbers found, try to extract from other patterns
+                        if not filename_participants:
+                            # Look for patterns like "Name +1234567890" or "Name (123) 456-7890"
+                            phone_patterns = [
+                                r"([^+]*?)\s*\+(\d{1,3}\s?\d{1,3}\s?\d{1,4}\s?\d{1,4})",  # Name +phone
+                                r"([^\(]*?)\s*\((\d{3})\)\s*(\d{3})-(\d{4})",  # Name (123) 456-7890
+                                r"([^0-9]*?)\s*(\d{3})\s*(\d{3})\s*(\d{4})",  # Name 123 456 7890
+                            ]
+                            
+                            for pattern in phone_patterns:
+                                matches = re.findall(pattern, name_part)
+                                for match in matches:
+                                    try:
+                                        if len(match) == 2:  # Name +phone format
+                                            name, phone = match
+                                            phone_number = format_number(phonenumbers.parse(phone, None))
+                                        elif len(match) == 4:  # (123) 456-7890 or 123 456 7890 format
+                                            name = match[0]
+                                            phone = "".join(match[1:])
+                                            phone_number = format_number(phonenumbers.parse(phone, None))
+                                        else:
+                                            continue
+                                        
+                                        if phone_number not in filename_participants:
+                                            filename_participants.append(phone_number)
+                                            filename_aliases.append(name.strip() if name.strip() else phone_number)
+                                    except Exception as e:
+                                        logger.debug(f"Failed to parse phone number from filename pattern: {e}")
+                                        continue
+                        
+                        # If still no phone numbers, use the name as a participant identifier
+                        if not filename_participants:
+                            # Create a unique identifier based on the name
+                            name_hash = str(hash(name_part.strip()) % 1000000)
+                            filename_participants = [f"name_{name_hash}"]
+                            filename_aliases.append(name_part.strip())
+                            logger.debug(f"Created name-based participant for {file}: {name_part.strip()}")
                     
                     # Strategy 5: If still no participants, create a default conversation
                     if not filename_participants:
@@ -5282,6 +5329,31 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                     except Exception as e:
                         logger.debug(f"Failed to parse data attribute timestamp '{time_str}' from {attr}: {e}")
                         continue
+        
+        # Strategy 11: Extract timestamp from filename patterns
+        # This catches cases like "Name - Text - 2025-08-13T12_08_52Z.html"
+        if filename and " - Text -" in filename:
+            try:
+                # Extract the timestamp part after " - Text -"
+                timestamp_part = filename.split(" - Text -")[1]
+                if timestamp_part.endswith(".html"):
+                    timestamp_part = timestamp_part[:-5]  # Remove .html extension
+                
+                # Convert underscore to colon for proper ISO parsing
+                timestamp_part = timestamp_part.replace("_", ":")
+                
+                # Try to parse the timestamp from filename
+                time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
+                timestamp_ms = int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+                
+                logger.debug(f"Extracted timestamp from filename '{filename}': {timestamp_part} -> {timestamp_ms}")
+                return timestamp_ms
+                
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from filename '{filename}': {e}")
+                # Continue to next strategy
         
         # If all strategies fail, log detailed information and use fallback
         logger.debug(f"Could not extract timestamp from message in {filename}: {message}")
