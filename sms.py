@@ -3425,7 +3425,9 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
     Returns:
         Union[str, int]: Extracted number or 0 if not found
     """
-    # First try to extract phone number from filename
+    import re
+    
+    # Strategy 1: Extract phone number from filename (international format)
     match = PHONE_NUMBER_PATTERN.search(filename)
     if match:
         # Remove any non-digit characters and convert to int
@@ -3439,12 +3441,21 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
         )
         return int(phone_number)
 
-    # Fallback: try to extract any number from parentheses in the filename
-    import re
+    # Strategy 2: Extract numeric service codes from start of filename
+    # Pattern: "262966 - Text - ..." or "12345 - Text - ..."
+    numeric_code_match = re.match(r"^(\d{4,7})\s*-\s*", filename)
+    if numeric_code_match:
+        return int(numeric_code_match.group(1))
 
+    # Strategy 3: Extract any number from parentheses in the filename
     paren_match = re.search(r"\((\d+)\)", filename)
     if paren_match:
         return int(paren_match.group(1))
+    
+    # Strategy 4: Extract any sequence of digits from filename (last resort)
+    digit_match = re.search(r"(\d{4,})", filename)
+    if digit_match:
+        return int(digit_match.group(1))
 
     return 0
 
@@ -3503,18 +3514,22 @@ def should_skip_file(filename: str) -> bool:
     if filename.startswith("-") or filename.startswith(" "):
         return True
 
-    # Skip files that start with just numbers (likely short codes)
-    # Pattern: "12345 - Text - ..." or "286669 - Text - ..."
+    # FIXED: Don't skip numeric filenames - they can be valid SMS short codes or service numbers
+    # Many legitimate services use numeric codes like "262966" for verification codes, alerts, etc.
+    # Pattern: "12345 - Text - ..." or "286669 - Text - ..." should be processed, not skipped
+    
+    # Only skip if the filename has invalid characters or patterns that indicate corruption
     import re
+    
+    # Skip only if filename contains invalid characters that suggest file corruption
+    if re.search(r'[<>:"|?*]', filename):
+        return True
+    
+    # Skip if filename is empty or just whitespace/punctuation
+    if not filename.strip() or filename.strip() in ['-', '.', '_']:
+        return True
 
-    short_code_match = re.match(r"^(\d{1,6})\s*-\s*", filename)
-    if short_code_match:
-        number = short_code_match.group(1)
-        # Skip if it's a short code (≤6 digits)
-        if len(number) <= 6:
-            return True
-
-    # Don't skip files that start with names or "Group Conversation"
+    # Don't skip files that start with names, numbers, or "Group Conversation"
     # These are legitimate conversation files that should be processed
     return False
 
@@ -3941,11 +3956,15 @@ def write_mms_messages(
                         
                         # If still no phone numbers, use the name as a participant identifier
                         if not filename_participants:
-                            # Create a unique identifier based on the name
-                            name_hash = str(hash(name_part.strip()) % 1000000)
-                            filename_participants = [f"name_{name_hash}"]
-                            filename_aliases.append(name_part.strip())
-                            logger.debug(f"Created name-based participant for {file}: {name_part.strip()}")
+                            # Use the actual name directly as the participant identifier
+                            # This creates more meaningful conversation filenames
+                            clean_name = name_part.strip()
+                            if clean_name and len(clean_name) > 0:
+                                # Replace problematic characters for filename safety
+                                safe_name = clean_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                                filename_participants = [safe_name]
+                                filename_aliases.append(clean_name)
+                                logger.debug(f"Created name-based participant for {file}: {clean_name}")
                     
                     # Strategy 5: If still no participants, create a default conversation
                     if not filename_participants:
@@ -3977,9 +3996,9 @@ def write_mms_messages(
 
                 # Use extracted aliases, but fall back to phone lookup if needed
                 final_aliases = []
-                for i, phone in enumerate(participants):
-                    if i < len(participant_aliases) and participant_aliases[i]:
-                        final_aliases.append(participant_aliases[i])
+                for participant_idx, phone in enumerate(participants):
+                    if participant_idx < len(participant_aliases) and participant_aliases[participant_idx]:
+                        final_aliases.append(participant_aliases[participant_idx])
                     else:
                         # Fall back to phone lookup
                         alias = PHONE_LOOKUP_MANAGER.get_alias(phone, None)

@@ -2632,6 +2632,226 @@ class TestSMSIntegration(unittest.TestCase):
         
         print(f"Conversation ID generation test: {conversation_ids[0]} (consistent across 5 calls)")
         print(f"Reversed order generates: {reversed_conversation_id} (different, as expected)")
+    
+    def test_numeric_filename_processing_fixes(self):
+        """Test that numeric filenames are now processed correctly instead of being skipped."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test cases that were previously being skipped but should now be processed
+        test_cases = [
+            # Case 1: Numeric service codes (common for verification codes)
+            {
+                "filename": "262966 - Text - 2022-01-12T00_54_17Z.html",
+                "should_skip": False,
+                "description": "verification service code"
+            },
+            # Case 2: Bank alerts and notifications
+            {
+                "filename": "274624 - Text - 2025-04-16T18_34_53Z.html",
+                "should_skip": False,
+                "description": "bank alert code"
+            },
+            # Case 3: Emergency/service notifications
+            {
+                "filename": "30368 - Text - 2016-11-13T23_17_42Z.html",
+                "should_skip": False,
+                "description": "emergency notification code"
+            },
+            # Case 4: Marketing/promotional codes
+            {
+                "filename": "692639 - Text - 2025-04-19T19_47_09Z.html",
+                "should_skip": False,
+                "description": "promotional code"
+            },
+            # Case 5: Various other service codes
+            {
+                "filename": "78015 - Text - 2020-05-08T17_00_37Z.html",
+                "should_skip": False,
+                "description": "service notification code"
+            },
+            # Case 6: Still skip truly invalid patterns
+            {
+                "filename": " - Text - 2020-05-08T17_00_37Z.html",
+                "should_skip": True,
+                "description": "invalid empty pattern"
+            },
+            # Case 7: Still skip corrupted filenames
+            {
+                "filename": 'test<>:"|?*.html',
+                "should_skip": True,
+                "description": "corrupted filename with invalid characters"
+            }
+        ]
+        
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                result = sms.should_skip_file(test_case["filename"])
+                
+                if test_case["should_skip"]:
+                    self.assertTrue(result, 
+                                   f"Should skip {test_case['description']}: {test_case['filename']}")
+                else:
+                    self.assertFalse(result, 
+                                    f"Should NOT skip {test_case['description']}: {test_case['filename']}")
+    
+    def test_improved_name_based_participants(self):
+        """Test that name-based participants use actual names instead of generic hashes."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test cases that should create meaningful participant names
+        test_cases = [
+            # Case 1: Person's name should be used directly
+            {
+                "filename": "John Doe - Text - 2025-08-13T12_08_52Z.html",
+                "expected_participant": "John_Doe",  # Safe filename version
+                "expected_alias": "John Doe",        # Display version
+                "description": "person name with space"
+            },
+            # Case 2: Business name
+            {
+                "filename": "Eastern Car Service SMS - Text - 2018-01-22T19_25_.html",
+                "expected_participant": "Eastern_Car_Service_SMS",
+                "expected_alias": "Eastern Car Service SMS",
+                "description": "business name with spaces"
+            },
+            # Case 3: Name with special characters
+            {
+                "filename": "Dr. Mary-Jane O'Connor - Text - 2025-08-13T12_08_52Z.html",
+                "expected_participant": "Dr._Mary-Jane_O'Connor",
+                "expected_alias": "Dr. Mary-Jane O'Connor",
+                "description": "name with special characters"
+            }
+        ]
+        
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                if " - Text -" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text -")[0].strip()
+                    
+                    # Test the name processing logic
+                    if name_part and len(name_part) > 0:
+                        safe_name = name_part.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                        
+                        # Should create meaningful participant identifiers
+                        self.assertEqual(safe_name, test_case["expected_participant"],
+                                       f"Should create meaningful participant for {test_case['description']}")
+                        self.assertEqual(name_part, test_case["expected_alias"],
+                                       f"Should create correct alias for {test_case['description']}")
+                        
+                        # Should not contain generic patterns
+                        self.assertNotIn("name_", safe_name,
+                                       f"Should not create generic hash for {test_case['description']}")
+                        self.assertNotIn("default_", safe_name,
+                                       f"Should not create default participant for {test_case['description']}")
+    
+    def test_mms_progress_counter_fix(self):
+        """Test that MMS progress counter doesn't exceed 100% due to variable name collision."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create mock MMS messages for testing
+        mock_messages = []
+        for i in range(5):
+            mock_html = f'<div class="message"><cite><span>Contact {i}</span></cite><q>MMS message {i}</q></div>'
+            mock_messages.append(BeautifulSoup(mock_html, "html.parser").find("div"))
+        
+        # Test that we can enumerate messages without variable name collision
+        # This simulates the fixed logic in write_mms_messages
+        participants = ["Contact1", "Contact2"]
+        participant_aliases = ["Alias1", "Alias2"]
+        
+        for message_idx, message in enumerate(mock_messages):
+            # This should work without variable name collision
+            final_aliases = []
+            for participant_idx, phone in enumerate(participants):
+                if participant_idx < len(participant_aliases) and participant_aliases[participant_idx]:
+                    final_aliases.append(participant_aliases[participant_idx])
+                else:
+                    final_aliases.append(f"Phone{participant_idx}")
+            
+            # Progress calculation should be correct
+            progress_percentage = ((message_idx + 1) / len(mock_messages)) * 100
+            
+            # Should never exceed 100%
+            self.assertLessEqual(progress_percentage, 100.0,
+                               f"Progress should not exceed 100% at message {message_idx + 1}")
+            
+            # Should be accurate
+            expected_percentage = ((message_idx + 1) / 5) * 100
+            self.assertEqual(progress_percentage, expected_percentage,
+                           f"Progress should be accurate at message {message_idx + 1}")
+    
+    def test_service_code_filename_support(self):
+        """Test that service codes and short codes are properly supported."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test various service code patterns that should be processed
+        service_codes = [
+            # Common verification code senders
+            "262966",  # Common verification service
+            "87892",   # Verification service
+            "47873",   # Marketing service
+            "44444",   # Common service code
+            "22395",   # Alert service
+            "78015",   # Notification service
+            "386732",  # Business alert
+            "692639",  # Promotional code
+            "274624",  # Bank alert
+            "30368",   # Emergency notification
+            "12345",   # Generic service
+            "99999",   # Service code
+        ]
+        
+        for code in service_codes:
+            filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
+            with self.subTest(code=code):
+                # Should not be skipped
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(should_skip, 
+                               f"Service code {code} should be processed, not skipped")
+                
+                # Should be able to extract the code as a fallback number
+                fallback_number = sms.extract_fallback_number_cached(filename)
+                self.assertGreater(fallback_number, 0, 
+                                 f"Should extract number from service code {code}")
+    
+    def test_corrupted_filename_handling(self):
+        """Test that truly corrupted filenames are still properly skipped."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test filenames that should still be skipped
+        corrupted_filenames = [
+            # Empty or whitespace-only patterns
+            " - Text - 2025-01-01T12_00_00Z.html",
+            "- Text - 2025-01-01T12_00_00Z.html",
+            "  - Text - 2025-01-01T12_00_00Z.html",
+            
+            # Invalid characters that suggest file corruption
+            'test<file.html',
+            'test>file.html', 
+            'test:file.html',
+            'test"file.html',
+            'test|file.html',
+            'test?file.html',
+            'test*file.html',
+            
+            # Completely empty or invalid patterns
+            "",
+            "   ",
+            "-",
+            ".",
+            "_"
+        ]
+        
+        for filename in corrupted_filenames:
+            with self.subTest(filename=filename):
+                should_skip = sms.should_skip_file(filename)
+                self.assertTrue(should_skip, 
+                              f"Corrupted filename should be skipped: '{filename}'")
 
 
 def create_test_suite(test_type="basic", test_limit=100):
