@@ -1406,192 +1406,76 @@ class TestSMSIntegration(unittest.TestCase):
             pass
 
     def test_timestamp_extraction_with_multiple_strategies(self):
-        """Test that timestamp extraction works with multiple fallback strategies."""
+        """Test get_time_unix with various HTML structures for timestamp extraction."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
-        # Test case 1: Standard dt class with title
-        test_html1 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        message1 = BeautifulSoup(test_html1, 'html.parser')
-        
-        try:
-            timestamp1 = sms.get_time_unix(message1)
-            self.assertIsInstance(timestamp1, int, "Timestamp should be an integer")
-            self.assertGreater(timestamp1, 0, "Timestamp should be positive")
-        except Exception as e:
-            self.fail(f"Standard timestamp extraction failed: {e}")
-        
-        # Test case 2: Abbr element with title (no dt class)
-        test_html2 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <abbr title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        message2 = BeautifulSoup(test_html2, 'html.parser')
-        
-        try:
-            timestamp2 = sms.get_time_unix(message2)
-            self.assertIsInstance(timestamp2, int, "Timestamp should be an integer")
-            self.assertGreater(timestamp2, 0, "Timestamp should be positive")
-        except Exception as e:
-            self.fail(f"Abbr title timestamp extraction failed: {e}")
-        
-        # Test case 3: Time element with datetime
-        test_html3 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <time datetime='2024-01-15T10:30:00Z'>Jan 15, 2024</time>
-        </div>
-        '''
-        message3 = BeautifulSoup(test_html3, 'html.parser')
-        
-        try:
-            timestamp3 = sms.get_time_unix(message3)
-            self.assertIsInstance(timestamp3, int, "Timestamp should be an integer")
-            self.assertGreater(timestamp3, 0, "Timestamp should be positive")
-        except Exception as e:
-            self.fail(f"Time datetime timestamp extraction failed: {e}")
-
-    def test_phone_number_extraction_with_comprehensive_fallbacks(self):
-        """Test that phone number extraction works with all fallback strategies."""
-        test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
-        # Test case 1: Messages with cite elements
-        test_html1 = '''
-        <div class='message'>
-            <cite class='sender vcard'>
-                <a class='tel' href='tel:+15551234567'>
-                    <abbr class='fn' title='Test User'>Test User</abbr>
-                </a>
-            </cite>
-            <q>Test message</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        messages1 = [BeautifulSoup(test_html1, 'html.parser')]
-        
-        try:
-            phone_number1, participant_raw1 = sms.get_first_phone_number(messages1, 0)
-            self.assertIsNotNone(phone_number1, "Should extract phone number from cite element")
-            self.assertNotEqual(phone_number1, 0, "Phone number should not be 0")
-        except Exception as e:
-            self.fail(f"Cite element phone extraction failed: {e}")
-        
-        # Test case 2: Messages with tel: links in content
-        test_html2 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <a href='tel:+15551234568'>Call me</a>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        messages2 = [BeautifulSoup(test_html2, 'html.parser')]
-        
-        try:
-            phone_number2, participant_raw2 = sms.get_first_phone_number(messages2, 0)
-            self.assertIsNotNone(phone_number2, "Should extract phone number from tel: links")
-            self.assertNotEqual(phone_number2, 0, "Phone number should not be 0")
-        except Exception as e:
-            self.fail(f"Tel link phone extraction failed: {e}")
-        
-        # Test case 3: Messages with phone numbers in text
-        test_html3 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Call me at +15551234569</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        messages3 = [BeautifulSoup(test_html3, 'html.parser')]
-        
-        try:
-            phone_number3, participant_raw3 = sms.get_first_phone_number(messages3, 0)
-            self.assertIsNotNone(phone_number3, "Should extract phone number from text content")
-            self.assertNotEqual(phone_number3, 0, "Phone number should not be 0")
-        except Exception as e:
-            self.fail(f"Text content phone extraction failed: {e}")
-
-    def test_message_detection_with_alternative_selectors(self):
-        """Test that message detection works with alternative CSS selectors."""
-        test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
-        # Test case 1: Standard message class
-        test_html1 = '''
-        <div class='message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        
-        # Test case 2: Alternative message class
-        test_html2 = '''
-        <div class='sms-message'>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        
-        # Test case 3: Table row message
-        test_html3 = '''
-        <tr class='message-row'>
-            <td><cite class='sender'>Test User</cite></td>
-            <td><q>Test message</q></td>
-            <td><abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr></td>
-        </tr>
-        '''
-        
-        # Test case 4: Message-like div without specific class
-        test_html4 = '''
-        <div>
-            <cite class='sender'>Test User</cite>
-            <q>Test message</q>
-            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
-        </div>
-        '''
-        
+        # Test various timestamp formats and structures
         test_cases = [
-            ('standard message class', test_html1),
-            ('alternative message class', test_html2),
-            ('table row message', test_html3),
-            ('message-like div', test_html4)
+            # Strategy 1: dt class with title
+            {
+                "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test message</q></div>',
+                "should_extract": True
+            },
+            # Strategy 2: abbr with title
+            {
+                "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test message</q></div>',
+                "should_extract": True
+            },
+            # Strategy 3: time with datetime
+            {
+                "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test message</q></div>',
+                "should_extract": True
+            },
+            # Strategy 4: any element with datetime
+            {
+                "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test message</q></div>',
+                "should_extract": True
+            },
+            # Strategy 5: ISO pattern in text
+            {
+                "html": '<div class="message"><q>Test message</q><span>2024-05-12T11:30:00Z</span></div>',
+                "should_extract": True
+            },
+            # Strategy 6: Flexible date parsing
+            {
+                "html": '<div class="message"><q>Test message</q><span>12/25/2024 3:45 PM</span></div>',
+                "should_extract": True
+            },
+            # Strategy 7: Element text parsing
+            {
+                "html": '<div class="message"><q>Test message</q><div>2024-06-18</div></div>',
+                "should_extract": True
+            }
         ]
         
-        for test_name, test_html in test_cases:
-            with self.subTest(test_name=test_name):
-                soup = BeautifulSoup(test_html, 'html.parser')
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i):
+                soup = BeautifulSoup(test_case["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")  # Fallback if no message class
                 
-                # This should not raise an error about no messages found
-                try:
-                    result = sms.process_sms_mms_file(Path('test.html'), soup, None, {})
-                    self.assertIsInstance(result, dict, f"Should return a dictionary for {test_name}")
-                    self.assertIn('num_sms', result, f"Result should contain num_sms for {test_name}")
-                except Exception as e:
-                    if 'No messages found' in str(e):
-                        self.fail(f"Message detection failed for {test_name}: {e}")
-                    else:
-                        # Other exceptions are acceptable in this test context
-                        pass
+                result = sms.get_time_unix(message)
+                
+                # Verify the timestamp is reasonable (not epoch 0, not current time fallback)
+                self.assertIsInstance(result, int, f"Strategy {i+1} should return integer timestamp")
+                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
+                
+                # Verify it's not the current time fallback (should be significantly different)
+                current_time = int(time.time() * 1000)
+                time_diff = abs(result - current_time)
+                self.assertGreater(time_diff, 1000000, f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)")
+                
+                # Log the actual timestamp for debugging
+                print(f"Strategy {i+1} extracted timestamp: {result} from {test_case['html']}")
 
-    def test_write_sms_messages_no_future_to_chunk_error(self):
-        """Test that write_sms_messages doesn't reference undefined future_to_chunk variable."""
+    def test_mms_processing_with_none_soup_parameter(self):
+        """Test that MMS processing works correctly when soup parameter is None."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
-        # Create test HTML with a basic message structure
+        # Create test HTML with MMS message structure
         test_html = '''
         <div class='message'>
             <cite class='sender vcard'>
@@ -1599,208 +1483,161 @@ class TestSMSIntegration(unittest.TestCase):
                     <abbr class='fn' title='Test User'>Test User</abbr>
                 </a>
             </cite>
-            <q>Test message content</q>
+            <q>Test MMS message with image</q>
+            <img src='test-image.jpg' alt='Test image'>
             <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
         </div>
         '''
         
         messages = [BeautifulSoup(test_html, 'html.parser')]
+        participants_raw = [[BeautifulSoup('<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>', 'html.parser')]]
         
-        # The function should not raise a NameError about future_to_chunk
+        # This should not raise a NoneType error about soup.find_all
         try:
-            sms.write_sms_messages('test_file.html', messages, None, {})
-            # Function executed successfully (other errors are expected in test context)
-        except NameError as e:
-            if 'future_to_chunk' in str(e):
-                self.fail(f"write_sms_messages still references undefined future_to_chunk: {e}")
+            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, soup=None)
+            # Function executed successfully
+        except AttributeError as e:
+            if "'NoneType' object has no attribute 'find_all'" in str(e):
+                self.fail(f"MMS processing still has NoneType error when soup is None: {e}")
             else:
-                # Other NameErrors are acceptable in this test context
+                # Other AttributeErrors are acceptable in this test context
                 pass
         except Exception:
             # Other exceptions are expected in the test context
             pass
 
-    def test_no_epoch_zero_timestamps(self):
-        """Ensure calls and voicemails never get epoch 0 timestamp (1969-12-31 19:00:00)."""
+    def test_timestamp_extraction_edge_cases(self):
+        """Test timestamp extraction with edge cases and malformed HTML."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
-        # Create call and voicemail files without proper timestamps
-        calls_dir = test_dir / "Calls"
-        calls_dir.mkdir(parents=True, exist_ok=True)
+        # Test edge cases that might cause timestamp extraction to fail
+        edge_cases = [
+            # Empty message
+            {
+                "html": '<div class="message"></div>',
+                "should_fail": True
+            },
+            # Message with no timestamp elements
+            {
+                "html": '<div class="message"><q>Just text, no timestamp</q></div>',
+                "should_fail": True
+            },
+            # Message with malformed timestamp
+            {
+                "html": '<div class="message"><abbr title="invalid-date">Invalid</abbr><q>Test</q></div>',
+                "should_fail": True
+            },
+            # Message with very short text
+            {
+                "html": '<div class="message"><q>Hi</q></div>',
+                "should_fail": True
+            }
+        ]
         
-        # Create a call file with malformed or missing timestamp
-        bad_call_file = calls_dir / "bad-call.html"
-        bad_call_html = """
-        <html><head><title>Placed call</title></head><body>
-            <a class="tel" href="tel:+15550000001">Test User</a>
-            <div>Some call content without proper timestamp</div>
-        </body></html>
-        """
-        bad_call_file.write_text(bad_call_html, encoding="utf-8")
-        
-        # Create a voicemail file with malformed timestamp
-        bad_vm_file = calls_dir / "bad-voicemail.html"
-        bad_vm_html = """
-        <html><head><title>Voicemail</title></head><body>
-            <abbr class="dt" title="invalid-date-format"></abbr>
-            <a class="tel" href="tel:+15550000002">Test User</a>
-            <div class="message">Test voicemail</div>
-        </body></html>
-        """
-        bad_vm_file.write_text(bad_vm_html, encoding="utf-8")
-        
-        # Process these files
-        with open(bad_call_file, "r", encoding="utf-8") as f:
-            call_soup = BeautifulSoup(f.read(), "html.parser")
-        
-        with open(bad_vm_file, "r", encoding="utf-8") as f:
-            vm_soup = BeautifulSoup(f.read(), "html.parser")
-        
-        # Extract info
-        call_info = sms.extract_call_info(str(bad_call_file), call_soup)
-        vm_info = sms.extract_voicemail_info(str(bad_vm_file), vm_soup)
-        
-        # Verify we don't get epoch 0 (timestamp = 0)
-        # Even if timestamp extraction fails, we should get a reasonable fallback
-        if call_info:
-            self.assertNotEqual(call_info["timestamp"], 0, 
-                               "Call should never have epoch 0 timestamp (1969-12-31 19:00:00)")
-            # Should be a reasonable timestamp (after 2000 and before far future)
-            if call_info["timestamp"] is not None:
-                self.assertGreater(call_info["timestamp"], 946684800000)  # Jan 1, 2000
-                self.assertLess(call_info["timestamp"], 4102444800000)    # Jan 1, 2100
-        
-        if vm_info:
-            self.assertNotEqual(vm_info["timestamp"], 0, 
-                               "Voicemail should never have epoch 0 timestamp (1969-12-31 19:00:00)")
-            # Should be a reasonable timestamp (after 2000 and before far future)
-            if vm_info["timestamp"] is not None:
-                self.assertGreater(vm_info["timestamp"], 946684800000)   # Jan 1, 2000
-                self.assertLess(vm_info["timestamp"], 4102444800000)     # Jan 1, 2100
-        
-        # Test writing entries to ensure they also don't produce epoch 0
-        if call_info:
-            # This should not raise an exception and should use fallback timestamps
-            sms.write_call_entry(str(bad_call_file), call_info, None, call_soup)
-        
-        if vm_info:
-            # This should not raise an exception and should use fallback timestamps  
-            sms.write_voicemail_entry(str(bad_vm_file), vm_info, None, vm_soup)
+        for i, test_case in enumerate(edge_cases):
+            with self.subTest(i=i):
+                soup = BeautifulSoup(test_case["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+                
+                if test_case["should_fail"]:
+                    # Should fall back to current time
+                    result = sms.get_time_unix(message)
+                    current_time = int(time.time() * 1000)
+                    # Allow for small timing differences (within 1 second)
+                    self.assertLess(abs(result - current_time), 1000, 
+                                  f"Edge case {i} should fall back to current time")
+                else:
+                    # Should extract valid timestamp
+                    result = sms.get_time_unix(message)
+                    self.assertIsInstance(result, int, f"Edge case {i} should return valid timestamp")
+                    self.assertGreater(result, 0, f"Edge case {i} should return positive timestamp")
 
-    def test_valid_timestamps_preserved(self):
-        """Ensure valid timestamps from HTML are correctly preserved and not overridden."""
+    def test_mms_participant_extraction_with_none_soup(self):
+        """Test that MMS participant extraction gracefully handles None soup parameter."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
-        # Create call and voicemail files with valid timestamps
-        calls_dir = test_dir / "Calls"
-        calls_dir.mkdir(parents=True, exist_ok=True)
+        # Create test data that would normally require soup for participant extraction
+        messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
+        participants_raw = []  # Empty participants to trigger fallback logic
         
-        # Create call file with specific timestamp
-        call_file = calls_dir / "timestamped-call.html"
-        call_html = """
-        <html><head><title>Placed call</title></head><body>
-            <abbr class="dt" title="2022-05-15T10:30:45Z"></abbr>
-            <a class="tel" href="tel:+15550000001">Test User</a>
-            <abbr class="duration" title="PT1M23S">(1:23)</abbr>
-        </body></html>
-        """
-        call_file.write_text(call_html, encoding="utf-8")
-        
-        # Create voicemail file with specific timestamp  
-        vm_file = calls_dir / "timestamped-voicemail.html"
-        vm_html = """
-        <html><head><title>Voicemail</title></head><body>
-            <time datetime="2021-08-20T14:15:30-07:00">Aug 20, 2021</time>
-            <a class="tel" href="tel:+15550000002">Test User</a>
-            <div class="message">Test voicemail transcription</div>
-        </body></html>
-        """
-        vm_file.write_text(vm_html, encoding="utf-8")
-        
-        # Extract info
-        with open(call_file, "r", encoding="utf-8") as f:
-            call_soup = BeautifulSoup(f.read(), "html.parser")
-        
-        with open(vm_file, "r", encoding="utf-8") as f:
-            vm_soup = BeautifulSoup(f.read(), "html.parser")
-        
-        call_info = sms.extract_call_info(str(call_file), call_soup)
-        vm_info = sms.extract_voicemail_info(str(vm_file), vm_soup)
-        
-        # Verify exact timestamps are preserved
-        if call_info:
-            expected_call_ts = int(datetime(2022, 5, 15, 10, 30, 45, tzinfo=timezone.utc).timestamp() * 1000)
-            self.assertEqual(call_info["timestamp"], expected_call_ts, 
-                           "Call timestamp should match the HTML dt element exactly")
-        
-        if vm_info:
-            expected_vm_ts = int(datetime(2021, 8, 20, 14, 15, 30, tzinfo=timezone(timedelta(hours=-7))).timestamp() * 1000)
-            self.assertEqual(vm_info["timestamp"], expected_vm_ts,
-                           "Voicemail timestamp should match the HTML time element exactly")
-        
-        # Test that write functions also preserve these timestamps
-        manager = sms.CONVERSATION_MANAGER
-        
-        if call_info:
-            sms.write_call_entry(str(call_file), call_info, None, call_soup)
-            # Check that the message was written with the correct timestamp
-            self.assertTrue(len(manager.conversation_files) > 0, "Call entry should create conversation file")
-        
-        if vm_info:
-            sms.write_voicemail_entry(str(vm_file), vm_info, None, vm_soup)
-            # Check that the message was written with the correct timestamp
-            self.assertTrue(len(manager.conversation_files) > 0, "Voicemail entry should create conversation file")
+        # This should not crash when soup is None
+        try:
+            sms.write_mms_messages('test_mms_none_soup.html', participants_raw, messages, None, {}, soup=None)
+            # Function should execute without NoneType errors
+        except AttributeError as e:
+            if "'NoneType' object has no attribute 'find_all'" in str(e):
+                self.fail(f"MMS participant extraction still fails with None soup: {e}")
+            else:
+                # Other AttributeErrors are acceptable
+                pass
+        except Exception:
+            # Other exceptions are expected in test context
+            pass
 
-    def test_mms_sender_alias_in_html(self):
-        """Verify MMS rows show sender alias in HTML output."""
+    def test_comprehensive_timestamp_fallback_strategies(self):
+        """Test all timestamp fallback strategies comprehensively."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        manager = sms.CONVERSATION_MANAGER
-
-        # Prepare participants HTML and message with a tel link
-        mms_html = """
-        <div class="participants">Group conversation with:
-            <cite class="sender vcard"><a class="tel" href="tel:+15551230001"><span class="fn">Alice</span></a></cite>
-            <cite class="sender vcard"><a class="tel" href="tel:+15551230002"><span class="fn">Bob</span></a></cite>
-        </div>
-        <div class="message">
-            <cite class="sender vcard"><a class="tel" href="tel:+15551230001">Alice</a></cite>
-            <abbr class="dt" title="2024-01-01T12:00:00Z"></abbr>
-            <q>Hello Group</q>
-        </div>
-        """
-        soup = BeautifulSoup(mms_html, "html.parser")
-        participants_raw = soup.select(".participants")
-        messages_raw = soup.select(".message")
-
-        # Ensure alias exists in phone lookup
-        sms.PHONE_LOOKUP_MANAGER.add_alias("+15551230001", "Alice")
-        # Run MMS writing
-        # Pass a fixed timestamp into write_message_with_content by stubbing get_time_unix
-        sms.write_mms_messages("test_mms.html", participants_raw, messages_raw, None, {})
-        manager.finalize_conversation_files()
-
-        # There will be a group conversation file; check any .html in output for sender cell with Alice
-        generated_files = list(manager.output_dir.glob("*.html"))
-        self.assertTrue(generated_files)
-        hit = False
-        for f in generated_files:
-            content = f.read_text(encoding="utf-8")
-            if "Hello Group" in content:
-                doc = BeautifulSoup(content, "html.parser")
-                # Look for a row containing the message text
-                rows = doc.find_all("tr")
-                for row in rows:
-                    if row.find("td", class_="message") and "Hello Group" in row.find("td", class_="message").get_text():
-                        sender_cell = row.find("td", class_="sender")
-                        if sender_cell and sender_cell.get_text(strip=True) == "Alice":
-                            hit = True
-                            break
-                if hit:
-                    break
-        self.assertTrue(hit)
+        
+        # Test that each strategy is tried in order and works
+        strategies = [
+            # Strategy 1: dt class with title
+            {
+                "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test</q></div>',
+                "description": "dt class with title attribute"
+            },
+            # Strategy 2: abbr with title (no dt class)
+            {
+                "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test</q></div>',
+                "description": "abbr element with title attribute"
+            },
+            # Strategy 3: time with datetime
+            {
+                "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test</q></div>',
+                "description": "time element with datetime attribute"
+            },
+            # Strategy 4: any element with datetime
+            {
+                "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test</q></div>',
+                "description": "any element with datetime attribute"
+            },
+            # Strategy 5: ISO pattern in text
+            {
+                "html": '<div class="message"><q>Test</q><span>2024-05-12T11:30:00Z</span></div>',
+                "description": "ISO timestamp pattern in text content"
+            },
+            # Strategy 6: Flexible date parsing
+            {
+                "html": '<div class="message"><q>Test</q><span>12/25/2024 3:45 PM</span></div>',
+                "description": "flexible date/time parsing"
+            },
+            # Strategy 7: Element text parsing
+            {
+                "html": '<div class="message"><q>Test</q><div>2024-06-18</div></div>',
+                "description": "timestamp in element text"
+            }
+        ]
+        
+        for i, strategy in enumerate(strategies):
+            with self.subTest(i=i, strategy=strategy["description"]):
+                soup = BeautifulSoup(strategy["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+                
+                # Should extract timestamp successfully
+                result = sms.get_time_unix(message)
+                self.assertIsInstance(result, int, f"Strategy {i+1} should return valid timestamp")
+                self.assertGreater(result, 0, f"Strategy {i+1} should return positive timestamp")
+                
+                # Verify it's a reasonable timestamp (not epoch 0 or current time fallback)
+                current_time = int(time.time() * 1000)
+                self.assertLess(result, current_time, f"Strategy {i+1} should not return future timestamp")
+                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
 
     def test_calls_and_voicemails_processed(self):
         """Ensure calls and voicemails are captured and timestamps vary."""

@@ -3230,32 +3230,52 @@ def write_sms_messages(
             # Fallback 4: Look for any phone numbers in the entire HTML content
             if not is_valid_phone_number(phone_number):
                 try:
-                    # Try to find the original HTML file to scan for phone numbers
-                    html_files = list(PROCESSING_DIRECTORY.rglob("*.html"))
-                    for html_file in html_files:
-                        if html_file.name == file:
-                            with open(html_file, "r", encoding="utf-8") as f:
-                                soup_content = BeautifulSoup(f.read(), HTML_PARSER)
-                            
-                            # Look for any tel: links in the entire document
-                            tel_links = soup_content.find_all("a", href=True)
-                            for link in tel_links:
-                                href = link.get("href", "")
-                                if href.startswith("tel:"):
-                                    match = TEL_HREF_PATTERN.search(href)
-                                    if match:
-                                        try:
-                                            phone_number = format_number(
-                                                phonenumbers.parse(match.group(1), None)
-                                            )
-                                            if not own_number or phone_number != own_number:
-                                                participant_raw = create_dummy_participant(phone_number)
-                                                logger.debug(f"Extracted phone number from HTML content: {phone_number}")
-                                                break
-                                        except Exception as e:
-                                            logger.debug(f"Failed to parse phone number from HTML: {e}")
-                                            continue
-                            break
+                    # If we have soup parameter, use it directly
+                    if soup is not None:
+                        tel_links = soup.find_all("a", href=True)
+                        for link in tel_links:
+                            href = link.get("href", "")
+                            if href.startswith("tel:"):
+                                match = TEL_HREF_PATTERN.search(href)
+                                if match:
+                                    try:
+                                        phone_number = format_number(
+                                            phonenumbers.parse(match.group(1), None)
+                                        )
+                                        if not own_number or phone_number != own_number:
+                                            participant_raw = create_dummy_participant(phone_number)
+                                            logger.debug(f"Extracted phone number from soup: {phone_number}")
+                                            break
+                                    except Exception as e:
+                                        logger.debug(f"Failed to parse phone number from soup: {e}")
+                                        continue
+                    else:
+                        # Fallback to scanning HTML files
+                        html_files = list(PROCESSING_DIRECTORY.rglob("*.html"))
+                        for html_file in html_files:
+                            if html_file.name == file:
+                                with open(html_file, "r", encoding="utf-8") as f:
+                                    soup_content = BeautifulSoup(f.read(), HTML_PARSER)
+                                
+                                # Look for any tel: links in the entire document
+                                tel_links = soup_content.find_all("a", href=True)
+                                for link in tel_links:
+                                    href = link.get("href", "")
+                                    if href.startswith("tel:"):
+                                        match = TEL_HREF_PATTERN.search(href)
+                                        if match:
+                                            try:
+                                                phone_number = format_number(
+                                                    phonenumbers.parse(match.group(1), None)
+                                                )
+                                                if not own_number or phone_number != own_number:
+                                                    participant_raw = create_dummy_participant(phone_number)
+                                                    logger.debug(f"Extracted phone number from HTML content: {phone_number}")
+                                                    break
+                                            except Exception as e:
+                                                logger.debug(f"Failed to parse phone number from HTML: {e}")
+                                                continue
+                                break
                 except Exception as e:
                     logger.debug(f"Failed to scan HTML content for phone numbers: {e}")
             
@@ -3792,43 +3812,50 @@ def write_mms_messages(
                 all_participants = []
                 all_aliases = []
                 
-                # Strategy 1: Look for any tel: links in the document
-                tel_links = soup.find_all("a", href=True)
-                for link in tel_links:
-                    href = link.get("href", "")
-                    if href.startswith("tel:"):
-                        match = TEL_HREF_PATTERN.search(href)
-                        if match:
+                # Strategy 1: Look for any tel: links in the document (only if soup is available)
+                if soup is not None:
+                    try:
+                        tel_links = soup.find_all("a", href=True)
+                        for link in tel_links:
+                            href = link.get("href", "")
+                            if href.startswith("tel:"):
+                                match = TEL_HREF_PATTERN.search(href)
+                                if match:
+                                    try:
+                                        phone_number = format_number(
+                                            phonenumbers.parse(match.group(1), None)
+                                        )
+                                        if phone_number not in all_participants:
+                                            all_participants.append(phone_number)
+                                            # Try to get alias from link text
+                                            link_text = link.get_text(strip=True)
+                                            alias = link_text if link_text and link_text != phone_number else phone_number
+                                            all_aliases.append(alias)
+                                    except Exception as e:
+                                        logger.debug(f"Failed to parse phone number from tel link: {e}")
+                                        continue
+                    except Exception as e:
+                        logger.debug(f"Failed to extract tel links from soup: {e}")
+                
+                # Strategy 2: Look for any phone numbers in text content (only if soup is available)
+                if not all_participants and soup is not None:
+                    try:
+                        text_content = soup.get_text()
+                        phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+                        phone_matches = phone_pattern.findall(text_content)
+                        for match in phone_matches:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(match.group(1), None)
+                                    phonenumbers.parse(match, None)
                                 )
                                 if phone_number not in all_participants:
                                     all_participants.append(phone_number)
-                                    # Try to get alias from link text
-                                    link_text = link.get_text(strip=True)
-                                    alias = link_text if link_text and link_text != phone_number else phone_number
-                                    all_aliases.append(alias)
+                                    all_aliases.append(phone_number)
                             except Exception as e:
-                                logger.debug(f"Failed to parse phone number from tel link: {e}")
+                                logger.debug(f"Failed to parse phone number from text: {e}")
                                 continue
-                
-                # Strategy 2: Look for any phone numbers in text content
-                if not all_participants:
-                    text_content = soup.get_text()
-                    phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
-                    phone_matches = phone_pattern.findall(text_content)
-                    for match in phone_matches:
-                        try:
-                            phone_number = format_number(
-                                phonenumbers.parse(match, None)
-                            )
-                            if phone_number not in all_participants:
-                                all_participants.append(phone_number)
-                                all_aliases.append(phone_number)
-                        except Exception as e:
-                            logger.debug(f"Failed to parse phone number from text: {e}")
-                            continue
+                    except Exception as e:
+                        logger.debug(f"Failed to extract text content from soup: {e}")
                 
                 # Strategy 3: Use filename as fallback if it contains a phone number
                 if not all_participants:
@@ -5118,6 +5145,8 @@ def get_time_unix(message: BeautifulSoup) -> int:
             r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))",  # ISO format
             r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})",  # Date time format
             r"(\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2})",  # US date format
+            r"(\d{1,2}/\d{1,2}/\d{2} \d{1,2}:\d{2})",  # Short date format
+            r"(\d{4}-\d{2}-\d{2})",  # Date only format
         ]
         
         for pattern in timestamp_patterns:
@@ -5131,6 +5160,42 @@ def get_time_unix(message: BeautifulSoup) -> int:
                     )
                 except Exception as e:
                     logger.debug(f"Failed to parse timestamp from text pattern: {e}")
+                    continue
+        
+        # Strategy 6: Look for any text that looks like a date/time
+        # This is a more flexible approach for various formats
+        date_time_patterns = [
+            r"(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)",  # Time patterns
+            r"(\d{1,2}/\d{1,2}/\d{2,4})",  # Date patterns
+            r"(\d{4}-\d{2}-\d{2})",  # ISO date patterns
+        ]
+        
+        for pattern in date_time_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                time_str = match.group(1)
+                try:
+                    # Try to parse with dateutil which is more flexible
+                    time_obj = dateutil.parser.parse(time_str, fuzzy=True)
+                    return int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to parse flexible timestamp from text: {e}")
+                    continue
+        
+        # Strategy 7: Look for any element with text that might be a timestamp
+        # This catches cases where timestamps are in unexpected elements
+        for element in message.find_all(text=True):
+            element_text = element.strip()
+            if len(element_text) > 5:  # Reasonable length for a timestamp
+                try:
+                    # Try to parse with dateutil's fuzzy parsing
+                    time_obj = dateutil.parser.parse(element_text, fuzzy=True)
+                    return int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                except Exception:
                     continue
         
         # If all strategies fail, log detailed information and use fallback
