@@ -2633,41 +2633,163 @@ class TestSMSIntegration(unittest.TestCase):
         print(f"Conversation ID generation test: {conversation_ids[0]} (consistent across 5 calls)")
         print(f"Reversed order generates: {reversed_conversation_id} (different, as expected)")
     
-    def test_numeric_filename_processing_fixes(self):
-        """Test that numeric filenames are now processed correctly instead of being skipped."""
+    def test_service_code_filtering_command_line(self):
+        """Test that service code filtering can be controlled via command line arguments."""
+        test_dir = Path(self.test_dir)
+        
+        # Test default behavior (service codes filtered out)
+        sms.INCLUDE_SERVICE_CODES = False
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Service codes should be skipped by default
+        test_cases = [
+            "262966 - Text - 2022-01-12T00_54_17Z.html",
+            "274624 - Text - 2025-04-16T18_34_53Z.html",
+            "30368 - Text - 2016-11-13T23_17_42Z.html",
+            "692639 - Text - 2025-04-19T19_47_09Z.html",
+            "78015 - Text - 2020-05-08T17_00_37Z.html",
+        ]
+        
+        for filename in test_cases:
+            with self.subTest(filename=filename):
+                should_skip = sms.should_skip_file(filename)
+                self.assertTrue(should_skip, 
+                              f"Service code should be skipped by default: {filename}")
+        
+        # Test with service codes enabled
+        sms.INCLUDE_SERVICE_CODES = True
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Service codes should NOT be skipped when enabled
+        for filename in test_cases:
+            with self.subTest(filename=filename):
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(should_skip, 
+                               f"Service code should NOT be skipped when enabled: {filename}")
+    
+    def test_date_filtering_functionality(self):
+        """Test that date filtering works correctly for messages."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
-        # Test cases that were previously being skipped but should now be processed
+        # Test older-than filter
+        sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
+        
+        # Messages from 2022 should be skipped
+        old_timestamp = int(datetime(2022, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(old_timestamp)
+        self.assertTrue(should_skip, "Message from 2022 should be skipped with older-than 2023 filter")
+        
+        # Messages from 2023 should NOT be skipped
+        new_timestamp = int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(new_timestamp)
+        self.assertFalse(should_skip, "Message from 2023 should NOT be skipped with older-than 2023 filter")
+        
+        # Reset filter
+        sms.DATE_FILTER_OLDER_THAN = None
+        
+        # Test newer-than filter
+        sms.DATE_FILTER_NEWER_THAN = datetime(2024, 12, 31)
+        
+        # Messages from 2025 should be skipped
+        future_timestamp = int(datetime(2025, 1, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(future_timestamp)
+        self.assertTrue(should_skip, "Message from 2025 should be skipped with newer-than 2024 filter")
+        
+        # Messages from 2024 should NOT be skipped
+        current_timestamp = int(datetime(2024, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(current_timestamp)
+        self.assertFalse(should_skip, "Message from 2024 should NOT be skipped with newer-than 2024 filter")
+        
+        # Reset filter
+        sms.DATE_FILTER_NEWER_THAN = None
+        
+        # Test both filters together
+        sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
+        sms.DATE_FILTER_NEWER_THAN = datetime(2024, 12, 31)
+        
+        # Message from 2022 should be skipped (too old)
+        old_timestamp = int(datetime(2022, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(old_timestamp)
+        self.assertTrue(should_skip, "Message from 2022 should be skipped with both filters")
+        
+        # Message from 2025 should be skipped (too new)
+        future_timestamp = int(datetime(2025, 1, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(future_timestamp)
+        self.assertTrue(should_skip, "Message from 2025 should be skipped with both filters")
+        
+        # Message from 2023 should NOT be skipped (within range)
+        within_timestamp = int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(within_timestamp)
+        self.assertFalse(should_skip, "Message from 2023 should NOT be skipped with both filters")
+        
+        # Reset filters
+        sms.DATE_FILTER_OLDER_THAN = None
+        sms.DATE_FILTER_NEWER_THAN = None
+    
+    def test_date_filtering_edge_cases(self):
+        """Test edge cases for date filtering."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test with no filters (should not skip anything)
+        sms.DATE_FILTER_OLDER_THAN = None
+        sms.DATE_FILTER_NEWER_THAN = None
+        
+        test_timestamps = [
+            int(datetime(2020, 1, 1, 0, 0, 0).timestamp() * 1000),  # Very old
+            int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000),  # Recent
+            int(datetime(2025, 12, 31, 23, 59, 59).timestamp() * 1000),  # Future
+        ]
+        
+        for timestamp in test_timestamps:
+            with self.subTest(timestamp=timestamp):
+                should_skip = sms.should_skip_message_by_date(timestamp)
+                self.assertFalse(should_skip, f"Message should NOT be skipped with no filters: {timestamp}")
+        
+        # Test with invalid timestamps (should not skip)
+        invalid_timestamps = [0, -1, 999999999999999]  # Invalid Unix timestamps
+        
+        for timestamp in invalid_timestamps:
+            with self.subTest(timestamp=timestamp):
+                should_skip = sms.should_skip_message_by_date(timestamp)
+                self.assertFalse(should_skip, f"Invalid timestamp should NOT cause skipping: {timestamp}")
+    
+    def test_numeric_filename_processing_fixes(self):
+        """Test that numeric filenames are now filtered out by default (service codes)."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test cases that are now filtered out by default (service codes)
         test_cases = [
             # Case 1: Numeric service codes (common for verification codes)
             {
                 "filename": "262966 - Text - 2022-01-12T00_54_17Z.html",
-                "should_skip": False,
+                "should_skip": True,  # Now filtered out by default
                 "description": "verification service code"
             },
             # Case 2: Bank alerts and notifications
             {
                 "filename": "274624 - Text - 2025-04-16T18_34_53Z.html",
-                "should_skip": False,
+                "should_skip": True,  # Now filtered out by default
                 "description": "bank alert code"
             },
             # Case 3: Emergency/service notifications
             {
                 "filename": "30368 - Text - 2016-11-13T23_17_42Z.html",
-                "should_skip": False,
+                "should_skip": True,  # Now filtered out by default
                 "description": "emergency notification code"
             },
             # Case 4: Marketing/promotional codes
             {
                 "filename": "692639 - Text - 2025-04-19T19_47_09Z.html",
-                "should_skip": False,
+                "should_skip": True,  # Now filtered out by default
                 "description": "promotional code"
             },
             # Case 5: Various other service codes
             {
                 "filename": "78015 - Text - 2020-05-08T17_00_37Z.html",
-                "should_skip": False,
+                "should_skip": True,  # Now filtered out by default
                 "description": "service notification code"
             },
             # Case 6: Still skip truly invalid patterns
@@ -2784,7 +2906,7 @@ class TestSMSIntegration(unittest.TestCase):
                            f"Progress should be accurate at message {message_idx + 1}")
     
     def test_service_code_filename_support(self):
-        """Test that service codes and short codes are properly supported."""
+        """Test that service codes and short codes are filtered out by default but can be enabled."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         
@@ -2805,18 +2927,32 @@ class TestSMSIntegration(unittest.TestCase):
             "99999",   # Service code
         ]
         
+        # Test default behavior (service codes filtered out)
         for code in service_codes:
             filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
             with self.subTest(code=code):
-                # Should not be skipped
+                # Should be skipped by default (filtered out)
+                should_skip = sms.should_skip_file(filename)
+                self.assertTrue(should_skip, 
+                               f"Service code {code} should be filtered out by default")
+        
+        # Test with service codes enabled
+        sms.INCLUDE_SERVICE_CODES = True
+        for code in service_codes:
+            filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
+            with self.subTest(code=code):
+                # Should NOT be skipped when enabled
                 should_skip = sms.should_skip_file(filename)
                 self.assertFalse(should_skip, 
-                               f"Service code {code} should be processed, not skipped")
+                               f"Service code {code} should be processed when enabled")
                 
                 # Should be able to extract the code as a fallback number
                 fallback_number = sms.extract_fallback_number_cached(filename)
                 self.assertGreater(fallback_number, 0, 
                                  f"Should extract number from service code {code}")
+        
+        # Reset to default
+        sms.INCLUDE_SERVICE_CODES = False
     
     def test_corrupted_filename_handling(self):
         """Test that truly corrupted filenames are still properly skipped."""

@@ -65,6 +65,11 @@ CONVERSATION_MANAGER = None
 # Global phone lookup manager
 PHONE_LOOKUP_MANAGER = None
 
+# Global filtering configuration
+INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
+DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
+DATE_FILTER_NEWER_THAN = None  # Filter out messages newer than this date
+
 # Progress logging configuration
 PROGRESS_INTERVAL_PERCENT = 25  # Report progress every 25%
 PROGRESS_INTERVAL_COUNT = 50  # Report every N items (used in some loops)
@@ -3337,6 +3342,12 @@ def write_sms_messages(
                     skipped_count += 1
                     continue
 
+                # DATE FILTERING: Skip messages outside the specified date range
+                message_timestamp = get_time_unix(message, file)
+                if should_skip_message_by_date(message_timestamp):
+                    skipped_count += 1
+                    continue
+
                 # Get alias for the phone number, with filename-based fallback
                 alias = PHONE_LOOKUP_MANAGER.get_alias(str(phone_number), None)
                 
@@ -3498,7 +3509,7 @@ def is_valid_phone_number(phone_number: Union[str, int]) -> bool:
 
 def should_skip_file(filename: str) -> bool:
     """
-    Determine if a file should be skipped based on filename patterns.
+    Determine if a file should be skipped based on filename patterns and filtering settings.
 
     Args:
         filename: Filename to check
@@ -3514,14 +3525,8 @@ def should_skip_file(filename: str) -> bool:
     if filename.startswith("-") or filename.startswith(" "):
         return True
 
-    # FIXED: Don't skip numeric filenames - they can be valid SMS short codes or service numbers
-    # Many legitimate services use numeric codes like "262966" for verification codes, alerts, etc.
-    # Pattern: "12345 - Text - ..." or "286669 - Text - ..." should be processed, not skipped
-    
-    # Only skip if the filename has invalid characters or patterns that indicate corruption
-    import re
-    
     # Skip only if filename contains invalid characters that suggest file corruption
+    import re
     if re.search(r'[<>:"|?*]', filename):
         return True
     
@@ -3529,9 +3534,50 @@ def should_skip_file(filename: str) -> bool:
     if not filename.strip() or filename.strip() in ['-', '.', '_']:
         return True
 
-    # Don't skip files that start with names, numbers, or "Group Conversation"
+    # SERVICE CODE FILTERING: Skip numeric service codes unless explicitly enabled
+    if not INCLUDE_SERVICE_CODES:
+        # Pattern: "262966 - Text - ..." or "12345 - Text - ..."
+        numeric_code_match = re.match(r"^(\d{4,7})\s*-\s*", filename)
+        if numeric_code_match:
+            number = numeric_code_match.group(1)
+            # Skip if it's a service code (4-7 digits)
+            if 4 <= len(number) <= 7:
+                return True
+
+    # Don't skip files that start with names, numbers (when enabled), or "Group Conversation"
     # These are legitimate conversation files that should be processed
     return False
+
+
+def should_skip_message_by_date(message_timestamp: int) -> bool:
+    """
+    Determine if a message should be skipped based on date filtering settings.
+
+    Args:
+        message_timestamp: Unix timestamp in milliseconds
+
+    Returns:
+        bool: True if message should be skipped due to date filtering, False otherwise
+    """
+    if DATE_FILTER_OLDER_THAN is None and DATE_FILTER_NEWER_THAN is None:
+        return False  # No date filtering enabled
+    
+    # Convert timestamp to datetime for comparison
+    try:
+        message_date = datetime.fromtimestamp(message_timestamp / 1000.0)
+        
+        # Check older-than filter
+        if DATE_FILTER_OLDER_THAN and message_date < DATE_FILTER_OLDER_THAN:
+            return True
+        
+        # Check newer-than filter
+        if DATE_FILTER_NEWER_THAN and message_date > DATE_FILTER_NEWER_THAN:
+            return True
+        
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to parse message timestamp {message_timestamp} for date filtering: {e}")
+        return False  # Don't skip if we can't parse the timestamp
 
 
 def extract_fallback_number(file: str) -> Union[str, int]:
@@ -3987,6 +4033,12 @@ def write_mms_messages(
                 # Skip MMS placeholder messages
                 message_content = get_message_text(message)
                 if message_content in MMS_PLACEHOLDER_MESSAGES:
+                    skipped_count += 1
+                    continue
+
+                # DATE FILTERING: Skip messages outside the specified date range
+                message_timestamp = get_time_unix(message, file)
+                if should_skip_message_by_date(message_timestamp):
                     skipped_count += 1
                     continue
 
@@ -6011,6 +6063,11 @@ def extract_call_info(
         duration = extract_duration_from_call(soup)
 
         if phone_number:
+            # DATE FILTERING: Skip calls outside the specified date range
+            if timestamp and should_skip_message_by_date(timestamp):
+                logger.debug(f"Skipping call due to date filtering: {filename}")
+                return None
+                
             return {
                 "type": call_type,
                 "phone_number": phone_number,
@@ -6077,6 +6134,11 @@ def extract_voicemail_info(
                                 continue
 
         if phone_number:
+            # DATE FILTERING: Skip voicemails outside the specified date range
+            if timestamp and should_skip_message_by_date(timestamp):
+                logger.debug(f"Skipping voicemail due to date filtering: {filename}")
+                return None
+                
             return {
                 "phone_number": phone_number,
                 "timestamp": timestamp,
@@ -6679,6 +6741,15 @@ Examples:
   # Output in XML format instead of HTML (HTML is now default)
   python sms.py /path/to/gvoice/data --output-format xml
 
+  # Filtering options
+  python sms.py /path/to/gvoice/data --include-service-codes  # Include service codes (default: filtered out)
+  python sms.py /path/to/gvoice/data --older-than 2023-01-01  # Filter out messages older than 2023
+  python sms.py /path/to/gvoice/data --newer-than 2024-12-31  # Filter out messages newer than 2024
+  python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00"  # Filter with time precision
+  
+  # Default behavior: Service codes (verification codes, alerts) are filtered out for cleaner output
+  # Use --include-service-codes to include all service codes and short codes
+
   # Enable strict parameter validation (catches errors early)
   python sms.py /path/to/gvoice/data --strict-mode
 
@@ -6875,6 +6946,25 @@ Output:
             help="Output format for conversation files: html (default) or xml",
         )
 
+        # Filtering options
+        parser.add_argument(
+            "--include-service-codes",
+            action="store_true",
+            help="Include service codes and short codes in processing (default: False - service codes are filtered out)",
+        )
+
+        parser.add_argument(
+            "--older-than",
+            type=str,
+            help="Filter out messages older than specified date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)",
+        )
+
+        parser.add_argument(
+            "--newer-than",
+            type=str,
+            help="Filter out messages newer than specified date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)",
+        )
+
         args = parser.parse_args()
 
         # Handle create-config option
@@ -7030,6 +7120,31 @@ Output:
                 *args, **kwargs
             )
             logger.info("🔓 Strict mode disabled - function calls will not be validated")
+
+        # Configure filtering options
+        # Set service code filtering
+        INCLUDE_SERVICE_CODES = args.include_service_codes
+        if INCLUDE_SERVICE_CODES:
+            logger.info("🔓 SERVICE CODE FILTERING DISABLED - Including all service codes and short codes")
+        else:
+            logger.info("🔒 SERVICE CODE FILTERING ENABLED - Filtering out service codes and short codes (default)")
+        
+        # Parse and set date filters
+        if args.older_than:
+            try:
+                DATE_FILTER_OLDER_THAN = dateutil.parser.parse(args.older_than)
+                logger.info(f"📅 DATE FILTER: Excluding messages older than {DATE_FILTER_OLDER_THAN}")
+            except Exception as e:
+                logger.error(f"Invalid --older-than date format: {args.older_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
+                sys.exit(1)
+        
+        if args.newer_than:
+            try:
+                DATE_FILTER_NEWER_THAN = dateutil.parser.parse(args.newer_than)
+                logger.info(f"📅 DATE FILTER: Excluding messages newer than {DATE_FILTER_NEWER_THAN}")
+            except Exception as e:
+                logger.error(f"Invalid --newer-than date format: {args.newer_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
+                sys.exit(1)
 
         # Log test mode configuration
         if args.full_run:
