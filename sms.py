@@ -1392,7 +1392,7 @@ class PhoneLookupManager:
 
             # Look for vCard entries with the phone number
             # Pattern: <a class="tel" href="tel:+1234567890"><span class="fn">Name</span></a>
-            tel_links = soup.select(STRING_POOL.CSS_SELECTORS["tel_links"])
+            tel_links = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
             for link in tel_links:
                 href = link.get("href", "")
                 if href.startswith("tel:"):
@@ -1421,7 +1421,7 @@ class PhoneLookupManager:
 
             # Look for general name elements near phone numbers
             # Pattern: <span class="fn">Name</span> or similar
-            fn_elements = soup.select(STRING_POOL.CSS_SELECTORS["fn_elements"])
+            fn_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["fn_elements"])
             for fn in fn_elements:
                 name = fn.get_text(strip=True)
                 if name and name.lower() not in generic_phrases:
@@ -2704,7 +2704,7 @@ def build_attachment_mapping_with_progress() -> Dict[str, str]:
     logger.info(f"  Unique attachments mapped: {unique_attachments}")
     logger.info(f"  HTML files with attachments: {len(html_to_attachments)}")
 
-    # Log failed matches for debugging
+    # Log failed matches for debugging with enhanced corruption analysis
     failed_matches = [
         src for src, filename in mapping.items() if filename == "No unused match found"
     ]
@@ -2712,42 +2712,47 @@ def build_attachment_mapping_with_progress() -> Dict[str, str]:
         logger.error(
             f"Found {len(failed_matches)} failed matches out of {total_mappings} total mappings"
         )
-        logger.error("Sample failed matches:")
-        for src in failed_matches[:5]:  # Show first 5 failed matches
-            logger.error(f"  '{src}'")
-        if len(failed_matches) > 5:
-            logger.error(f"  ... and {len(failed_matches) - 5} more")
+        
+        # Analyze failed matches for corruption patterns
+        corrupted_files = []
+        other_failures = []
+        
+        for src in failed_matches:
+            if is_corrupted_filename(src):
+                corrupted_files.append(src)
+            else:
+                other_failures.append(src)
+        
+        # Report corruption issues
+        if corrupted_files:
+            logger.error(f"Found {len(corrupted_files)} corrupted filenames:")
+            for src in corrupted_files[:5]:  # Show first 5 corrupted files
+                logger.error(f"  CORRUPTED: '{src}'")
+                # Try to suggest cleaned version
+                cleaned = clean_corrupted_filename(src)
+                if cleaned != src:
+                    logger.error(f"    Suggested clean version: '{cleaned}'")
+            if len(corrupted_files) > 5:
+                logger.error(f"    ... and {len(corrupted_files) - 5} more corrupted files")
+        
+        # Report other failures
+        if other_failures:
+            logger.error(f"Found {len(other_failures)} other failed matches:")
+            for src in other_failures[:5]:  # Show first 5 other failures
+                logger.error(f"  FAILED: '{src}'")
+            if len(other_failures) > 5:
+                logger.error(f"    ... and {len(other_failures) - 5} more failed matches")
+        
+        # Provide guidance
+        if corrupted_files:
+            logger.error("CORRUPTION DETECTED: Some filenames appear to be corrupted")
+            logger.error("This may indicate data export issues or file system corruption")
+            logger.error("Consider re-exporting from Google Voice or checking file integrity")
+        else:
+            logger.error("Failed matches detected - this may indicate data corruption or export issues")
 
     # Log final performance metrics
-
     logger.info(f"Completed attachment mapping build. Total mappings: {len(mapping)}")
-
-    # Log summary of failed matches
-    failed_matches = [
-        src for src, filename in mapping.items() if filename == "No unused match found"
-    ]
-    if failed_matches:
-        logger.error(
-            f"Found {len(failed_matches)} failed matches out of {len(mapping)} total mappings"
-        )
-        logger.error("Sample failed matches:")
-        for src in failed_matches[:5]:  # Show first 5 failed matches
-            logger.error(f"  '{src}'")
-        if len(failed_matches) > 5:
-            logger.error(f"  ... and {len(failed_matches) - 5} more")
-
-        # With the new HTML-filename approach, we should have 100% success rate
-        # Log any failed matches for debugging
-        if failed_matches:
-            logger.error(
-                f"Found {len(failed_matches)} failed matches - this is unexpected with the new algorithm"
-            )
-            logger.error("Sample failed matches:")
-            for src in failed_matches[:5]:  # Show first 5 failed matches
-                logger.error(f"  '{src}'")
-            if len(failed_matches) > 5:
-                logger.error(f"  ... and {len(failed_matches) - 5} more")
-            logger.error("Please check if this indicates a data corruption issue")
 
     return mapping
 
@@ -3438,7 +3443,15 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
     """
     import re
     
-    # Strategy 1: Extract phone number from filename (international format)
+    # PERFORMANCE OPTIMIZED STRATEGY ORDER: Most likely to succeed first
+    
+    # Strategy 1: Extract numeric service codes from start of filename (MOST COMMON)
+    # Pattern: "262966 - Text - ..." or "12345 - Text - ..."
+    numeric_code_match = re.match(r"^(\d{4,7})\s*-\s*", filename)
+    if numeric_code_match:
+        return int(numeric_code_match.group(1))
+
+    # Strategy 2: Extract phone number from filename (international format)
     match = PHONE_NUMBER_PATTERN.search(filename)
     if match:
         # Remove any non-digit characters and convert to int
@@ -3451,12 +3464,6 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
             .replace(")", "")
         )
         return int(phone_number)
-
-    # Strategy 2: Extract numeric service codes from start of filename
-    # Pattern: "262966 - Text - ..." or "12345 - Text - ..."
-    numeric_code_match = re.match(r"^(\d{4,7})\s*-\s*", filename)
-    if numeric_code_match:
-        return int(numeric_code_match.group(1))
 
     # Strategy 3: Extract any number from parentheses in the filename
     paren_match = re.search(r"\((\d+)\)", filename)
@@ -3534,6 +3541,36 @@ def should_skip_file(filename: str) -> bool:
     if not filename.strip() or filename.strip() in ['-', '.', '_']:
         return True
 
+    # ENHANCED CORRUPTION DETECTION: Check for malformed Google Voice filename patterns
+    # Valid pattern: "Name - Text - YYYY-MM-DDTHH_MM_SSZ.html"
+    # Corrupted patterns have extra parts like "-6-1" at the end
+    
+    # Check if filename follows the expected Google Voice pattern
+    if " - Text - " in filename:
+        # Extract the part after " - Text - "
+        after_text = filename.split(" - Text - ")[1]
+        
+        # Check if the timestamp part is corrupted (has extra dashes/parts)
+        if after_text.count("-") > 2:  # More than expected dashes in timestamp
+            logger.debug(f"Skipping corrupted filename with extra parts: {filename}")
+            return True
+        
+        # Check if the timestamp part has unexpected characters or patterns
+        # Should end with .html and contain only timestamp characters
+        if not after_text.endswith(".html"):
+            logger.debug(f"Skipping filename without .html extension: {filename}")
+            return True
+        
+        # Remove .html and check if the timestamp part is valid
+        timestamp_part = after_text[:-5]  # Remove .html
+        
+        # Check for corrupted timestamp patterns (extra numbers/parts after timestamp)
+        # Valid: "2024-07-29T16_10_03Z"
+        # Corrupted: "2024-07-29T16_10_03Z-6-1"
+        if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', timestamp_part):
+            logger.debug(f"Skipping corrupted filename with malformed timestamp: {filename}")
+            return True
+
     # SERVICE CODE FILTERING: Skip numeric service codes unless explicitly enabled
     if not INCLUDE_SERVICE_CODES:
         # Pattern: "262966 - Text - ..." or "12345 - Text - ..."
@@ -3546,6 +3583,77 @@ def should_skip_file(filename: str) -> bool:
 
     # Don't skip files that start with names, numbers (when enabled), or "Group Conversation"
     # These are legitimate conversation files that should be processed
+    return False
+
+
+def clean_corrupted_filename(filename: str) -> str:
+    """
+    Attempt to clean corrupted Google Voice filenames by removing extra parts.
+    
+    Args:
+        filename: Potentially corrupted filename
+        
+    Returns:
+        str: Cleaned filename or original if cleaning failed
+    """
+    import re
+    
+    # Check if this is a corrupted filename that can be cleaned
+    if " - Text - " in filename:
+        # Extract the parts
+        parts = filename.split(" - Text - ")
+        if len(parts) == 2:
+            name_part = parts[0]
+            timestamp_part = parts[1]
+            
+            # Remove .html extension if present
+            has_html_extension = timestamp_part.endswith(".html")
+            if has_html_extension:
+                timestamp_part = timestamp_part[:-5]
+            
+            # Look for the valid timestamp pattern and remove everything after it
+            # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
+            valid_timestamp_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z', timestamp_part)
+            if valid_timestamp_match:
+                clean_timestamp = valid_timestamp_match.group(0)
+                # Add .html extension if the original had it
+                extension = ".html" if has_html_extension else ""
+                cleaned_filename = f"{name_part} - Text - {clean_timestamp}{extension}"
+                logger.debug(f"Cleaned corrupted filename: '{filename}' -> '{cleaned_filename}'")
+                return cleaned_filename
+    
+    # Return original if cleaning failed
+    return filename
+
+
+def is_corrupted_filename(filename: str) -> bool:
+    """
+    Check if a filename appears to be corrupted based on Google Voice export patterns.
+    
+    Args:
+        filename: Filename to check
+        
+    Returns:
+        bool: True if filename appears corrupted, False otherwise
+    """
+    import re
+    
+    # Check for common corruption patterns
+    if " - Text - " in filename:
+        after_text = filename.split(" - Text - ")[1]
+        
+        # Check for extra dashes in timestamp part
+        if after_text.count("-") > 2:
+            return True
+        
+        # Check for corrupted timestamp with extra parts
+        if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', after_text):
+            return True
+        
+        # Check for missing .html extension
+        if not after_text.endswith(".html"):
+            return True
+    
     return False
 
 
@@ -5245,163 +5353,9 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
         int: Unix timestamp in milliseconds
     """
     try:
-        # Strategy 1: Look for elements with class "dt" and title attribute
-        time_raw = message.find(class_="dt")
-        if time_raw and "title" in time_raw.attrs:
-            ymdhms = time_raw["title"]
-            # Use cached timestamp parsing for better performance
-            time_obj = parse_timestamp_cached(ymdhms)
-            # Convert to Unix milliseconds (including microseconds)
-            return int(
-                time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-            )
+        # PERFORMANCE OPTIMIZED STRATEGY ORDER: Most likely to succeed first
         
-        # Strategy 2: Look for any abbr element with title attribute
-        time_raw = message.find("abbr", attrs={"title": True})
-        if time_raw:
-            ymdhms = time_raw["title"]
-            try:
-                time_obj = parse_timestamp_cached(ymdhms)
-                return int(
-                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                )
-            except Exception as e:
-                logger.debug(f"Failed to parse timestamp from abbr title: {e}")
-        
-        # Strategy 3: Look for time elements with datetime attribute
-        time_raw = message.find("time", attrs={"datetime": True})
-        if time_raw:
-            ymdhms = time_raw["datetime"]
-            try:
-                time_obj = parse_timestamp_cached(ymdhms)
-                return int(
-                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                )
-            except Exception as e:
-                logger.debug(f"Failed to parse timestamp from time datetime: {e}")
-        
-        # Strategy 4: Look for any element with datetime attribute
-        time_raw = message.find(attrs={"datetime": True})
-        if time_raw:
-            ymdhms = time_raw["datetime"]
-            try:
-                time_obj = parse_timestamp_cached(ymdhms)
-                return int(
-                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                )
-            except Exception as e:
-                logger.debug(f"Failed to parse timestamp from datetime attribute: {e}")
-        
-        # Strategy 5: Look for timestamp patterns in text content
-        text_content = message.get_text()
-        # Look for ISO-like timestamp patterns
-        timestamp_patterns = [
-            r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))",  # ISO format
-            r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})",  # Date time format
-            r"(\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2})",  # US date format
-            r"(\d{1,2}/\d{1,2}/\d{2} \d{1,2}:\d{2})",  # Short date format
-            r"(\d{4}-\d{2}-\d{2})",  # Date only format
-        ]
-        
-        for pattern in timestamp_patterns:
-            match = re.search(pattern, text_content)
-            if match:
-                ymdhms = match.group(1)
-                try:
-                    time_obj = parse_timestamp_cached(ymdhms)
-                    return int(
-                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                    )
-                except Exception as e:
-                    logger.debug(f"Failed to parse timestamp from text pattern: {e}")
-                    continue
-        
-        # Strategy 6: Look for any text that looks like a date/time
-        # This is a more flexible approach for various formats
-        date_time_patterns = [
-            r"(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)",  # Time patterns
-            r"(\d{1,2}/\d{1,2}/\d{2,4})",  # Date patterns
-            r"(\d{4}-\d{2}-\d{2})",  # ISO date patterns
-        ]
-        
-        for pattern in date_time_patterns:
-            match = re.search(pattern, text_content)
-            if match:
-                time_str = match.group(1)
-                try:
-                    # Try to parse with dateutil which is more flexible
-                    time_obj = dateutil.parser.parse(time_str, fuzzy=True)
-                    return int(
-                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                    )
-                except Exception as e:
-                    logger.debug(f"Failed to parse flexible timestamp from text: {e}")
-                    continue
-        
-        # Strategy 7: Look for any element with text that might be a timestamp
-        # This catches cases where timestamps are in unexpected elements
-        for element in message.find_all(string=True):
-            element_text = element.strip()
-            if len(element_text) > 5:  # Reasonable length for a timestamp
-                try:
-                    # Try to parse with dateutil's fuzzy parsing
-                    time_obj = dateutil.parser.parse(element_text, fuzzy=True)
-                    return int(
-                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                    )
-                except Exception:
-                    continue
-        
-        # Strategy 8: Look for any element with class that might indicate timestamp
-        # This catches cases like class="timestamp", class="date", etc.
-        timestamp_classes = ["timestamp", "date", "time", "when", "posted", "created"]
-        for class_name in timestamp_classes:
-            time_raw = message.find(class_=class_name)
-            if time_raw:
-                time_text = time_raw.get_text(strip=True)
-                if len(time_text) > 5:
-                    try:
-                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
-                        return int(
-                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                        )
-                    except Exception:
-                        continue
-        
-        # Strategy 9: Look for any element with id that might indicate timestamp
-        # This catches cases like id="timestamp", id="date", etc.
-        timestamp_ids = ["timestamp", "date", "time", "when", "posted", "created"]
-        for id_name in timestamp_ids:
-            time_raw = message.find(id=id_name)
-            if time_raw:
-                time_text = time_raw.get_text(strip=True)
-                if len(time_text) > 5:
-                    try:
-                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
-                        return int(
-                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                        )
-                    except Exception:
-                        continue
-        
-        # Strategy 10: Look for any element with data attributes that might contain timestamps
-        # This catches cases like data-timestamp, data-date, etc.
-        data_attrs = ["data-timestamp", "data-date", "data-time", "data-when"]
-        for attr in data_attrs:
-            time_raw = message.find(attrs={attr: True})
-            if time_raw:
-                time_str = time_raw[attr]
-                if len(time_str) > 5:
-                    try:
-                        time_obj = dateutil.parser.parse(time_str, fuzzy=True)
-                        return int(
-                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                        )
-                    except Exception as e:
-                        logger.debug(f"Failed to parse data attribute timestamp '{time_str}' from {attr}: {e}")
-                        continue
-        
-        # Strategy 11: Extract timestamp from filename patterns
+        # Strategy 1: Extract timestamp from filename patterns (FAST, RELIABLE)
         # This catches cases like "Name - Text - 2025-08-13T12_08_52Z.html"
         if filename and " - Text -" in filename:
             try:
@@ -5425,6 +5379,159 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
             except Exception as e:
                 logger.debug(f"Failed to parse timestamp from filename '{filename}': {e}")
                 # Continue to next strategy
+        
+        # Strategy 2: Look for elements with class "dt" and title attribute (MOST SPECIFIC)
+        time_raw = message.find(class_="dt")
+        if time_raw and "title" in time_raw.attrs:
+            ymdhms = time_raw["title"]
+            # Use cached timestamp parsing for better performance
+            time_obj = parse_timestamp_cached(ymdhms)
+            # Convert to Unix milliseconds (including microseconds)
+            return int(
+                time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+            )
+        
+        # Strategy 3: Look for time elements with datetime attribute (HTML5 STANDARD)
+        time_raw = message.find("time", attrs={"datetime": True})
+        if time_raw:
+            ymdhms = time_raw["datetime"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from time datetime: {e}")
+        
+        # Strategy 4: Look for any abbr element with title attribute (COMMON IN HTML)
+        time_raw = message.find("abbr", attrs={"title": True})
+        if time_raw:
+            ymdhms = time_raw["title"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from abbr title: {e}")
+        
+        # Strategy 5: Look for any element with datetime attribute (GENERIC)
+        time_raw = message.find(attrs={"datetime": True})
+        if time_raw:
+            ymdhms = time_raw["datetime"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from datetime attribute: {e}")
+        
+        # Strategy 6: Look for CSS classes that commonly contain timestamps
+        for class_name in STRING_POOL.TIMESTAMP_CLASSES:
+            time_raw = message.find(class_=class_name)
+            if time_raw:
+                time_text = time_raw.get_text(strip=True)
+                if len(time_text) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception:
+                        continue
+        
+        # Strategy 7: Look for CSS IDs that commonly contain timestamps
+        for id_name in STRING_POOL.TIMESTAMP_IDS:
+            time_raw = message.find(id=id_name)
+            if time_raw:
+                time_text = time_raw.get_text(strip=True)
+                if len(time_text) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception:
+                        continue
+        
+        # Strategy 8: Look for data attributes that might contain timestamps
+        for attr in STRING_POOL.DATA_ATTRS:
+            time_raw = message.find(attrs={attr: True})
+            if time_raw:
+                time_str = time_raw[attr]
+                if len(time_str) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_str, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception as e:
+                        logger.debug(f"Failed to parse data attribute timestamp '{time_str}' from {attr}: {e}")
+                        continue
+        
+        # Strategy 9: Look for timestamp patterns in text content (REGEX - SLOWER)
+        # Early exit: Only do expensive text extraction if we haven't found a timestamp yet
+        text_content = message.get_text()
+        
+        # Quick check for common timestamp indicators before expensive regex
+        if any(indicator in text_content for indicator in STRING_POOL.TIMESTAMP_INDICATORS):
+            # Look for ISO-like timestamp patterns (most common first)
+            timestamp_patterns = [
+                r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))",  # ISO format
+                r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})",  # Date time format
+                r"(\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2})",  # US date format
+                r"(\d{4}-\d{2}-\d{2})",  # Date only format
+                r"(\d{1,2}/\d{1,2}/\d{2} \d{1,2}:\d{2})",  # Short date format
+            ]
+            
+            for pattern in timestamp_patterns:
+                match = re.search(pattern, text_content)
+                if match:
+                    ymdhms = match.group(1)
+                    try:
+                        time_obj = parse_timestamp_cached(ymdhms)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception as e:
+                        logger.debug(f"Failed to parse timestamp from text pattern: {e}")
+                        continue
+        
+        # Strategy 10: Look for flexible date/time patterns (FUZZY PARSING - SLOWEST)
+        date_time_patterns = [
+            r"(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)",  # Time patterns
+            r"(\d{1,2}/\d{1,2}/\d{2,4})",  # Date patterns
+            r"(\d{4}-\d{2}-\d{2})",  # ISO date patterns
+        ]
+        
+        for pattern in date_time_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                time_str = match.group(1)
+                try:
+                    # Try to parse with dateutil which is more flexible
+                    time_obj = dateutil.parser.parse(time_str, fuzzy=True)
+                    return int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to parse flexible timestamp from text: {e}")
+                    continue
+        
+        # Strategy 11: Look for any element with text that might be a timestamp (SLOWEST)
+        # This catches cases where timestamps are in unexpected elements
+        for element in message.find_all(string=True):
+            element_text = element.strip()
+            if len(element_text) > 5:  # Reasonable length for a timestamp
+                try:
+                    # Try to parse with dateutil's fuzzy parsing
+                    time_obj = dateutil.parser.parse(element_text, fuzzy=True)
+                    return int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                except Exception:
+                    continue
         
         # If all strategies fail, log detailed information and use fallback
         logger.debug(f"Could not extract timestamp from message in {filename}: {message}")
@@ -5497,6 +5604,18 @@ class StringPool:
         "message": ".message, div[class*='message'], tr[class*='message']",
         "participants": ".participants, div[class*='participant'], .sender",
         "timestamp": ".timestamp, .dt, abbr[title], time[datetime]",
+    }
+    
+    # Common timestamp indicators for early exit optimization
+    TIMESTAMP_INDICATORS = ["202", "201", "200", "199", "198", "197"]
+    
+    # Common timestamp classes and IDs for faster lookup
+    TIMESTAMP_CLASSES = ["timestamp", "date", "time", "when", "posted", "created"]
+    TIMESTAMP_IDS = ["timestamp", "date", "time", "when", "posted", "created"]
+    DATA_ATTRS = ["data-timestamp", "data-date", "data-time", "data-when"]
+    
+    # Additional CSS selectors for performance optimization
+    ADDITIONAL_SELECTORS = {
         "tel_links": "a.tel[href], a[href*='tel:']",
         "img_src": "img[src]",
         "vcard_links": "a.vcard[href], a[href*='vcard']",
@@ -6202,7 +6321,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
     try:
         # Look for timestamp in various formats - use cached selectors for performance
         # First, try to find published elements (this is where call/voicemail timestamps are stored)
-        published_elements = soup.select(STRING_POOL.CSS_SELECTORS["published_elements"])
+        published_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["published_elements"])
         for element in published_elements:
             datetime_attr = element.get("title", "")
             if datetime_attr:
@@ -6217,7 +6336,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
                     continue
 
         # Try to find abbr elements with datetime (fallback)
-        time_elements = soup.select(STRING_POOL.CSS_SELECTORS["dt_elements"])
+        time_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["dt_elements"])
         for element in time_elements:
             datetime_attr = element.get("title", "")
             if datetime_attr:
@@ -6232,7 +6351,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
                     continue
 
         # Try to find other time elements - use cached selector
-        time_elements = soup.select(STRING_POOL.CSS_SELECTORS["time_elements"])
+        time_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["time_elements"])
         for element in time_elements:
             datetime_attr = element.get("datetime", "")
             if datetime_attr:
@@ -6286,7 +6405,7 @@ def extract_duration_from_call(soup: BeautifulSoup) -> Optional[str]:
     """Extract call duration from HTML content."""
     try:
         # Look for duration information - use cached selector for performance
-        duration_elements = soup.select(STRING_POOL.CSS_SELECTORS["duration_elements"])
+        duration_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["duration_elements"])
         for element in duration_elements:
             text = element.get_text().strip()
             if re.match(r"\d+:\d+", text):  # Format like "1:23"
@@ -6373,9 +6492,16 @@ def write_call_entry(
                     with open(file_path, "r", encoding="utf-8") as f:
                         soup2 = BeautifulSoup(f.read(), "html.parser")
                     call_ts = extract_timestamp_from_call(soup2)
-                    if call_ts is None:
-                        # If still no timestamp, use file modification time as last resort
-                        call_ts = int(file_path.stat().st_mtime * 1000)
+                except Exception:
+                    pass
+            
+            # If still no timestamp, use file modification time as last resort
+            if call_ts is None:
+                try:
+                    file_path = Path(filename)
+                    if not file_path.is_absolute():
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
+                    call_ts = int(file_path.stat().st_mtime * 1000)
                 except Exception:
                     # If all else fails, use current time
                     call_ts = int(time.time() * 1000)

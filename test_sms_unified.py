@@ -2755,6 +2755,140 @@ class TestSMSIntegration(unittest.TestCase):
                 should_skip = sms.should_skip_message_by_date(timestamp)
                 self.assertFalse(should_skip, f"Invalid timestamp should NOT cause skipping: {timestamp}")
     
+    def test_corrupted_filename_detection(self):
+        """Test that corrupted Google Voice filenames are properly detected and handled."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test cases for corrupted filenames
+        corrupted_cases = [
+            # Case 1: Extra parts after timestamp
+            {
+                "filename": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
+                "should_skip": True,
+                "description": "extra parts after timestamp",
+                "can_clean": True,
+                "cleaned": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z"
+            },
+            # Case 2: Multiple extra dashes
+            {
+                "filename": "John Doe - Text - 2024-08-15T12_30_45Z-123-456.html",
+                "should_skip": True,
+                "description": "multiple extra dashes",
+                "can_clean": True,
+                "cleaned": "John Doe - Text - 2024-08-15T12_30_45Z.html"
+            },
+            # Case 3: Missing .html extension
+            {
+                "filename": "Jane Smith - Text - 2024-06-20T09_15_30Z",
+                "should_skip": True,
+                "description": "missing .html extension",
+                "can_clean": False
+            },
+            # Case 4: Corrupted timestamp with extra numbers
+            {
+                "filename": "Bob Wilson - Text - 2024-05-10T14_25_00Z-999.html",
+                "should_skip": True,
+                "description": "corrupted timestamp with extra numbers",
+                "can_clean": True,
+                "cleaned": "Bob Wilson - Text - 2024-05-10T14_25_00Z.html"
+            }
+        ]
+        
+        # Test valid filenames (should not be skipped)
+        valid_cases = [
+            "John Doe - Text - 2024-08-15T12_30_45Z.html",
+            "Jane Smith - Text - 2024-06-20T09_15_30Z.html",
+            "Bob Wilson - Text - 2024-05-10T14_25_00Z.html",
+            "Group Conversation - 2024-07-01T10_00_00Z.html"
+        ]
+        
+        # Test corrupted filename detection
+        for i, test_case in enumerate(corrupted_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                # Test should_skip_file
+                should_skip = sms.should_skip_file(test_case["filename"])
+                self.assertTrue(should_skip,
+                              f"Corrupted filename should be skipped: {test_case['description']}")
+                
+                # Test is_corrupted_filename
+                is_corrupted = sms.is_corrupted_filename(test_case["filename"])
+                self.assertTrue(is_corrupted,
+                              f"Corrupted filename should be detected: {test_case['description']}")
+                
+                # Test cleaning if applicable
+                if test_case["can_clean"]:
+                    cleaned = sms.clean_corrupted_filename(test_case["filename"])
+                    self.assertEqual(cleaned, test_case["cleaned"],
+                                   f"Should clean corrupted filename: {test_case['description']}")
+                else:
+                    cleaned = sms.clean_corrupted_filename(test_case["filename"])
+                    self.assertEqual(cleaned, test_case["filename"],
+                                   f"Should not clean uncorrupted filename: {test_case['description']}")
+        
+        # Test valid filenames
+        for filename in valid_cases:
+            with self.subTest(filename=filename):
+                # Test should_skip_file
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(should_skip,
+                               f"Valid filename should NOT be skipped: {filename}")
+                
+                # Test is_corrupted_filename
+                is_corrupted = sms.is_corrupted_filename(filename)
+                self.assertFalse(is_corrupted,
+                               f"Valid filename should NOT be detected as corrupted: {filename}")
+                
+                # Test cleaning (should return original)
+                cleaned = sms.clean_corrupted_filename(filename)
+                self.assertEqual(cleaned, filename,
+                               f"Valid filename should not be modified: {filename}")
+    
+    def test_corrupted_filename_cleaning_edge_cases(self):
+        """Test edge cases for corrupted filename cleaning."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test edge cases
+        edge_cases = [
+            # Case 1: Very long corrupted filename
+            {
+                "filename": "Very Long Name With Many Words And Spaces - Text - 2024-01-01T00_00_00Z-123-456-789-012-345-678-901-234-567-890.html",
+                "should_skip": True,
+                "description": "very long corrupted filename"
+            },
+            # Case 2: Corrupted filename with special characters
+            {
+                "filename": "Name@Company - Text - 2024-02-02T01_01_01Z-abc-def.html",
+                "should_skip": True,
+                "description": "corrupted filename with special characters"
+            },
+            # Case 3: Corrupted filename with underscores in name
+            {
+                "filename": "John_Doe_Smith - Text - 2024-03-03T02_02_02Z-xyz.html",
+                "should_skip": True,
+                "description": "corrupted filename with underscores in name"
+            },
+            # Case 4: Corrupted filename with numbers in name
+            {
+                "filename": "John123 Doe456 - Text - 2024-04-04T03_03_03Z-789.html",
+                "should_skip": True,
+                "description": "corrupted filename with numbers in name"
+            }
+        ]
+        
+        for i, test_case in enumerate(edge_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                # Test should_skip_file
+                should_skip = sms.should_skip_file(test_case["filename"])
+                self.assertTrue(should_skip,
+                              f"Edge case corrupted filename should be skipped: {test_case['description']}")
+                
+                # Test is_corrupted_filename
+                is_corrupted = sms.is_corrupted_filename(test_case["filename"])
+                self.assertTrue(is_corrupted,
+                              f"Edge case corrupted filename should be detected: {test_case['description']}")
+    
     def test_numeric_filename_processing_fixes(self):
         """Test that numeric filenames are now filtered out by default (service codes)."""
         test_dir = Path(self.test_dir)
