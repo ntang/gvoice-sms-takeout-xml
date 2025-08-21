@@ -5222,7 +5222,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
         
         # Strategy 7: Look for any element with text that might be a timestamp
         # This catches cases where timestamps are in unexpected elements
-        for element in message.find_all(text=True):
+        for element in message.find_all(string=True):
             element_text = element.strip()
             if len(element_text) > 5:  # Reasonable length for a timestamp
                 try:
@@ -5279,7 +5279,8 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                         return int(
                             time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
                         )
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Failed to parse data attribute timestamp '{time_str}' from {attr}: {e}")
                         continue
         
         # If all strategies fail, log detailed information and use fallback
