@@ -2944,8 +2944,43 @@ def process_sms_mms_file(
     src_filename_map: Dict[str, str],
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
-    # Use cached CSS selector for better performance
+    # Strategy 1: Use cached CSS selector for better performance
     messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
+    
+    # Strategy 2: If no messages found, try alternative selectors
+    if not messages_raw:
+        logger.debug(f"Primary message selector failed for {html_file.name}, trying alternatives")
+        # Try alternative selectors for different HTML structures
+        alternative_selectors = [
+            "div[class*='message']",
+            "tr[class*='message']", 
+            ".conversation div",
+            "div[class*='sms']",
+            "div[class*='text']",
+            "tr[class*='sms']",
+            "tr[class*='text']"
+        ]
+        
+        for selector in alternative_selectors:
+            messages_raw = soup.select(selector)
+            if messages_raw:
+                logger.debug(f"Found {len(messages_raw)} messages using selector: {selector}")
+                break
+    
+    # Strategy 3: If still no messages, look for any divs with message-like content
+    if not messages_raw:
+        logger.debug(f"Alternative selectors failed for {html_file.name}, searching for message-like content")
+        all_divs = soup.find_all("div")
+        messages_raw = []
+        for div in all_divs:
+            # Check if div contains message-like content (timestamp, text, etc.)
+            if (div.find(class_="dt") or div.find(abbr=True) or 
+                div.find("q") or div.find(class_="sender") or
+                div.get_text().strip()):
+                messages_raw.append(div)
+        
+        if messages_raw:
+            logger.debug(f"Found {len(messages_raw)} message-like divs in {html_file.name}")
 
     if not messages_raw:
         logger.error(f"No messages found in SMS/MMS file: {html_file.name}")
@@ -3134,7 +3169,7 @@ def write_sms_messages(
 
         # Skip processing if we still can't get a valid phone number
         if not is_valid_phone_number(phone_number):
-            # Fallback: try to derive from page-level participants
+            # Fallback 1: try to derive from page-level participants
             if page_participants_raw:
                 try:
                     participants, _aliases = get_participant_phone_numbers_and_aliases(
@@ -3148,6 +3183,7 @@ def write_sms_messages(
                             break
                 except Exception:
                     pass
+            
             # Fallback 2: parse the source HTML file for any tel: numbers
             if not is_valid_phone_number(phone_number):
                 try:
@@ -3175,6 +3211,61 @@ def write_sms_messages(
                                         continue
                 except Exception:
                     pass
+            
+            # Fallback 3: Extract phone number from filename if it contains one
+            if not is_valid_phone_number(phone_number):
+                try:
+                    phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", file)
+                    if phone_match:
+                        phone_number = format_number(
+                            phonenumbers.parse(phone_match.group(1), None)
+                        )
+                        participant_raw = create_dummy_participant(phone_number)
+                        logger.debug(f"Extracted phone number from filename: {phone_number}")
+                except Exception as e:
+                    logger.debug(f"Failed to extract phone number from filename: {e}")
+            
+            # Fallback 4: Look for any phone numbers in the entire HTML content
+            if not is_valid_phone_number(phone_number):
+                try:
+                    # Try to find the original HTML file to scan for phone numbers
+                    html_files = list(PROCESSING_DIRECTORY.rglob("*.html"))
+                    for html_file in html_files:
+                        if html_file.name == file:
+                            with open(html_file, "r", encoding="utf-8") as f:
+                                soup_content = BeautifulSoup(f.read(), HTML_PARSER)
+                            
+                            # Look for any tel: links in the entire document
+                            tel_links = soup_content.find_all("a", href=True)
+                            for link in tel_links:
+                                href = link.get("href", "")
+                                if href.startswith("tel:"):
+                                    match = TEL_HREF_PATTERN.search(href)
+                                    if match:
+                                        try:
+                                            phone_number = format_number(
+                                                phonenumbers.parse(match.group(1), None)
+                                            )
+                                            if not own_number or phone_number != own_number:
+                                                participant_raw = create_dummy_participant(phone_number)
+                                                logger.debug(f"Extracted phone number from HTML content: {phone_number}")
+                                                break
+                                        except Exception as e:
+                                            logger.debug(f"Failed to parse phone number from HTML: {e}")
+                                            continue
+                            break
+                except Exception as e:
+                    logger.debug(f"Failed to scan HTML content for phone numbers: {e}")
+            
+            # Fallback 5: Use a default conversation ID for unknown numbers
+            if not is_valid_phone_number(phone_number):
+                logger.warning(
+                    f"Could not determine valid phone number for {file}, using default conversation ID"
+                )
+                # Create a unique conversation ID based on filename
+                phone_number = f"unknown_{hash(file) % 1000000}"
+                participant_raw = create_dummy_participant(phone_number)
+        
         if not is_valid_phone_number(phone_number):
             logger.error(
                 f"Could not determine valid phone number for {file}, skipping SMS processing"
@@ -3690,8 +3781,73 @@ def write_mms_messages(
                     f"Extracted {len(participants)} participants from messages for {file}"
                 )
             else:
-                logger.error(f"No participants found for MMS in {file}")
-                return
+                # Enhanced fallback: try to extract participants from the entire HTML document
+                logger.debug(f"Message-level participant extraction failed for {file}, trying document-level extraction")
+                
+                # Look for any participant information in the entire document
+                all_participants = []
+                all_aliases = []
+                
+                # Strategy 1: Look for any tel: links in the document
+                tel_links = soup.find_all("a", href=True)
+                for link in tel_links:
+                    href = link.get("href", "")
+                    if href.startswith("tel:"):
+                        match = TEL_HREF_PATTERN.search(href)
+                        if match:
+                            try:
+                                phone_number = format_number(
+                                    phonenumbers.parse(match.group(1), None)
+                                )
+                                if phone_number not in all_participants:
+                                    all_participants.append(phone_number)
+                                    # Try to get alias from link text
+                                    link_text = link.get_text(strip=True)
+                                    alias = link_text if link_text and link_text != phone_number else phone_number
+                                    all_aliases.append(alias)
+                            except Exception as e:
+                                logger.debug(f"Failed to parse phone number from tel link: {e}")
+                                continue
+                
+                # Strategy 2: Look for any phone numbers in text content
+                if not all_participants:
+                    text_content = soup.get_text()
+                    phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+                    phone_matches = phone_pattern.findall(text_content)
+                    for match in phone_matches:
+                        try:
+                            phone_number = format_number(
+                                phonenumbers.parse(match, None)
+                            )
+                            if phone_number not in all_participants:
+                                all_participants.append(phone_number)
+                                all_aliases.append(phone_number)
+                        except Exception as e:
+                            logger.debug(f"Failed to parse phone number from text: {e}")
+                            continue
+                
+                # Strategy 3: Use filename as fallback if it contains a phone number
+                if not all_participants:
+                    phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", file)
+                    if phone_match:
+                        try:
+                            phone_number = format_number(
+                                phonenumbers.parse(phone_match.group(1), None)
+                            )
+                            all_participants.append(phone_number)
+                            all_aliases.append(phone_number)
+                        except Exception as e:
+                            logger.debug(f"Failed to parse phone number from filename: {e}")
+                
+                if all_participants:
+                    participants = all_participants
+                    participant_aliases = all_aliases
+                    logger.info(
+                        f"Extracted {len(participants)} participants from document-level analysis for {file}"
+                    )
+                else:
+                    logger.error(f"No participants found for MMS in {file} after all fallback strategies")
+                    return
 
         # Process MMS messages and write to conversation files
         for i, message in enumerate(messages_raw):
@@ -4523,7 +4679,7 @@ def get_first_phone_number(
     messages: List, fallback_number: Union[str, int]
 ) -> Tuple[Union[str, int], BeautifulSoup]:
     """
-    Extract the first valid phone number from messages, prioritizing recipient numbers over sender numbers.
+    Extract the first valid phone number from messages, with comprehensive fallback strategies.
 
     Args:
         messages: List of message elements
@@ -4532,46 +4688,90 @@ def get_first_phone_number(
     Returns:
         tuple: (phone_number, participant_raw)
     """
-    # Note: This function is complex and may not benefit from simple caching
-    # due to BeautifulSoup object handling, but the pattern is established
     try:
-        # First, try to find a phone number that's not "Me" (not the sender)
+        # Strategy 1: Look for any valid phone number in cite elements (prefer non-"Me")
         for message in messages:
             try:
                 cite_element = message.cite
                 if not cite_element or not cite_element.a:
                     continue
 
-                # Check if this is a "Me" message (sender)
-                anchor_text = cite_element.a.get_text().strip()
-                if anchor_text == "Me":
-                    continue  # Skip sender messages, look for recipient messages
-
                 href = cite_element.a.get("href", "")
-                # Use pre-compiled regex for better performance
-                match = TEL_HREF_PATTERN.search(href)
-                number_text = match.group(1) if match else ""
-                if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
+                if href.startswith("tel:"):
+                    # Use pre-compiled regex for better performance
+                    match = TEL_HREF_PATTERN.search(href)
+                    number_text = match.group(1) if match else ""
+                    if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
+                        try:
+                            phone_number = format_number(
+                                phonenumbers.parse(number_text, None)
+                            )
+                            return phone_number, cite_element
+                        except phonenumbers.phonenumberutil.NumberParseException as e:
+                            logger.debug(f"Failed to parse phone number {number_text}: {e}")
+                            continue
+
+            except Exception as e:
+                logger.debug(f"Failed to process message cite: {e}")
+                continue
+
+        # Strategy 2: Look for any tel: links in the entire message content
+        for message in messages:
+            try:
+                tel_links = message.find_all("a", href=True)
+                for link in tel_links:
+                    href = link.get("href", "")
+                    if href.startswith("tel:"):
+                        match = TEL_HREF_PATTERN.search(href)
+                        number_text = match.group(1) if match else ""
+                        if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
+                            try:
+                                phone_number = format_number(
+                                    phonenumbers.parse(number_text, None)
+                                )
+                                # Create a dummy participant since we don't have the original cite
+                                return phone_number, create_dummy_participant(phone_number)
+                            except phonenumbers.phonenumberutil.NumberParseException as e:
+                                logger.debug(f"Failed to parse phone number {number_text}: {e}")
+                                continue
+            except Exception as e:
+                logger.debug(f"Failed to process message tel links: {e}")
+                continue
+
+        # Strategy 3: Look for phone numbers in text content (regex pattern)
+        for message in messages:
+            try:
+                text_content = message.get_text()
+                # Look for phone number patterns in text
+                phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+                phone_match = phone_pattern.search(text_content)
+                if phone_match:
+                    number_text = phone_match.group(1)
                     try:
                         phone_number = format_number(
                             phonenumbers.parse(number_text, None)
                         )
-                        return phone_number, cite_element
+                        return phone_number, create_dummy_participant(phone_number)
                     except phonenumbers.phonenumberutil.NumberParseException as e:
-                        logger.warning(
-                            f"Failed to parse phone number {number_text}: {e}"
-                        )
+                        logger.debug(f"Failed to parse phone number {number_text}: {e}")
                         continue
-
             except Exception as e:
-                logger.warning(f"Failed to process message: {e}")
+                logger.debug(f"Failed to process message text: {e}")
                 continue
 
-        # If no recipient number found, don't fall back to sender numbers
-        # This prevents messages from being incorrectly assigned to the user's own conversation
-        logger.warning(
-            "No recipient phone number found in messages, cannot determine conversation"
-        )
+        # Strategy 4: Use fallback number if provided and valid
+        if fallback_number and fallback_number != 0:
+            try:
+                if isinstance(fallback_number, str):
+                    phone_number = format_number(
+                        phonenumbers.parse(fallback_number, None)
+                    )
+                    return phone_number, create_dummy_participant(phone_number)
+            except Exception as e:
+                logger.debug(f"Failed to use fallback number {fallback_number}: {e}")
+
+        # If all strategies fail, log detailed information for debugging
+        logger.debug(f"No phone number found in {len(messages)} messages")
         return 0, BeautifulSoup("", HTML_PARSER)
 
     except Exception as e:
@@ -4924,18 +5124,18 @@ class StringPool:
     
     # Frequently used CSS selectors for performance optimization
     CSS_SELECTORS = {
-        "message": ".message",
-        "participants": ".participants",
-        "timestamp": ".timestamp",
-        "tel_links": "a.tel[href]",
+        "message": ".message, div[class*='message'], tr[class*='message']",
+        "participants": ".participants, div[class*='participant'], .sender",
+        "timestamp": ".timestamp, .dt, abbr[title], time[datetime]",
+        "tel_links": "a.tel[href], a[href*='tel:']",
         "img_src": "img[src]",
-        "vcard_links": "a.vcard[href]",
-        "fn_elements": "span.fn, abbr.fn, div.fn",
-        "dt_elements": "abbr.dt",
-        "published_elements": "abbr.published",  # For call/voicemail timestamps
-        "time_elements": "time[datetime], span[datetime]",
-        "duration_elements": "abbr.duration",
-        "transcription_elements": ".message",
+        "vcard_links": "a.vcard[href], a[href*='vcard']",
+        "fn_elements": "span.fn, abbr.fn, div.fn, .fn",
+        "dt_elements": "abbr.dt, .dt, time[datetime]",
+        "published_elements": "abbr.published, .published, time[datetime]",  # For call/voicemail timestamps
+        "time_elements": "time[datetime], span[datetime], abbr[title]",
+        "duration_elements": "abbr.duration, .duration",
+        "transcription_elements": ".message, .transcription, .content",
     }
 
 # Global string pool instance
@@ -5525,6 +5725,39 @@ def extract_voicemail_info(
         # Extract duration if available
         duration = extract_duration_from_call(soup)  # Reuse call duration extraction
 
+        # Enhanced fallback: if phone number extraction fails, try alternative methods
+        if not phone_number:
+            logger.debug(f"Primary phone extraction failed for voicemail {filename}, trying alternatives")
+            
+            # Try to extract from filename if it contains a phone number
+            phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", filename)
+            if phone_match:
+                try:
+                    phone_number = format_number(
+                        phonenumbers.parse(phone_match.group(1), None)
+                    )
+                    logger.debug(f"Extracted phone number from filename: {phone_number}")
+                except Exception as e:
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
+            
+            # Try to extract from any tel: links in the entire document
+            if not phone_number:
+                tel_links = soup.find_all("a", href=True)
+                for link in tel_links:
+                    href = link.get("href", "")
+                    if href.startswith("tel:"):
+                        match = TEL_HREF_PATTERN.search(href)
+                        if match:
+                            try:
+                                phone_number = format_number(
+                                    phonenumbers.parse(match.group(1), None)
+                                )
+                                logger.debug(f"Extracted phone number from tel link: {phone_number}")
+                                break
+                            except Exception as e:
+                                logger.debug(f"Failed to parse phone number from tel link: {e}")
+                                continue
+
         if phone_number:
             return {
                 "phone_number": phone_number,
@@ -5533,6 +5766,10 @@ def extract_voicemail_info(
                 "transcription": transcription,
                 "filename": filename,
             }
+        
+        # If we still don't have a phone number, log detailed debugging info
+        logger.debug(f"Could not extract phone number for voicemail {filename}")
+        logger.debug(f"HTML content preview: {str(soup)[:500]}...")
         return None
 
     except Exception as e:
