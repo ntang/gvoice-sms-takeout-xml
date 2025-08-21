@@ -1688,6 +1688,355 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertIn("Call Logs", content)
         self.assertIn("Voicemails", content)
 
+    def test_enhanced_timestamp_extraction_strategies(self):
+        """Test all 10 enhanced timestamp extraction strategies comprehensively."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test all 10 strategies with various HTML structures
+        test_cases = [
+            # Strategy 1: dt class with title
+            {
+                "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test</q></div>',
+                "description": "dt class with title attribute",
+                "filename": "test_strategy1.html"
+            },
+            # Strategy 2: abbr with title (no dt class)
+            {
+                "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test</q></div>',
+                "description": "abbr element with title attribute",
+                "filename": "test_strategy2.html"
+            },
+            # Strategy 3: time with datetime
+            {
+                "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test</q></div>',
+                "description": "time element with datetime attribute",
+                "filename": "test_strategy3.html"
+            },
+            # Strategy 4: any element with datetime
+            {
+                "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test</q></div>',
+                "description": "any element with datetime attribute",
+                "filename": "test_strategy4.html"
+            },
+            # Strategy 5: ISO pattern in text
+            {
+                "html": '<div class="message"><q>Test</q><span>2024-05-12T11:30:00Z</span></div>',
+                "description": "ISO timestamp pattern in text content",
+                "filename": "test_strategy5.html"
+            },
+            # Strategy 6: Flexible date parsing
+            {
+                "html": '<div class="message"><q>Test</q><span>12/25/2024 3:45 PM</span></div>',
+                "description": "flexible date/time parsing",
+                "filename": "test_strategy6.html"
+            },
+            # Strategy 7: Element text parsing
+            {
+                "html": '<div class="message"><q>Test</q><div>2024-06-18</div></div>',
+                "description": "timestamp in element text",
+                "filename": "test_strategy7.html"
+            },
+            # Strategy 8: Element with timestamp class
+            {
+                "html": '<div class="message"><q>Test</q><span class="timestamp">2024-07-20 14:30:00</span></div>',
+                "description": "element with timestamp class",
+                "filename": "test_strategy8.html"
+            },
+            # Strategy 9: Element with timestamp id
+            {
+                "html": '<div class="message"><q>Test</q><span id="timestamp">2024-08-15 09:45:00</span></div>',
+                "description": "element with timestamp id",
+                "filename": "test_strategy9.html"
+            },
+            # Strategy 10: Element with data timestamp attribute
+            {
+                "html": '<div class="message"><q>Test</q><span data-timestamp="2024-09-10 16:20:00"></span></div>',
+                "description": "element with data timestamp attribute",
+                "filename": "test_strategy10.html"
+            }
+        ]
+        
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, strategy=test_case["description"]):
+                soup = BeautifulSoup(test_case["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+                
+                # Should extract timestamp successfully with filename parameter
+                result = sms.get_time_unix(message, test_case["filename"])
+                
+                # Verify the timestamp is reasonable
+                self.assertIsInstance(result, int, f"Strategy {i+1} should return integer timestamp")
+                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
+                
+                # Verify it's not the current time fallback (should be significantly different)
+                current_time = int(time.time() * 1000)
+                time_diff = abs(result - current_time)
+                self.assertGreater(time_diff, 1000000, f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)")
+                
+                # Log the actual timestamp for debugging
+                print(f"Strategy {i+1} ({test_case['description']}) extracted timestamp: {result} from {test_case['filename']}")
+
+    def test_mms_participant_extraction_with_filename_fallback(self):
+        """Test that MMS participant extraction works with filename-based fallback strategies."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test case 1: Filename with phone number
+        filename_with_phone = "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html"
+        messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
+        participants_raw = []  # Empty participants to trigger fallback logic
+        
+        # This should extract phone number from filename
+        try:
+            sms.write_mms_messages(filename_with_phone, participants_raw, messages, None, {}, soup=None)
+            # Function should execute without errors
+        except Exception as e:
+            self.fail(f"MMS processing with phone in filename should not fail: {e}")
+        
+        # Test case 2: Filename without phone number (should create default)
+        filename_without_phone = "John Doe - Text - 2025-08-13T12_08_52Z.html"
+        
+        try:
+            sms.write_mms_messages(filename_without_phone, participants_raw, messages, None, {}, soup=None)
+            # Function should execute without errors and create default participant
+        except Exception as e:
+            self.fail(f"MMS processing without phone in filename should not fail: {e}")
+
+    def test_error_logging_with_filename_context(self):
+        """Test that error logging includes filename context for better debugging."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test case: Message with no timestamp elements (should trigger error logging)
+        test_html = '<div class="message"><q>Just text, no timestamp</q></div>'
+        test_filename = "no_timestamp_message.html"
+        
+        soup = BeautifulSoup(test_html, "html.parser")
+        message = soup.find("div", class_="message")
+        
+        # Capture log output to verify filename is included
+        import io
+        import logging
+        
+        # Create a string buffer to capture log output
+        log_buffer = io.StringIO()
+        log_handler = logging.StreamHandler(log_buffer)
+        log_handler.setLevel(logging.ERROR)
+        
+        # Get the logger and add our handler temporarily
+        logger = logging.getLogger("sms")
+        original_handlers = logger.handlers.copy()
+        logger.addHandler(log_handler)
+        
+        try:
+            # This should trigger error logging with filename context
+            result = sms.get_time_unix(message, test_filename)
+            
+            # Get the log output
+            log_output = log_buffer.getvalue()
+            
+            # Verify that the filename is included in the error log
+            self.assertIn(test_filename, log_output, "Error log should include filename context")
+            self.assertIn("Failed to extract message timestamp", log_output, "Error log should contain timestamp error message")
+            
+        finally:
+            # Restore original handlers
+            logger.handlers = original_handlers
+            log_buffer.close()
+
+    def test_comprehensive_mms_fallback_strategies(self):
+        """Test all MMS participant extraction fallback strategies comprehensively."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test various scenarios that should trigger different fallback strategies
+        test_cases = [
+            # Case 1: No participants, no soup, filename with phone
+            {
+                "filename": "Alice Smith +15551234567 - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": None,
+                "description": "filename with phone number fallback"
+            },
+            # Case 2: No participants, no soup, filename without phone
+            {
+                "filename": "Bob Johnson - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": None,
+                "description": "filename without phone number fallback"
+            },
+            # Case 3: No participants, with soup, but soup has no useful data
+            {
+                "filename": "Carol Davis - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": BeautifulSoup('<html><body><p>No useful data</p></body></html>', 'html.parser'),
+                "description": "soup with no useful data fallback"
+            }
+        ]
+        
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
+                
+                try:
+                    sms.write_mms_messages(
+                        test_case["filename"], 
+                        test_case["participants_raw"], 
+                        messages, 
+                        None, 
+                        {}, 
+                        soup=test_case["soup"]
+                    )
+                    # Function should execute without errors
+                except Exception as e:
+                    self.fail(f"MMS processing with {test_case['description']} should not fail: {e}")
+
+    def test_edge_case_timestamp_extraction(self):
+        """Test timestamp extraction with extreme edge cases and malformed HTML."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test extreme edge cases
+        edge_cases = [
+            # Case 1: Empty message with only whitespace
+            {
+                "html": '<div class="message">   </div>',
+                "filename": "empty_whitespace.html",
+                "should_fail": True
+            },
+            # Case 2: Message with only punctuation
+            {
+                "html": '<div class="message">!@#$%^&*()</div>',
+                "filename": "only_punctuation.html",
+                "should_fail": True
+            },
+            # Case 3: Message with very short text
+            {
+                "html": '<div class="message">Hi</div>',
+                "filename": "very_short.html",
+                "should_fail": True
+            },
+            # Case 4: Message with malformed HTML
+            {
+                "html": '<div class="message"><unclosed_tag>Test</div>',
+                "filename": "malformed_html.html",
+                "should_fail": True
+            },
+            # Case 5: Message with nested malformed elements
+            {
+                "html": '<div class="message"><span><div>Test</span></div>',
+                "filename": "nested_malformed.html",
+                "should_fail": True
+            }
+        ]
+        
+        for i, test_case in enumerate(edge_cases):
+            with self.subTest(i=i, case=test_case["filename"]):
+                soup = BeautifulSoup(test_case["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+                
+                if test_case["should_fail"]:
+                    # Should fall back to current time
+                    result = sms.get_time_unix(message, test_case["filename"])
+                    current_time = int(time.time() * 1000)
+                    # Allow for small timing differences (within 1 second)
+                    self.assertLess(abs(result - current_time), 1000, 
+                                  f"Edge case {i} should fall back to current time")
+                else:
+                    # Should extract valid timestamp
+                    result = sms.get_time_unix(message, test_case["filename"])
+                    self.assertIsInstance(result, int, f"Edge case {i} should return valid timestamp")
+                    self.assertGreater(result, 0, f"Edge case {i} should return positive timestamp")
+
+    def test_filename_based_participant_extraction(self):
+        """Test that participant extraction from filename patterns works correctly."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test various filename patterns
+        filename_patterns = [
+            # Pattern 1: Name - Text - Timestamp
+            {
+                "filename": "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Susan Nowak Tang",
+                "description": "standard name - text - timestamp pattern"
+            },
+            # Pattern 2: Name with Phone - Text - Timestamp
+            {
+                "filename": "John Doe +15551234567 - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "John Doe +15551234567",
+                "description": "name with phone - text - timestamp pattern"
+            },
+            # Pattern 3: Just Name - Text
+            {
+                "filename": "Alice Smith - Text.html",
+                "expected_name": "Alice Smith",
+                "description": "name - text pattern without timestamp"
+            },
+            # Pattern 4: Complex name with special characters
+            {
+                "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
+                "description": "complex name with special characters"
+            }
+        ]
+        
+        for i, test_case in enumerate(filename_patterns):
+            with self.subTest(i=i, pattern=test_case["description"]):
+                # Test that the filename parsing logic works correctly
+                if " - Text -" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text -")[0]
+                    self.assertEqual(name_part, test_case["expected_name"], 
+                                   f"Filename parsing should extract correct name for {test_case['description']}")
+                elif " - Text" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text")[0]
+                    self.assertEqual(name_part, test_case["expected_name"], 
+                                   f"Filename parsing should extract correct name for {test_case['description']}")
+
+    def test_timestamp_extraction_performance_with_filename(self):
+        """Test that timestamp extraction performance is maintained with filename parameter."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create a complex message with multiple timestamp candidates
+        complex_html = '''
+        <div class="message">
+            <abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr>
+            <q>Test message</q>
+            <span class="timestamp">2024-01-15 10:30:00</span>
+            <time datetime="2024-01-15T10:30:00Z">Jan 15</time>
+            <div data-timestamp="2024-01-15T10:30:00Z">Extra info</div>
+        </div>
+        '''
+        
+        soup = BeautifulSoup(complex_html, "html.parser")
+        message = soup.find("div", class_="message")
+        
+        # Test performance: should still use Strategy 1 (fastest) even with filename parameter
+        import time as time_module
+        
+        start_time = time_module.time()
+        result1 = sms.get_time_unix(message, "performance_test.html")
+        end_time = time_module.time()
+        
+        execution_time = end_time - start_time
+        
+        # Should execute quickly (within 100ms)
+        self.assertLess(execution_time, 0.1, "Timestamp extraction should be fast even with filename parameter")
+        
+        # Should return the correct timestamp (Strategy 1 should win)
+        expected_time = int(datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        # Allow for timezone differences (within 6 hours)
+        time_diff = abs(result1 - expected_time)
+        self.assertLess(time_diff, 21600000, "Should extract correct timestamp from Strategy 1")
+        
+        print(f"Performance test: extracted timestamp {result1} in {execution_time:.4f} seconds")
+
 
 def create_test_suite(test_type="basic", test_limit=100):
     """

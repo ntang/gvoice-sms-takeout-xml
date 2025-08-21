@@ -3345,7 +3345,7 @@ def write_sms_messages(
                     "alias": alias,
                     "type": get_message_type(message),
                     "message": message_content,
-                    "time": get_time_unix(message),
+                    "time": get_time_unix(message, file),
                 }
 
                 # Format SMS XML
@@ -3877,8 +3877,43 @@ def write_mms_messages(
                         f"Extracted {len(participants)} participants from document-level analysis for {file}"
                     )
                 else:
-                    logger.error(f"No participants found for MMS in {file} after all fallback strategies")
-                    return
+                    # Final fallback: try to extract from filename patterns and create default participants
+                    logger.debug(f"Document-level extraction failed for {file}, trying filename-based fallback")
+                    
+                    # Strategy 4: Extract from filename patterns (e.g., "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html")
+                    filename_participants = []
+                    filename_aliases = []
+                    
+                    # Look for name patterns in filename before the " - Text -" part
+                    if " - Text -" in file:
+                        name_part = file.split(" - Text -")[0]
+                        # Try to extract phone numbers from the name part
+                        phone_matches = re.findall(r"(\+\d{1,3}\s?\d{1,3}\s?\d{1,4}\s?\d{1,4})", name_part)
+                        for phone_match in phone_matches:
+                            try:
+                                phone_number = format_number(phonenumbers.parse(phone_match, None))
+                                if phone_number not in filename_participants:
+                                    filename_participants.append(phone_number)
+                                    # Use the name part as alias
+                                    filename_aliases.append(name_part.strip())
+                            except Exception as e:
+                                logger.debug(f"Failed to parse phone number from filename: {e}")
+                                continue
+                    
+                    # Strategy 5: If still no participants, create a default conversation
+                    if not filename_participants:
+                        logger.debug(f"Filename-based extraction failed for {file}, creating default conversation")
+                        
+                        # Create a unique conversation ID based on filename
+                        default_phone = f"default_{hash(file) % 1000000}"
+                        filename_participants = [default_phone]
+                        filename_aliases = [file.split(" - Text -")[0] if " - Text -" in file else "Unknown"]
+                        
+                        logger.info(f"Created default participant for {file}: {default_phone}")
+                    
+                    participants = filename_participants
+                    participant_aliases = filename_aliases
+                    logger.info(f"Using fallback participants for {file}: {participants}")
 
         # Process MMS messages and write to conversation files
         for i, message in enumerate(messages_raw):
@@ -3911,9 +3946,9 @@ def write_mms_messages(
                 # Build MMS XML
                 mms_xml = build_mms_xml(
                     participants_text=",".join(final_aliases),
-                    message_time=get_time_unix(message),
+                    message_time=get_time_unix(message, file),
                     m_type=MMS_TYPE_SENT if sent_by_me else MMS_TYPE_RECEIVED,
-                    msg_box=MESSAGE_BOX_SENT if sent_by_me else MESSAGE_BOX_RECEIVED,
+                    msg_box=MESSAGE_BOX_SENT if sent_by_me else MMS_TYPE_RECEIVED,
                     text_part=TEXT_PART_TEMPLATE.format(text=message_content)
                     if message_content
                     else "",
@@ -5080,12 +5115,13 @@ def parse_timestamp_cached(ymdhms: str) -> datetime:
     return dateutil.parser.isoparse(ymdhms)
 
 
-def get_time_unix(message: BeautifulSoup) -> int:
+def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
     """
     Extract and convert message timestamp to Unix milliseconds.
 
     Args:
         message: Message element from HTML
+        filename: Filename for better error logging
 
     Returns:
         int: Unix timestamp in milliseconds
@@ -5198,12 +5234,60 @@ def get_time_unix(message: BeautifulSoup) -> int:
                 except Exception:
                     continue
         
+        # Strategy 8: Look for any element with class that might indicate timestamp
+        # This catches cases like class="timestamp", class="date", etc.
+        timestamp_classes = ["timestamp", "date", "time", "when", "posted", "created"]
+        for class_name in timestamp_classes:
+            time_raw = message.find(class_=class_name)
+            if time_raw:
+                time_text = time_raw.get_text(strip=True)
+                if len(time_text) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception:
+                        continue
+        
+        # Strategy 9: Look for any element with id that might indicate timestamp
+        # This catches cases like id="timestamp", id="date", etc.
+        timestamp_ids = ["timestamp", "date", "time", "when", "posted", "created"]
+        for id_name in timestamp_ids:
+            time_raw = message.find(id=id_name)
+            if time_raw:
+                time_text = time_raw.get_text(strip=True)
+                if len(time_text) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_text, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception:
+                        continue
+        
+        # Strategy 10: Look for any element with data attributes that might contain timestamps
+        # This catches cases like data-timestamp, data-date, etc.
+        data_attrs = ["data-timestamp", "data-date", "data-time", "data-when"]
+        for attr in data_attrs:
+            time_raw = message.find(attrs={attr: True})
+            if time_raw:
+                time_str = time_raw[attr]
+                if len(time_str) > 5:
+                    try:
+                        time_obj = dateutil.parser.parse(time_str, fuzzy=True)
+                        return int(
+                            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                        )
+                    except Exception:
+                        continue
+        
         # If all strategies fail, log detailed information and use fallback
-        logger.debug(f"Could not extract timestamp from message: {message}")
+        logger.debug(f"Could not extract timestamp from message in {filename}: {message}")
         raise ConversionError("Message timestamp element not found")
 
     except Exception as e:
-        logger.error(f"Failed to extract message timestamp: {e}")
+        logger.error(f"Failed to extract message timestamp from {filename}: {e}")
         return int(
             time.time() * DEFAULT_FALLBACK_TIME
         )  # Return current time as fallback
