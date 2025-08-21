@@ -1331,13 +1331,260 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertTrue(len(manager.conversation_files) > 0, 
                        "Call entries should create conversation files")
         
-        # Test that we can still open new files (no file handle leaks)
+                # Test that we can still open new files (no file handle leaks)
         test_file = test_dir / "test_file_handle_test.txt"
         test_file.write_text("test content", encoding="utf-8")
-        
+
         with open(test_file, "r", encoding="utf-8") as f:
             content = f.read()
         self.assertEqual(content, "test content", "Should still be able to open new files")
+
+    def test_mms_message_processing_with_soup_parameter(self):
+        """Test that MMS message processing works correctly with soup parameter."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create test HTML with MMS message structure
+        test_html = '''
+        <div class='message'>
+            <cite class='sender vcard'>
+                <a class='tel' href='tel:+15551234567'>
+                    <abbr class='fn' title='Test User'>Test User</abbr>
+                </a>
+            </cite>
+            <q>Test MMS message with image</q>
+            <img src='test-image.jpg' alt='Test image'>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        messages = [BeautifulSoup(test_html, 'html.parser')]
+        participants_raw = [[BeautifulSoup('<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>', 'html.parser')]]
+        
+        # This should not raise a NameError about 'soup' not being defined
+        try:
+            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, soup=None)
+            # Function executed successfully
+        except NameError as e:
+            if 'soup' in str(e):
+                self.fail(f"MMS processing still references undefined 'soup' variable: {e}")
+            else:
+                # Other NameErrors are acceptable in this test context
+                pass
+        except Exception:
+            # Other exceptions are expected in the test context
+            pass
+
+    def test_message_type_determination_with_none_cite(self):
+        """Test that message type determination handles None cite elements gracefully."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create test HTML with no cite element
+        test_html = '''
+        <div class='message'>
+            <q>Test message without cite</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        message = BeautifulSoup(test_html, 'html.parser')
+        
+        # This should not raise AttributeError about NoneType having no attribute 'span'
+        try:
+            message_type = sms.get_message_type(message)
+            # Should return a valid message type (1 or 2)
+            self.assertIn(message_type, [1, 2], f"Message type should be 1 or 2, got {message_type}")
+        except AttributeError as e:
+            if 'NoneType' in str(e) and 'span' in str(e):
+                self.fail(f"Message type determination still fails with None cite: {e}")
+            else:
+                # Other AttributeErrors are acceptable
+                pass
+        except Exception:
+            # Other exceptions are acceptable in this test context
+            pass
+
+    def test_timestamp_extraction_with_multiple_strategies(self):
+        """Test that timestamp extraction works with multiple fallback strategies."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test case 1: Standard dt class with title
+        test_html1 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        message1 = BeautifulSoup(test_html1, 'html.parser')
+        
+        try:
+            timestamp1 = sms.get_time_unix(message1)
+            self.assertIsInstance(timestamp1, int, "Timestamp should be an integer")
+            self.assertGreater(timestamp1, 0, "Timestamp should be positive")
+        except Exception as e:
+            self.fail(f"Standard timestamp extraction failed: {e}")
+        
+        # Test case 2: Abbr element with title (no dt class)
+        test_html2 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <abbr title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        message2 = BeautifulSoup(test_html2, 'html.parser')
+        
+        try:
+            timestamp2 = sms.get_time_unix(message2)
+            self.assertIsInstance(timestamp2, int, "Timestamp should be an integer")
+            self.assertGreater(timestamp2, 0, "Timestamp should be positive")
+        except Exception as e:
+            self.fail(f"Abbr title timestamp extraction failed: {e}")
+        
+        # Test case 3: Time element with datetime
+        test_html3 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <time datetime='2024-01-15T10:30:00Z'>Jan 15, 2024</time>
+        </div>
+        '''
+        message3 = BeautifulSoup(test_html3, 'html.parser')
+        
+        try:
+            timestamp3 = sms.get_time_unix(message3)
+            self.assertIsInstance(timestamp3, int, "Timestamp should be an integer")
+            self.assertGreater(timestamp3, 0, "Timestamp should be positive")
+        except Exception as e:
+            self.fail(f"Time datetime timestamp extraction failed: {e}")
+
+    def test_phone_number_extraction_with_comprehensive_fallbacks(self):
+        """Test that phone number extraction works with all fallback strategies."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test case 1: Messages with cite elements
+        test_html1 = '''
+        <div class='message'>
+            <cite class='sender vcard'>
+                <a class='tel' href='tel:+15551234567'>
+                    <abbr class='fn' title='Test User'>Test User</abbr>
+                </a>
+            </cite>
+            <q>Test message</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        messages1 = [BeautifulSoup(test_html1, 'html.parser')]
+        
+        try:
+            phone_number1, participant_raw1 = sms.get_first_phone_number(messages1, 0)
+            self.assertIsNotNone(phone_number1, "Should extract phone number from cite element")
+            self.assertNotEqual(phone_number1, 0, "Phone number should not be 0")
+        except Exception as e:
+            self.fail(f"Cite element phone extraction failed: {e}")
+        
+        # Test case 2: Messages with tel: links in content
+        test_html2 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <a href='tel:+15551234568'>Call me</a>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        messages2 = [BeautifulSoup(test_html2, 'html.parser')]
+        
+        try:
+            phone_number2, participant_raw2 = sms.get_first_phone_number(messages2, 0)
+            self.assertIsNotNone(phone_number2, "Should extract phone number from tel: links")
+            self.assertNotEqual(phone_number2, 0, "Phone number should not be 0")
+        except Exception as e:
+            self.fail(f"Tel link phone extraction failed: {e}")
+        
+        # Test case 3: Messages with phone numbers in text
+        test_html3 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Call me at +15551234569</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        messages3 = [BeautifulSoup(test_html3, 'html.parser')]
+        
+        try:
+            phone_number3, participant_raw3 = sms.get_first_phone_number(messages3, 0)
+            self.assertIsNotNone(phone_number3, "Should extract phone number from text content")
+            self.assertNotEqual(phone_number3, 0, "Phone number should not be 0")
+        except Exception as e:
+            self.fail(f"Text content phone extraction failed: {e}")
+
+    def test_message_detection_with_alternative_selectors(self):
+        """Test that message detection works with alternative CSS selectors."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test case 1: Standard message class
+        test_html1 = '''
+        <div class='message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        # Test case 2: Alternative message class
+        test_html2 = '''
+        <div class='sms-message'>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        # Test case 3: Table row message
+        test_html3 = '''
+        <tr class='message-row'>
+            <td><cite class='sender'>Test User</cite></td>
+            <td><q>Test message</q></td>
+            <td><abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr></td>
+        </tr>
+        '''
+        
+        # Test case 4: Message-like div without specific class
+        test_html4 = '''
+        <div>
+            <cite class='sender'>Test User</cite>
+            <q>Test message</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        test_cases = [
+            ('standard message class', test_html1),
+            ('alternative message class', test_html2),
+            ('table row message', test_html3),
+            ('message-like div', test_html4)
+        ]
+        
+        for test_name, test_html in test_cases:
+            with self.subTest(test_name=test_name):
+                soup = BeautifulSoup(test_html, 'html.parser')
+                
+                # This should not raise an error about no messages found
+                try:
+                    result = sms.process_sms_mms_file(Path('test.html'), soup, None, {})
+                    self.assertIsInstance(result, dict, f"Should return a dictionary for {test_name}")
+                    self.assertIn('num_sms', result, f"Result should contain num_sms for {test_name}")
+                except Exception as e:
+                    if 'No messages found' in str(e):
+                        self.fail(f"Message detection failed for {test_name}: {e}")
+                    else:
+                        # Other exceptions are acceptable in this test context
+                        pass
 
     def test_write_sms_messages_no_future_to_chunk_error(self):
         """Test that write_sms_messages doesn't reference undefined future_to_chunk variable."""

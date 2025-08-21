@@ -3025,6 +3025,7 @@ def process_sms_mms_file(
         own_number,
         src_filename_map,
         page_participants_raw=participants_raw,
+        soup=soup,
     )
 
     # NOTE: MMS messages with attachments are forwarded from write_sms_messages
@@ -3140,6 +3141,7 @@ def write_sms_messages(
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
     page_participants_raw: Optional[List] = None,
+    soup: Optional[BeautifulSoup] = None,
 ):
     """
     Write SMS messages to conversation files.
@@ -3304,6 +3306,7 @@ def write_sms_messages(
                         [message],
                         own_number,
                         src_filename_map,
+                        soup=None,  # No soup available in SMS context
                     )
                     processed_count += 1  # Count as processed, not skipped
                     continue
@@ -3668,6 +3671,7 @@ def write_mms_messages(
     messages_raw: List,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    soup: Optional[BeautifulSoup] = None,
 ):
     """
     Write MMS messages to the backup file.
@@ -4509,7 +4513,20 @@ def get_message_type(message: BeautifulSoup) -> int:
     """
     try:
         author_raw = message.cite
-        return 2 if not author_raw.span else 1  # 2=sent, 1=received
+        if not author_raw:
+            # No cite element found, try alternative methods
+            # Look for any indication this is a sent message
+            if message.find("span", class_="sender") or message.find(class_="sent"):
+                return 2  # Sent message
+            else:
+                return 1  # Default to received
+        
+        # Check if this is a "Me" message (sent by user)
+        if author_raw.span:
+            return 1  # Received message (has span element)
+        else:
+            return 2  # Sent message (no span element)
+            
     except Exception as e:
         logger.error(f"Failed to determine message type: {e}")
         return 1  # Default to received
@@ -5047,18 +5064,78 @@ def get_time_unix(message: BeautifulSoup) -> int:
         int: Unix timestamp in milliseconds
     """
     try:
+        # Strategy 1: Look for elements with class "dt" and title attribute
         time_raw = message.find(class_="dt")
-        if not time_raw or "title" not in time_raw.attrs:
-            raise ConversionError("Message timestamp element not found")
-
-        ymdhms = time_raw["title"]
-        # Use cached timestamp parsing for better performance
-        time_obj = parse_timestamp_cached(ymdhms)
-
-        # Convert to Unix milliseconds (including microseconds)
-        return int(
-            time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-        )
+        if time_raw and "title" in time_raw.attrs:
+            ymdhms = time_raw["title"]
+            # Use cached timestamp parsing for better performance
+            time_obj = parse_timestamp_cached(ymdhms)
+            # Convert to Unix milliseconds (including microseconds)
+            return int(
+                time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+            )
+        
+        # Strategy 2: Look for any abbr element with title attribute
+        time_raw = message.find("abbr", attrs={"title": True})
+        if time_raw:
+            ymdhms = time_raw["title"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from abbr title: {e}")
+        
+        # Strategy 3: Look for time elements with datetime attribute
+        time_raw = message.find("time", attrs={"datetime": True})
+        if time_raw:
+            ymdhms = time_raw["datetime"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from time datetime: {e}")
+        
+        # Strategy 4: Look for any element with datetime attribute
+        time_raw = message.find(attrs={"datetime": True})
+        if time_raw:
+            ymdhms = time_raw["datetime"]
+            try:
+                time_obj = parse_timestamp_cached(ymdhms)
+                return int(
+                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                )
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from datetime attribute: {e}")
+        
+        # Strategy 5: Look for timestamp patterns in text content
+        text_content = message.get_text()
+        # Look for ISO-like timestamp patterns
+        timestamp_patterns = [
+            r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))",  # ISO format
+            r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})",  # Date time format
+            r"(\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2})",  # US date format
+        ]
+        
+        for pattern in timestamp_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                ymdhms = match.group(1)
+                try:
+                    time_obj = parse_timestamp_cached(ymdhms)
+                    return int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to parse timestamp from text pattern: {e}")
+                    continue
+        
+        # If all strategies fail, log detailed information and use fallback
+        logger.debug(f"Could not extract timestamp from message: {message}")
+        raise ConversionError("Message timestamp element not found")
 
     except Exception as e:
         logger.error(f"Failed to extract message timestamp: {e}")
