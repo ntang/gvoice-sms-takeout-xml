@@ -1339,6 +1339,40 @@ class TestSMSIntegration(unittest.TestCase):
             content = f.read()
         self.assertEqual(content, "test content", "Should still be able to open new files")
 
+    def test_write_sms_messages_no_future_to_chunk_error(self):
+        """Test that write_sms_messages doesn't reference undefined future_to_chunk variable."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Create test HTML with a basic message structure
+        test_html = '''
+        <div class='message'>
+            <cite class='sender vcard'>
+                <a class='tel' href='tel:+15551234567'>
+                    <abbr class='fn' title='Test User'>Test User</abbr>
+                </a>
+            </cite>
+            <q>Test message content</q>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        '''
+        
+        messages = [BeautifulSoup(test_html, 'html.parser')]
+        
+        # The function should not raise a NameError about future_to_chunk
+        try:
+            sms.write_sms_messages('test_file.html', messages, None, {})
+            # Function executed successfully (other errors are expected in test context)
+        except NameError as e:
+            if 'future_to_chunk' in str(e):
+                self.fail(f"write_sms_messages still references undefined future_to_chunk: {e}")
+            else:
+                # Other NameErrors are acceptable in this test context
+                pass
+        except Exception:
+            # Other exceptions are expected in the test context
+            pass
+
     def test_no_epoch_zero_timestamps(self):
         """Ensure calls and voicemails never get epoch 0 timestamp (1969-12-31 19:00:00)."""
         test_dir = Path(self.test_dir)

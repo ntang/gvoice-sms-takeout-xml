@@ -3148,7 +3148,6 @@ def write_sms_messages(
                             break
                 except Exception:
                     pass
-            chunk = future_to_chunk[future]
             # Fallback 2: parse the source HTML file for any tel: numbers
             if not is_valid_phone_number(phone_number):
                 try:
