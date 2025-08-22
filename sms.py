@@ -45,6 +45,19 @@ from templates import (
     VCARD_PART_TEMPLATE
 )
 
+# Import new modular components
+from conversation_manager import ConversationManager
+from phone_lookup import PhoneLookupManager
+from sms_processor import SMSProcessor
+from utils import (
+    is_valid_phone_number, normalize_phone_number, parse_timestamp_from_filename,
+    validate_date_range, is_date_in_range, get_memory_usage, log_memory_usage
+)
+from config import (
+    get_config, validate_config, get_output_directory, get_attachments_directory,
+    get_index_file_path, DEFAULT_CONFIG
+)
+
 # ====================================================================
 # CONFIGURATION CONSTANTS
 # ====================================================================
@@ -3599,55 +3612,7 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
     return 0
 
 
-def is_valid_phone_number(phone_number: Union[str, int]) -> bool:
-    """
-    Validate if a phone number is valid for conversation processing.
-
-    Args:
-        phone_number: Phone number to validate
-
-    Returns:
-        bool: True if valid, False otherwise
-    """
-    if not phone_number or phone_number == 0 or phone_number == "0":
-        return False
-
-    # Convert to string for validation
-    phone_str = str(phone_number)
-
-    # ENHANCED: Allow hash-based fallback numbers (8 digits) for files without phone numbers
-    # These are generated for files like "Susan Nowak Tang - Text - ..."
-    if len(phone_str) == 8 and phone_str.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
-        return True
-
-    # ENHANCED: Allow 6-digit service codes (common in Google Voice exports)
-    # These are valid identifiers like "262966 - Text - ..."
-    if len(phone_str) == 6 and phone_str.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
-        return True
-
-    # ENHANCED: Allow international phone numbers with spaces
-    # These are valid like "+44 20 7946 0958"
-    if phone_str.startswith('+') and len(phone_str.replace(' ', '')) >= 7:
-        return True
-
-    # Skip very short codes (4-5 digits)
-    if len(phone_str) <= 5:
-        return False
-
-    # Skip numbers that are too short to be valid phone numbers (but allow 6+ digits)
-    if len(phone_str) < 6:
-        return False
-
-    # Skip numbers that are too long (unlikely to be valid)
-    if len(phone_str) > 15:
-        return False
-
-    # Skip numbers that start with common short code patterns
-    short_code_patterns = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
-    if len(phone_str) == 6 and phone_str[0] in short_code_patterns:
-        return False
-
-    return True
+# is_valid_phone_number function moved to utils.py
 
 
 def is_legitimate_google_voice_export(filename: str) -> bool:
