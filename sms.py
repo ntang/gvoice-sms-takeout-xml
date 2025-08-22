@@ -1765,6 +1765,49 @@ def main():
         # Validate configuration
         validate_configuration()
 
+        # Validate date range if both filters are set
+        if DATE_FILTER_NEWER_THAN is not None and DATE_FILTER_OLDER_THAN is not None:
+            # Quick check: scan a few files to see if any fall within the date range
+            logger.info("📅 Scanning files to validate date range coverage...")
+            sample_files = []
+            for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
+                for file in files:
+                    if file.endswith('.html') and len(sample_files) < 10:
+                        sample_files.append(os.path.join(root, file))
+                if len(sample_files) >= 10:
+                    break
+            
+            # Check if any sample files fall within the date range
+            files_in_range = 0
+            for file_path in sample_files:
+                try:
+                    # Extract timestamp from filename (common pattern: YYYY-MM-DDTHH_MM_SSZ)
+                    filename = os.path.basename(file_path)
+                    if 'T' in filename and 'Z.html' in filename:
+                        # Extract the timestamp part
+                        timestamp_str = filename.split('T')[0] + 'T' + filename.split('T')[1].split('Z')[0]
+                        timestamp_str = timestamp_str.replace('_', ':')
+                        file_date = dateutil.parser.parse(timestamp_str)
+                        
+                        # Check if file falls within our valid range
+                        if DATE_FILTER_OLDER_THAN < file_date < DATE_FILTER_NEWER_THAN:
+                            files_in_range += 1
+                except Exception:
+                    # Skip files we can't parse
+                    continue
+            
+            if files_in_range == 0:
+                logger.warning(f"⚠️  WARNING: No sample files found within the specified date range!")
+                logger.warning(f"   Date range: {DATE_FILTER_OLDER_THAN} to {DATE_FILTER_NEWER_THAN}")
+                logger.warning(f"   This may indicate no messages will be processed")
+                logger.warning(f"   Consider adjusting your date filters or use --full-run to process all files")
+                
+                # Ask user if they want to continue
+                if not args.full_run:
+                    logger.error(f"❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode")
+                    logger.error(f"   Use --full-run to override this safety check")
+                    sys.exit(1)
+
         # Build attachment mapping
         logger.info("Building attachment mapping...")
         mapping_start = time.time()
@@ -7738,6 +7781,32 @@ Output:
             except Exception as e:
                 logger.error(f"Invalid --newer-than date format: {args.newer_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
                 sys.exit(1)
+
+        # Validate date filter logic when both filters are provided
+        if DATE_FILTER_NEWER_THAN is not None and DATE_FILTER_OLDER_THAN is not None:
+            # Calculate the valid date range that WILL be included
+            valid_start = DATE_FILTER_OLDER_THAN
+            valid_end = DATE_FILTER_NEWER_THAN
+            
+            # Check if the range is valid (start < end)
+            if valid_start >= valid_end:
+                logger.error(f"❌ INVALID DATE RANGE: The date range excludes ALL messages!")
+                logger.error(f"   Start date (older_than): {valid_start}")
+                logger.error(f"   End date (newer_than): {valid_end}")
+                logger.error(f"   This creates a negative time range - no messages can fall within these bounds")
+                logger.error(f"   Valid ranges require: older_than < newer_than")
+                sys.exit(1)
+            
+            # Calculate the time span that will be included
+            time_span = valid_end - valid_start
+            logger.info(f"📅 VALID DATE RANGE: Messages between {valid_start} and {valid_end} will be processed")
+            logger.info(f"📅 TIME SPAN: {time_span.days} days, {time_span.seconds // 3600} hours")
+            
+            # Warn if the range is very small
+            if time_span.days < 1:
+                logger.warning(f"⚠️  WARNING: Very narrow date range ({time_span.days} days) - few messages may match")
+            elif time_span.days < 7:
+                logger.warning(f"⚠️  WARNING: Narrow date range ({time_span.days} days) - limited messages may match")
 
         # Log test mode configuration
         if args.full_run:
