@@ -1825,27 +1825,33 @@ class TestSMSIntegration(unittest.TestCase):
         # Create a string buffer to capture log output
         log_buffer = io.StringIO()
         log_handler = logging.StreamHandler(log_buffer)
-        log_handler.setLevel(logging.ERROR)
+        log_handler.setLevel(logging.WARNING)  # Changed from ERROR to WARNING to capture fallback messages
         
         # Get the logger and add our handler temporarily
         logger = logging.getLogger("sms")
         original_handlers = logger.handlers.copy()
+        original_level = logger.level
+        logger.setLevel(logging.WARNING)  # Ensure logger level allows warnings
         logger.addHandler(log_handler)
         
         try:
-            # This should trigger error logging with filename context
+            # This should now succeed with fallback strategies instead of failing
             result = sms.get_time_unix(message, test_filename)
             
-            # Get the log output
+            # Verify that the function returned a valid timestamp (fallback behavior)
+            self.assertIsInstance(result, int, "Function should return a valid timestamp")
+            self.assertGreater(result, 0, "Timestamp should be positive")
+            
+            # Get the log output to verify fallback behavior is logged
             log_output = log_buffer.getvalue()
             
-            # Verify that the filename is included in the error log
-            self.assertIn(test_filename, log_output, "Error log should include filename context")
-            self.assertIn("Failed to extract message timestamp", log_output, "Error log should contain timestamp error message")
+            # Verify that fallback behavior is logged (warning instead of error)
+            self.assertIn("Using current time as fallback timestamp", log_output, "Should log fallback behavior")
             
         finally:
-            # Restore original handlers
+            # Restore original handlers and level
             logger.handlers = original_handlers
+            logger.setLevel(original_level)
             log_buffer.close()
 
     def test_comprehensive_mms_fallback_strategies(self):
