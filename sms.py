@@ -2157,6 +2157,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                     # Extract image src attributes - use cached selector for performance
                     img_srcs = [
                         img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
+                        if img.get("src") and is_valid_image_src(img["src"])
                     ]
                     src_list.extend(img_srcs)
 
@@ -2164,6 +2165,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                     vcard_hrefs = [
                         a["href"]
                         for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
+                        if a.get("href") and is_valid_vcard_href(a["href"])
                     ]
                     src_list.extend(vcard_hrefs)
 
@@ -2195,6 +2197,110 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
         logger.error(f"Failed to extract src from {html_directory}: {e}")
 
     return src_list
+
+
+def is_valid_image_src(src: str) -> bool:
+    """
+    Validate that a src attribute contains a valid image reference.
+    
+    Args:
+        src: The src attribute value to validate
+        
+    Returns:
+        bool: True if src is a valid image reference, False otherwise
+    """
+    if not src or not isinstance(src, str):
+        return False
+    
+    # Skip empty or whitespace-only src
+    if not src.strip():
+        return False
+    
+    # Skip src that looks like HTML filenames (contains Google Voice patterns)
+    if any(pattern in src for pattern in [
+        " - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "
+    ]):
+        logger.debug(f"Filtering out HTML filename as invalid image src: {src}")
+        return False
+    
+    # Skip src that contains timestamp patterns (likely HTML filenames)
+    if re.search(r'\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z', src):
+        logger.debug(f"Filtering out timestamp pattern as invalid image src: {src}")
+        return False
+    
+    # Skip src that contains phone number patterns (likely HTML filenames)
+    if re.search(r'\+\d+', src):
+        logger.debug(f"Filtering out phone number pattern as invalid image src: {src}")
+        return False
+    
+    # Valid image src should be a filename with image extension or data URL
+    if src.startswith('data:'):
+        return True
+    
+    # Check for common image extensions
+    valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
+    if any(src.lower().endswith(ext) for ext in valid_extensions):
+        return True
+    
+    # Allow relative paths that might be images
+    if src.startswith('./') or src.startswith('../') or src.startswith('/'):
+        return True
+    
+    # Allow simple filenames that might be images
+    if '/' not in src and '\\' not in src and '.' in src:
+        return True
+    
+    logger.debug(f"Filtering out potentially invalid image src: {src}")
+    return False
+
+
+def is_valid_vcard_href(href: str) -> bool:
+    """
+    Validate that an href attribute contains a valid vCard reference.
+    
+    Args:
+        href: The href attribute value to validate
+        
+    Returns:
+        bool: True if href is a valid vCard reference, False otherwise
+    """
+    if not href or not isinstance(href, str):
+        return False
+    
+    # Skip empty or whitespace-only href
+    if not href.strip():
+        return False
+    
+    # Skip href that looks like HTML filenames (contains Google Voice patterns)
+    if any(pattern in href for pattern in [
+        " - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "
+    ]):
+        logger.debug(f"Filtering out HTML filename as invalid vCard href: {href}")
+        return False
+    
+    # Skip href that contains timestamp patterns (likely HTML filenames)
+    if re.search(r'\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z', href):
+        logger.debug(f"Filtering out timestamp pattern as invalid vCard href: {href}")
+        return False
+    
+    # Valid vCard href should be a filename with .vcf extension or data URL
+    if href.startswith('data:'):
+        return True
+    
+    # Check for vCard extension
+    if href.lower().endswith('.vcf'):
+        return True
+    
+    # Allow relative paths that might be vCards
+    if href.startswith('./') or href.startswith('../') or href.startswith('/'):
+        return True
+    
+    # Allow simple filenames that might be vCards
+    if '/' not in href and '\\' not in href and '.' in href:
+        return True
+    
+    logger.debug(f"Filtering out potentially invalid vCard href: {href}")
+    return False
 
 
 def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[str]]:
