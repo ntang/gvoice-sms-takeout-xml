@@ -3580,6 +3580,14 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
     if digit_match:
         return int(digit_match.group(1))
 
+    # Strategy 5: Generate a hash-based fallback number for files without numbers
+    # This ensures we can still process files like "Susan Nowak Tang - Text - ..."
+    if " - Text - " in filename or " - Voicemail - " in filename:
+        # Create a consistent hash-based number for the same name
+        name_part = filename.split(" - ")[0]
+        hash_value = hash(name_part) % 100000000  # 8-digit number
+        return hash_value
+
     return 0
 
 
@@ -3598,6 +3606,11 @@ def is_valid_phone_number(phone_number: Union[str, int]) -> bool:
 
     # Convert to string for validation
     phone_str = str(phone_number)
+
+    # ENHANCED: Allow hash-based fallback numbers (8 digits) for files without phone numbers
+    # These are generated for files like "Susan Nowak Tang - Text - ..."
+    if len(phone_str) == 8 and phone_str.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
+        return True
 
     # Skip short codes (typically 4-6 digits for SMS services)
     if len(phone_str) <= 6:
@@ -3642,6 +3655,13 @@ def is_legitimate_google_voice_export(filename: str) -> bool:
                 return True
             # Also check without .html extension
             if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]$', after_pattern):
+                return True
+            
+            # ENHANCED: Check for legitimate pattern with any single-digit file parts
+            # This handles cases like "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"
+            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]$', after_pattern):
+                return True
+            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]\.html$', after_pattern):
                 return True
     
     return False
@@ -6741,6 +6761,17 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                     return phone_number
                 except Exception as e:
                     logger.debug(f"Failed to parse phone number from filename: {e}")
+            
+            # ENHANCED: Extract name from filename and create hash-based phone number
+            # This handles cases like "Transwood - Received - ..." without phone numbers
+            for pattern in [" - Received - ", " - Placed - ", " - Missed - "]:
+                if pattern in filename:
+                    name_part = filename.split(pattern)[0]
+                    if name_part and not name_part.isdigit():
+                        # Create a consistent hash-based phone number for the same name
+                        hash_value = hash(name_part) % 100000000  # 8-digit number
+                        logger.debug(f"Generated hash-based phone number for {name_part}: {hash_value}")
+                        return str(hash_value)
 
         return None
 
