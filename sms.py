@@ -6283,6 +6283,55 @@ def extract_call_info(
         # Extract duration if available
         duration = extract_duration_from_call(soup)
 
+        # ENHANCED: If phone number extraction failed, try additional fallback strategies
+        if not phone_number:
+            logger.debug(f"Primary phone extraction failed for call {filename}, trying alternatives")
+            
+            # Try to extract from filename if it contains a phone number
+            phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", filename)
+            if phone_match:
+                try:
+                    phone_number = format_number(
+                        phonenumbers.parse(phone_match.group(1), None)
+                    )
+                    logger.debug(f"Extracted phone number from filename: {phone_number}")
+                except Exception as e:
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
+            
+            # Try to extract from any tel: links in the entire document
+            if not phone_number:
+                tel_links = soup.find_all("a", href=True)
+                for link in tel_links:
+                    href = link.get("href", "")
+                    if href.startswith("tel:"):
+                        match = TEL_HREF_PATTERN.search(href)
+                        if match:
+                            try:
+                                phone_number = format_number(
+                                    phonenumbers.parse(match.group(1), None)
+                                )
+                                logger.debug(f"Extracted phone number from tel link: {phone_number}")
+                                break
+                            except Exception as e:
+                                logger.debug(f"Failed to parse phone number from tel link: {e}")
+                                continue
+            
+            # ENHANCED: Try final fallback - look for any phone number patterns in the entire HTML
+            if not phone_number:
+                logger.debug(f"Trying final fallback phone extraction for call {filename}")
+                # Look for any phone number patterns in the entire HTML content
+                text_content = soup.get_text()
+                phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+                phone_match = phone_pattern.search(text_content)
+                if phone_match:
+                    try:
+                        phone_number = format_number(
+                            phonenumbers.parse(phone_match.group(1), None)
+                        )
+                        logger.debug(f"Extracted phone number from HTML content: {phone_number}")
+                    except Exception as e:
+                        logger.debug(f"Failed to parse phone number from HTML content: {e}")
+        
         if phone_number:
             # DATE FILTERING: Skip calls outside the specified date range
             if timestamp and should_skip_message_by_date(timestamp):
@@ -6296,6 +6345,10 @@ def extract_call_info(
                 "duration": duration,
                 "filename": filename,
             }
+        
+        # If we still don't have a phone number, log detailed debugging info
+        logger.debug(f"Could not extract phone number for call {filename}")
+        logger.debug(f"HTML content preview: {str(soup)[:500]}...")
         return None
 
     except Exception as e:
