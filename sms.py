@@ -2011,8 +2011,8 @@ def extract_src_cached(html_directory: str) -> List[str]:
                     )
 
             except Exception as e:
-                # Convert to warning for non-critical file processing failures
-                logger.warning(f"Failed to process {html_file}: {e}")
+                # CRITICAL: File processing failures are errors that need attention
+                logger.error(f"Failed to process {html_file}: {e}")
                 logger.debug(f"Continuing with next file to maintain processing flow")
                 continue
 
@@ -2103,8 +2103,8 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                     last_reported_progress = current_progress
 
             except Exception as e:
-                # Convert to warning for non-critical file processing failures
-                logger.warning(f"Failed to process {html_file}: {e}")
+                # CRITICAL: File processing failures are errors that need attention
+                logger.error(f"Failed to process {html_file}: {e}")
                 logger.debug(f"Continuing with next file to maintain processing flow")
                 continue
 
@@ -3356,7 +3356,7 @@ def write_sms_messages(
             
             # Fallback 5: Use a default conversation ID for unknown numbers
             if not is_valid_phone_number(phone_number):
-                logger.warning(
+                logger.error(
                     f"Could not determine valid phone number for {file}, using fallback conversation ID"
                 )
                 logger.debug(f"Fallback conversation ID will be created from filename hash")
@@ -3780,7 +3780,7 @@ def should_skip_message_by_date(message_timestamp: int) -> bool:
         
         return False
     except Exception as e:
-        logger.warning(f"Failed to parse message timestamp {message_timestamp} for date filtering: {e}")
+        logger.error(f"Failed to parse message timestamp {message_timestamp} for date filtering: {e}")
         logger.debug(f"Message will not be filtered by date - treating as valid")
         return False  # Don't skip if we can't parse the timestamp
 
@@ -5047,7 +5047,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
 
         # Fallback 4: Use the first participant as a last resort
         # This is better than failing completely
-        logger.warning(
+        logger.error(
             f"Could not determine exact MMS sender, using first participant: {participants[0]}"
         )
         logger.debug(f"This may affect sender attribution in group conversations")
@@ -5057,7 +5057,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
         logger.error(f"Unexpected error in get_mms_sender: {e}")
         # Last resort: return first participant instead of failing
         if participants:
-            logger.warning(
+            logger.error(
                 f"Using first participant as fallback sender: {participants[0]}"
             )
             return participants[0]
@@ -5676,7 +5676,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                 logger.debug(f"Filename timestamp extraction also failed: {e}")
         
         # FINAL FALLBACK: Use current time instead of failing completely
-        logger.warning(f"Using current time as fallback timestamp for {filename}")
+        logger.error(f"Using current time as fallback timestamp for {filename}")
         return int(time.time() * 1000)
 
     except Exception as e:
@@ -6145,8 +6145,8 @@ def process_html_files_batch(
                     own_number = file_stats.get("own_number")
 
             except Exception as e:
-                # Convert to warning for non-critical file processing failures
-                logger.warning(f"Failed to process {html_file}: {e}")
+                # CRITICAL: File processing failures are errors that need attention
+                logger.error(f"Failed to process {html_file}: {e}")
                 logger.debug(f"Continuing with next file to maintain processing flow")
                 continue
 
@@ -6424,12 +6424,12 @@ def extract_call_info(
         if filename and any(pattern in filename for pattern in [" - Received -", " - Placed -", " - Missed -"]):
             name_part = filename.split(" - ")[0] if " - " in filename else ""
             if not name_part.strip() or name_part.strip() in ['-', '.', '_']:
-                logger.warning(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
+                logger.error(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
                 logger.info(f"Consider checking if this file should be processed or if it's corrupted")
         
         # FINAL FALLBACK: Create a placeholder entry to prevent complete failure
         if not phone_number:
-            logger.warning(f"Creating placeholder call entry for {filename} due to extraction failure")
+            logger.error(f"Creating placeholder call entry for {filename} due to extraction failure")
             # Generate a unique placeholder phone number
             placeholder_phone = f"unknown_call_{hash(filename) % 1000000}"
             return {
@@ -6520,7 +6520,7 @@ def extract_voicemail_info(
         if filename and (" - Voicemail -" in filename or " - Text -" in filename):
             name_part = filename.split(" - ")[0] if " - " in filename else ""
             if not name_part.strip() or name_part.strip() in ['-', '.', '_']:
-                logger.warning(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
+                logger.error(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
                 logger.info(f"Consider checking if this file should be processed or if it's corrupted")
         
         # ENHANCED: Try one more fallback - look for any phone number patterns in the entire HTML
@@ -6550,7 +6550,7 @@ def extract_voicemail_info(
         
         # FINAL FALLBACK: Create a placeholder entry to prevent complete failure
         if not phone_number:
-            logger.warning(f"Creating placeholder voicemail entry for {filename} due to extraction failure")
+            logger.error(f"Creating placeholder voicemail entry for {filename} due to extraction failure")
             # Generate a unique placeholder phone number
             placeholder_phone = f"unknown_voicemail_{hash(filename) % 1000000}"
             return {
