@@ -1429,8 +1429,8 @@ class PhoneLookupManager:
                     # Look for tel links in the same container or nearby
                     container = fn.find_parent(["div", "span", "cite"])
                     if container:
-                        tel_links = container.select(STRING_POOL.CSS_SELECTORS["tel_links"])
-                        for tel_link in tel_links:
+                                    tel_links = container.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
+            for tel_link in tel_links:
                             href = tel_link.get("href", "")
                             if href.startswith("tel:"):
                                 link_phone = href.split(":", 1)[-1]
@@ -2001,13 +2001,13 @@ def extract_src_cached(html_directory: str) -> List[str]:
 
                     # Extract image src attributes - use cached selector for performance
                     src_list.extend(
-                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
+                        img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
                     )
 
                     # Extract vCard href attributes - use cached selector for performance
                     src_list.extend(
                         a["href"]
-                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
+                        for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
                     )
 
             except Exception as e:
@@ -2077,14 +2077,14 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
 
                     # Extract image src attributes - use cached selector for performance
                     img_srcs = [
-                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
+                        img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
                     ]
                     src_list.extend(img_srcs)
 
                     # Extract vCard href attributes - use cached selector for performance
                     vcard_hrefs = [
                         a["href"]
-                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
+                        for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
                     ]
                     src_list.extend(vcard_hrefs)
 
@@ -2165,7 +2165,7 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 
                     # Extract image src attributes - use cached selector for performance
                     img_srcs = [
-                        img["src"] for img in soup.select(STRING_POOL.CSS_SELECTORS["img_src"])
+                        img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
                     ]
                     for src in img_srcs:
                         if src not in src_to_files:
@@ -2175,7 +2175,7 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
                     # Extract vCard href attributes - use cached selector for performance
                     vcard_hrefs = [
                         a["href"]
-                        for a in soup.select(STRING_POOL.CSS_SELECTORS["vcard_links"])
+                        for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
                     ]
                     for src in vcard_hrefs:
                         if src not in src_to_files:
@@ -3011,8 +3011,8 @@ def process_sms_mms_file(
     mms_count = 0
 
     # Use cached selectors for better performance
-    img_selector = STRING_POOL.CSS_SELECTORS["img_src"]
-    vcard_selector = STRING_POOL.CSS_SELECTORS["vcard_links"]
+    img_selector = STRING_POOL.ADDITIONAL_SELECTORS["img_src"]
+    vcard_selector = STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"]
 
     for message in messages_raw:
         # Check for attachments more efficiently
@@ -6429,7 +6429,7 @@ def extract_voicemail_transcription(soup: BeautifulSoup) -> Optional[str]:
     try:
         # Look for transcription in various places
         # Try to find transcription elements - use cached selector for performance
-        transcription_elements = soup.select(STRING_POOL.CSS_SELECTORS["transcription_elements"])
+        transcription_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["transcription_elements"])
         for element in transcription_elements:
             text = element.get_text().strip()
             if text and len(text) > 10:  # Reasonable length for transcription
