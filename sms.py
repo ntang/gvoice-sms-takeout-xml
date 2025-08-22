@@ -3353,8 +3353,9 @@ def write_sms_messages(
             # Fallback 5: Use a default conversation ID for unknown numbers
             if not is_valid_phone_number(phone_number):
                 logger.warning(
-                    f"Could not determine valid phone number for {file}, using default conversation ID"
+                    f"Could not determine valid phone number for {file}, using fallback conversation ID"
                 )
+                logger.debug(f"Fallback conversation ID will be created from filename hash")
                 # Create a unique conversation ID based on filename
                 phone_number = f"unknown_{hash(file) % 1000000}"
                 participant_raw = create_dummy_participant(phone_number)
@@ -3372,6 +3373,12 @@ def write_sms_messages(
             return
 
         logger.info(f"Processing {total_messages} SMS messages from {file}")
+        
+        # ENHANCED: Warn about potentially large files that might take time
+        if total_messages > 1000:
+            logger.info(f"Large file detected ({total_messages} messages) - this may take significant time to process")
+        elif total_messages > 100:
+            logger.info(f"Medium file detected ({total_messages} messages) - processing in progress")
 
         # Calculate progress reporting thresholds
         progress_interval = max(
@@ -3770,6 +3777,7 @@ def should_skip_message_by_date(message_timestamp: int) -> bool:
         return False
     except Exception as e:
         logger.warning(f"Failed to parse message timestamp {message_timestamp} for date filtering: {e}")
+        logger.debug(f"Message will not be filtered by date - treating as valid")
         return False  # Don't skip if we can't parse the timestamp
 
 
@@ -5036,8 +5044,9 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
         # Fallback 4: Use the first participant as a last resort
         # This is better than failing completely
         logger.warning(
-            f"Could not determine exact sender, using first participant: {participants[0]}"
+            f"Could not determine exact MMS sender, using first participant: {participants[0]}"
         )
+        logger.debug(f"This may affect sender attribution in group conversations")
         return participants[0]
 
     except Exception as e:
@@ -5788,6 +5797,11 @@ def check_and_increase_file_limits():
         if soft < 1000:
             logger.warning(f"File descriptor limit ({soft}) may be too low for large datasets")
             logger.warning("Consider increasing with: ulimit -n 4096")
+            logger.warning("This may cause 'Too many open files' errors during processing")
+        elif soft < 4096:
+            logger.info(f"File descriptor limit ({soft}) is adequate for most datasets")
+        else:
+            logger.info(f"File descriptor limit ({soft}) is excellent for large datasets")
         
     except ImportError:
         logger.warning("resource module not available, cannot check file descriptor limits")
@@ -6349,6 +6363,14 @@ def extract_call_info(
         # If we still don't have a phone number, log detailed debugging info
         logger.debug(f"Could not extract phone number for call {filename}")
         logger.debug(f"HTML content preview: {str(soup)[:500]}...")
+        
+        # ENHANCED: Provide more context about why extraction might have failed
+        if filename and any(pattern in filename for pattern in [" - Received -", " - Placed -", " - Missed -"]):
+            name_part = filename.split(" - ")[0] if " - " in filename else ""
+            if not name_part.strip() or name_part.strip() in ['-', '.', '_']:
+                logger.warning(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
+                logger.info(f"Consider checking if this file should be processed or if it's corrupted")
+        
         return None
 
     except Exception as e:
@@ -6424,6 +6446,13 @@ def extract_voicemail_info(
         # If we still don't have a phone number, log detailed debugging info
         logger.debug(f"Could not extract phone number for voicemail {filename}")
         logger.debug(f"HTML content preview: {str(soup)[:500]}...")
+        
+        # ENHANCED: Provide more context about why extraction might have failed
+        if filename and (" - Voicemail -" in filename or " - Text -" in filename):
+            name_part = filename.split(" - ")[0] if " - " in filename else ""
+            if not name_part.strip() or name_part.strip() in ['-', '.', '_']:
+                logger.warning(f"Filename '{filename}' has empty/malformed name part - this may cause extraction failures")
+                logger.info(f"Consider checking if this file should be processed or if it's corrupted")
         
         # ENHANCED: Try one more fallback - look for any phone number patterns in the entire HTML
         if not phone_number:
