@@ -5356,25 +5356,42 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
         # PERFORMANCE OPTIMIZED STRATEGY ORDER: Most likely to succeed first
         
         # Strategy 1: Extract timestamp from filename patterns (FAST, RELIABLE)
-        # This catches cases like "Name - Text - 2025-08-13T12_08_52Z.html"
-        if filename and " - Text -" in filename:
+        # This catches various filename patterns with timestamps
+        if filename:
             try:
-                # Extract the timestamp part after " - Text -"
-                timestamp_part = filename.split(" - Text -")[1]
-                if timestamp_part.endswith(".html"):
-                    timestamp_part = timestamp_part[:-5]  # Remove .html extension
+                # Pattern 1: "Name - Text - 2025-08-13T12_08_52Z.html"
+                if " - Text -" in filename:
+                    timestamp_part = filename.split(" - Text -")[1]
+                # Pattern 2: "Phone - Date.html" like "+13479774102 - 2014-10-25T22_10_03Z.html"
+                elif " - " in filename and "T" in filename and "Z" in filename:
+                    timestamp_part = filename.split(" - ", 1)[1]
+                # Pattern 3: "Name - Voicemail - Date.html"
+                elif " - Voicemail -" in filename:
+                    timestamp_part = filename.split(" - Voicemail -")[1]
+                # Pattern 4: "Name - Received - Date.html" or "Name - Placed - Date.html"
+                elif any(x in filename for x in [" - Received -", " - Placed -", " - Missed -"]):
+                    for pattern in [" - Received -", " - Placed -", " - Missed -"]:
+                        if pattern in filename:
+                            timestamp_part = filename.split(pattern)[1]
+                            break
+                else:
+                    timestamp_part = None
                 
-                # Convert underscore to colon for proper ISO parsing
-                timestamp_part = timestamp_part.replace("_", ":")
-                
-                # Try to parse the timestamp from filename
-                time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
-                timestamp_ms = int(
-                    time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
-                )
-                
-                logger.debug(f"Extracted timestamp from filename '{filename}': {timestamp_part} -> {timestamp_ms}")
-                return timestamp_ms
+                if timestamp_part:
+                    if timestamp_part.endswith(".html"):
+                        timestamp_part = timestamp_part[:-5]  # Remove .html extension
+                    
+                    # Convert underscore to colon for proper ISO parsing
+                    timestamp_part = timestamp_part.replace("_", ":")
+                    
+                    # Try to parse the timestamp from filename
+                    time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
+                    timestamp_ms = int(
+                        time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
+                    )
+                    
+                    logger.debug(f"Extracted timestamp from filename '{filename}': {timestamp_part} -> {timestamp_ms}")
+                    return timestamp_ms
                 
             except Exception as e:
                 logger.debug(f"Failed to parse timestamp from filename '{filename}': {e}")
@@ -6172,7 +6189,7 @@ def extract_call_info(
             call_type = "unknown"
 
         # Extract phone number/participant
-        phone_number = extract_phone_from_call(soup)
+        phone_number = extract_phone_from_call(soup, filename)
 
         # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)
@@ -6207,7 +6224,7 @@ def extract_voicemail_info(
     """Extract voicemail information from HTML content."""
     try:
         # Extract phone number/participant
-        phone_number = extract_phone_from_call(soup)  # Reuse call phone extraction
+        phone_number = extract_phone_from_call(soup, filename)  # Reuse call phone extraction
 
         # Extract timestamp from HTML content
         timestamp = extract_timestamp_from_call(soup)  # Reuse call timestamp extraction
@@ -6276,7 +6293,7 @@ def extract_voicemail_info(
         return None
 
 
-def extract_phone_from_call(soup: BeautifulSoup) -> Optional[str]:
+def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Optional[str]:
     """Extract phone number from call/voicemail HTML."""
     try:
         # Look for phone number in various places
@@ -6308,6 +6325,20 @@ def extract_phone_from_call(soup: BeautifulSoup) -> Optional[str]:
             text = element.get_text().strip()
             if text and len(text) > 2 and not text.isdigit():
                 return text
+
+        # ENHANCED: Try to extract phone number from filename if provided
+        if filename:
+            # Look for phone number patterns in filename
+            phone_match = phone_pattern.search(filename)
+            if phone_match:
+                try:
+                    phone_number = format_number(
+                        phonenumbers.parse(phone_match.group(1), None)
+                    )
+                    logger.debug(f"Extracted phone number from filename: {phone_number}")
+                    return phone_number
+                except Exception as e:
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
 
         return None
 
