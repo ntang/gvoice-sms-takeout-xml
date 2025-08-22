@@ -1646,11 +1646,11 @@ class TestSMSIntegration(unittest.TestCase):
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
         manager = sms.CONVERSATION_MANAGER
 
-        # Create synthetic call and voicemail files
+        # Create synthetic call and voicemail files with proper Google Voice naming patterns
         calls_dir = test_dir / "Calls"
         calls_dir.mkdir(parents=True, exist_ok=True)
-        call_file = calls_dir / "2024-placed-call.html"
-        vm_file = calls_dir / "2023-voicemail.html"
+        call_file = calls_dir / "Test User - Placed - 2024-02-01T15_00_00Z.html"
+        vm_file = calls_dir / "Test User - Voicemail - 2023-03-05T10_30_00Z.html"
         call_file.write_text(
             """
             <html><head><title>Placed call</title></head><body>

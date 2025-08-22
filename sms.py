@@ -2946,6 +2946,18 @@ def process_single_html_file(
     html_file: Path, src_filename_map: Dict[str, str], own_number: Optional[str]
 ) -> Dict[str, Union[int, str]]:
     """Process a single HTML file and return file-specific statistics."""
+    
+    # CHECK IF FILE SHOULD BE SKIPPED BEFORE PROCESSING
+    if should_skip_file(html_file.name):
+        logger.debug(f"Skipping corrupted or invalid file: {html_file.name}")
+        return {
+            "num_sms": 0,
+            "num_img": 0,
+            "num_vcf": 0,
+            "num_calls": 0,
+            "num_voicemails": 0,
+        }
+    
     file_type = get_file_type(html_file.name)
     logger.debug(f"Processing {html_file.name} (Type: {file_type})")
 
