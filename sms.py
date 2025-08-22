@@ -250,7 +250,7 @@ GROUP_CONVERSATION_MARKER = "Group Conversation"
 # Pre-compiled regex patterns for performance
 FILENAME_PATTERN = re.compile(r"(?:\((\d+)\))?\.(jpg|gif|png|vcf)$")
 CUSTOM_SORT_PATTERN = re.compile(r"(.*?)(?:\((\d+)\))?(\.\w+)?$")
-PHONE_NUMBER_PATTERN = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+PHONE_NUMBER_PATTERN = re.compile(r"(\+\d{1,3}\s*\d{1,14})")
 TEL_HREF_PATTERN = re.compile(r"tel:([+\d\s\-\(\)]+)")
 
 # Additional pre-compiled patterns for better performance
@@ -3568,25 +3568,33 @@ def extract_fallback_number_cached(filename: str) -> Union[str, int]:
             .replace("(", "")
             .replace(")", "")
         )
-        return int(phone_number)
+        # Only return if it's a reasonable length (at least 7 digits for international)
+        if len(phone_number) >= 7:
+            return int(phone_number)
+        # If it's too short, continue to next strategy
 
     # Strategy 3: Extract any number from parentheses in the filename
     paren_match = re.search(r"\((\d+)\)", filename)
     if paren_match:
         return int(paren_match.group(1))
     
-    # Strategy 4: Extract any sequence of digits from filename (last resort)
-    digit_match = re.search(r"(\d{4,})", filename)
-    if digit_match:
-        return int(digit_match.group(1))
-
-    # Strategy 5: Generate a hash-based fallback number for files without numbers
+    # Strategy 4: Generate a hash-based fallback number for files without numbers
     # This ensures we can still process files like "Susan Nowak Tang - Text - ..."
     if " - Text - " in filename or " - Voicemail - " in filename:
         # Create a consistent hash-based number for the same name
         name_part = filename.split(" - ")[0]
-        hash_value = hash(name_part) % 100000000  # 8-digit number
+        hash_value = abs(hash(name_part)) % 100000000  # 8-digit number, ensure positive
+        # Ensure it's at least 8 digits by padding with zeros if needed
+        if hash_value < 10000000:  # Less than 8 digits
+            hash_value += 10000000  # Add 10 million to ensure 8 digits
         return hash_value
+
+    # Strategy 5: Extract any sequence of digits from filename (last resort)
+    # But only if it's not part of a phone number pattern
+    if not PHONE_NUMBER_PATTERN.search(filename):
+        digit_match = re.search(r"(\d{4,})", filename)
+        if digit_match:
+            return int(digit_match.group(1))
 
     return 0
 
@@ -3612,12 +3620,22 @@ def is_valid_phone_number(phone_number: Union[str, int]) -> bool:
     if len(phone_str) == 8 and phone_str.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
         return True
 
-    # Skip short codes (typically 4-6 digits for SMS services)
-    if len(phone_str) <= 6:
+    # ENHANCED: Allow 6-digit service codes (common in Google Voice exports)
+    # These are valid identifiers like "262966 - Text - ..."
+    if len(phone_str) == 6 and phone_str.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
+        return True
+
+    # ENHANCED: Allow international phone numbers with spaces
+    # These are valid like "+44 20 7946 0958"
+    if phone_str.startswith('+') and len(phone_str.replace(' ', '')) >= 7:
+        return True
+
+    # Skip very short codes (4-5 digits)
+    if len(phone_str) <= 5:
         return False
 
-    # Skip numbers that are too short to be valid phone numbers
-    if len(phone_str) < 10:
+    # Skip numbers that are too short to be valid phone numbers (but allow 6+ digits)
+    if len(phone_str) < 6:
         return False
 
     # Skip numbers that are too long (unlikely to be valid)
