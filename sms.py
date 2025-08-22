@@ -6426,7 +6426,12 @@ def process_call_file(
                 "own_number": own_number,
             }
         else:
-            logger.error(f"Could not extract call information from {html_file.name}")
+            # Check if this was due to date filtering (which is intentional, not an error)
+            timestamp = extract_timestamp_from_call(soup)
+            if timestamp and should_skip_message_by_date(timestamp):
+                logger.debug(f"Call file {html_file.name} skipped due to date filtering")
+            else:
+                logger.error(f"Could not extract call information from {html_file.name}")
             return {
                 "num_sms": 0,
                 "num_img": 0,
@@ -6469,9 +6474,14 @@ def process_voicemail_file(
                 "own_number": own_number,
             }
         else:
-            logger.error(
-                f"Could not extract voicemail information from {html_file.name}"
-            )
+            # Check if this was due to date filtering (which is intentional, not an error)
+            timestamp = extract_timestamp_from_call(soup)
+            if timestamp and should_skip_message_by_date(timestamp):
+                logger.debug(f"Voicemail file {html_file.name} skipped due to date filtering")
+            else:
+                logger.error(
+                    f"Could not extract voicemail information from {html_file.name}"
+                )
             return {
                 "num_sms": 0,
                 "num_img": 0,
