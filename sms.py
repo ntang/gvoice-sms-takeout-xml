@@ -3549,20 +3549,25 @@ def write_sms_messages(
                 except Exception as e:
                     logger.debug(f"Failed to scan HTML content for phone numbers: {e}")
             
-            # Fallback 5: Use a default conversation ID for unknown numbers
-            if not is_valid_phone_number(phone_number):
-                logger.error(
-                    f"Could not determine valid phone number for {file}, using fallback conversation ID"
-                )
-                logger.debug(f"Fallback conversation ID will be created from filename hash")
-                # Create a unique conversation ID based on filename
-                phone_number = f"unknown_{hash(file) % 1000000}"
-                participant_raw = create_dummy_participant(phone_number)
+                    # Fallback 5: Use a default conversation ID for unknown numbers
+        if not is_valid_phone_number(phone_number):
+            logger.error(
+                f"Could not determine valid phone number for {file}, using fallback conversation ID"
+            )
+            logger.debug(f"Fallback conversation ID will be created from filename hash")
+            logger.debug(f"Phone number that failed validation: '{phone_number}'")
+            # Create a unique conversation ID based on filename
+            phone_number = f"unknown_{hash(file) % 1000000}"
+            participant_raw = create_dummy_participant(phone_number)
         
+        # Final validation check with enhanced debugging
         if not is_valid_phone_number(phone_number):
             logger.error(
                 f"Could not determine valid phone number for {file}, skipping SMS processing"
             )
+            logger.debug(f"Final phone number that failed validation: '{phone_number}'")
+            logger.debug(f"File type: {get_file_type(file)}")
+            logger.debug(f"Fallback number used: {fallback_number}")
             return
 
         # Get total message count for progress tracking

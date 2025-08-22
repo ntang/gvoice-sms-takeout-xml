@@ -16,13 +16,65 @@ logger = logging.getLogger(__name__)
 
 
 def is_valid_phone_number(phone_number: str) -> bool:
-    """Check if a phone number is valid."""
-    try:
-        # Parse the phone number
-        parsed = phonenumbers.parse(phone_number, None)
-        return phonenumbers.is_valid_number(parsed)
-    except Exception:
+    """
+    Check if a phone number is valid with enhanced validation.
+    
+    Args:
+        phone_number: Phone number string to validate
+        
+    Returns:
+        bool: True if phone number appears valid, False otherwise
+    """
+    if not phone_number or not isinstance(phone_number, str):
         return False
+    
+    # Clean the phone number
+    cleaned = phone_number.strip()
+    if not cleaned:
+        return False
+    
+    # Skip if it's a fallback conversation ID
+    if cleaned.startswith('unknown_'):
+        return False
+    
+    # Handle names FIRST (allow them as valid "phone numbers" for conversation purposes)
+    if re.match(r'^[A-Za-z\s]+$', cleaned) and len(cleaned.strip()) > 2:
+        return True
+    
+    # Skip if it's clearly not a phone number (contains letters, etc.)
+    # But only after we've checked for valid names
+    if re.search(r'[a-zA-Z]', cleaned):
+        return False
+    
+    # Try the strict phonenumbers library validation first
+    try:
+        parsed = phonenumbers.parse(cleaned, None)
+        if phonenumbers.is_valid_number(parsed):
+            return True
+    except Exception:
+        pass
+    
+    # Fallback validation for edge cases
+    # Check for common phone number patterns
+    phone_patterns = [
+        r'^\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$',  # US format
+        r'^\+?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}$',  # International
+        r'^\+?[0-9]{7,15}$',  # Simple international format
+    ]
+    
+    for pattern in phone_patterns:
+        if re.match(pattern, cleaned):
+            return True
+    
+    # If it looks like a phone number but failed strict validation,
+    # allow it if it has the right length and format
+    if re.match(r'^\+?[0-9\s\-\(\)\.]+$', cleaned):
+        # Remove all non-digits and check length
+        digits_only = re.sub(r'[^0-9]', '', cleaned)
+        if 7 <= len(digits_only) <= 15:  # Reasonable phone number length
+            return True
+    
+    return False
 
 
 def normalize_phone_number(phone_number: str) -> str:
