@@ -2991,9 +2991,61 @@ def process_sms_mms_file(
         
         if messages_raw:
             logger.debug(f"Found {len(messages_raw)} message-like divs in {html_file.name}")
+    
+    # Strategy 4: ENHANCED - Look for older Google Voice message structures
+    if not messages_raw:
+        logger.debug(f"Standard selectors failed for {html_file.name}, searching for older Google Voice structures")
+        # Look for older Google Voice HTML structures that might not have modern CSS classes
+        older_selectors = [
+            "div:has(.dt)",  # Divs containing timestamp elements
+            "div:has(abbr[title])",  # Divs containing timestamp abbr elements
+            "div:has(.sender)",  # Divs containing sender information
+            "div:has(q)",  # Divs containing quoted text (messages)
+            "tr:has(.dt)",  # Table rows containing timestamp elements
+            "tr:has(abbr[title])",  # Table rows containing timestamp abbr elements
+            "tr:has(.sender)",  # Table rows containing sender information
+            "tr:has(q)",  # Table rows containing quoted text (messages)
+        ]
+        
+        for selector in older_selectors:
+            try:
+                messages_raw = soup.select(selector)
+                if messages_raw:
+                    logger.debug(f"Found {len(messages_raw)} older-style messages using selector: {selector}")
+                    break
+            except Exception as e:
+                logger.debug(f"Selector '{selector}' failed: {e}")
+                continue
+    
+    # Strategy 5: FINAL FALLBACK - Look for any elements that might contain messages
+    if not messages_raw:
+        logger.debug(f"All selectors failed for {html_file.name}, using comprehensive fallback")
+        # Look for any element that contains both timestamp and text content
+        potential_messages = []
+        
+        # Look for elements with timestamp indicators
+        timestamp_elements = soup.find_all(["abbr", "span", "div", "td"], 
+                                         attrs={"title": True})
+        
+        for elem in timestamp_elements:
+            # Check if this element or its parent contains message content
+            parent = elem.find_parent(["div", "tr", "td"])
+            if parent:
+                # Check if parent contains text content that looks like a message
+                text_content = parent.get_text().strip()
+                if (len(text_content) > 10 and  # Reasonable length for a message
+                    not text_content.isdigit() and  # Not just numbers
+                    any(word in text_content.lower() for word in ["text", "message", "sms", "call"])):
+                    potential_messages.append(parent)
+        
+        if potential_messages:
+            messages_raw = potential_messages
+            logger.debug(f"Found {len(messages_raw)} potential messages using comprehensive fallback")
 
     if not messages_raw:
         logger.error(f"No messages found in SMS/MMS file: {html_file.name}")
+        # Log HTML structure for debugging
+        logger.debug(f"HTML structure preview for {html_file.name}: {str(soup)[:1000]}...")
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -3002,6 +3054,15 @@ def process_sms_mms_file(
             "num_voicemails": 0,
             "own_number": own_number,
         }
+    
+    # ENHANCED LOGGING: Log message count and structure for debugging
+    if len(messages_raw) < 5:  # Log details for files with very few messages
+        logger.info(f"File {html_file.name} has only {len(messages_raw)} messages - this might indicate missing older messages")
+        for i, msg in enumerate(messages_raw):
+            msg_text = msg.get_text().strip()[:100]  # First 100 chars
+            logger.debug(f"  Message {i+1}: {msg_text}...")
+            # Log HTML structure of this message element
+            logger.debug(f"  Message {i+1} HTML: {str(msg)[:200]}...")
 
     # Use cached CSS selector for participants
     participants_raw = soup.select(STRING_POOL.CSS_SELECTORS["participants"])
