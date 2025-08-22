@@ -3603,34 +3603,45 @@ def should_skip_file(filename: str) -> bool:
         return True
 
     # ENHANCED CORRUPTION DETECTION: Check for malformed Google Voice filename patterns
-    # Valid pattern: "Name - Text - YYYY-MM-DDTHH_MM_SSZ.html"
+    # Valid patterns: 
+    #   "Name - Text - YYYY-MM-DDTHH_MM_SSZ.html"
+    #   "Name - Voicemail - YYYY-MM-DDTHH_MM_SSZ.html"
+    #   "Name - Received/Placed/Missed - YYYY-MM-DDTHH_MM_SSZ.html"
     # Corrupted patterns have extra parts like "-6-1" at the end
     
+    # Check for empty or malformed name parts
+    if filename.startswith(" - ") or filename.startswith("- "):
+        logger.debug(f"Skipping filename with empty/malformed name part: {filename}")
+        return True
+    
     # Check if filename follows the expected Google Voice pattern
-    if " - Text - " in filename:
-        # Extract the part after " - Text - "
-        after_text = filename.split(" - Text - ")[1]
-        
-        # Check if the timestamp part is corrupted (has extra dashes/parts)
-        if after_text.count("-") > 2:  # More than expected dashes in timestamp
-            logger.debug(f"Skipping corrupted filename with extra parts: {filename}")
-            return True
-        
-        # Check if the timestamp part has unexpected characters or patterns
-        # Should end with .html and contain only timestamp characters
-        if not after_text.endswith(".html"):
-            logger.debug(f"Skipping filename without .html extension: {filename}")
-            return True
-        
-        # Remove .html and check if the timestamp part is valid
-        timestamp_part = after_text[:-5]  # Remove .html
-        
-        # Check for corrupted timestamp patterns (extra numbers/parts after timestamp)
-        # Valid: "2024-07-29T16_10_03Z"
-        # Corrupted: "2024-07-29T16_10_03Z-6-1"
-        if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', timestamp_part):
-            logger.debug(f"Skipping corrupted filename with malformed timestamp: {filename}")
-            return True
+    for pattern in [" - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "]:
+        if pattern in filename:
+            # Extract the part after the pattern
+            after_pattern = filename.split(pattern)[1]
+            
+            # Check if the timestamp part is corrupted (has extra dashes/parts)
+            if after_pattern.count("-") > 2:  # More than expected dashes in timestamp
+                logger.debug(f"Skipping corrupted filename with extra parts: {filename}")
+                return True
+            
+            # Check if the timestamp part has unexpected characters or patterns
+            # Should end with .html and contain only timestamp characters
+            if not after_pattern.endswith(".html"):
+                logger.debug(f"Skipping filename without .html extension: {filename}")
+                return True
+            
+            # Remove .html and check if the timestamp part is valid
+            timestamp_part = after_pattern[:-5]  # Remove .html
+            
+            # Check for corrupted timestamp patterns (extra numbers/parts after timestamp)
+            # Valid: "2024-07-29T16_10_03Z"
+            # Corrupted: "2024-07-29T16_10_03Z-6-1"
+            if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', timestamp_part):
+                logger.debug(f"Skipping corrupted filename with malformed timestamp: {filename}")
+                return True
+            
+            break  # Found a valid pattern, no need to check others
 
     # SERVICE CODE FILTERING: Skip numeric service codes unless explicitly enabled
     if not INCLUDE_SERVICE_CODES:
@@ -3660,28 +3671,34 @@ def clean_corrupted_filename(filename: str) -> str:
     import re
     
     # Check if this is a corrupted filename that can be cleaned
-    if " - Text - " in filename:
-        # Extract the parts
-        parts = filename.split(" - Text - ")
-        if len(parts) == 2:
-            name_part = parts[0]
-            timestamp_part = parts[1]
-            
-            # Remove .html extension if present
-            has_html_extension = timestamp_part.endswith(".html")
-            if has_html_extension:
-                timestamp_part = timestamp_part[:-5]
-            
-            # Look for the valid timestamp pattern and remove everything after it
-            # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
-            valid_timestamp_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z', timestamp_part)
-            if valid_timestamp_match:
-                clean_timestamp = valid_timestamp_match.group(0)
-                # Add .html extension if the original had it
-                extension = ".html" if has_html_extension else ""
-                cleaned_filename = f"{name_part} - Text - {clean_timestamp}{extension}"
-                logger.debug(f"Cleaned corrupted filename: '{filename}' -> '{cleaned_filename}'")
-                return cleaned_filename
+    for pattern in [" - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "]:
+        if pattern in filename:
+            # Extract the parts
+            parts = filename.split(pattern)
+            if len(parts) == 2:
+                name_part = parts[0]
+                timestamp_part = parts[1]
+                
+                # Skip if name part is empty or just whitespace/dashes
+                if not name_part.strip() or name_part.strip() in ['-', '.', '_']:
+                    logger.debug(f"Cannot clean filename with empty name part: {filename}")
+                    return filename
+                
+                # Remove .html extension if present
+                has_html_extension = timestamp_part.endswith(".html")
+                if has_html_extension:
+                    timestamp_part = timestamp_part[:-5]
+                
+                # Look for the valid timestamp pattern and remove everything after it
+                # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
+                valid_timestamp_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z', timestamp_part)
+                if valid_timestamp_match:
+                    clean_timestamp = valid_timestamp_match.group(0)
+                    # Add .html extension if the original had it
+                    extension = ".html" if has_html_extension else ""
+                    cleaned_filename = f"{name_part}{pattern}{clean_timestamp}{extension}"
+                    logger.debug(f"Cleaned corrupted filename: '{filename}' -> '{cleaned_filename}'")
+                    return cleaned_filename
     
     # Return original if cleaning failed
     return filename
@@ -3699,21 +3716,28 @@ def is_corrupted_filename(filename: str) -> bool:
     """
     import re
     
+    # Check for empty or malformed name parts
+    if filename.startswith(" - ") or filename.startswith("- "):
+        return True
+    
     # Check for common corruption patterns
-    if " - Text - " in filename:
-        after_text = filename.split(" - Text - ")[1]
-        
-        # Check for extra dashes in timestamp part
-        if after_text.count("-") > 2:
-            return True
-        
-        # Check for corrupted timestamp with extra parts
-        if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', after_text):
-            return True
-        
-        # Check for missing .html extension
-        if not after_text.endswith(".html"):
-            return True
+    for pattern in [" - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "]:
+        if pattern in filename:
+            after_pattern = filename.split(pattern)[1]
+            
+            # Check for extra dashes in timestamp part
+            if after_pattern.count("-") > 2:
+                return True
+            
+            # Check for corrupted timestamp with extra parts
+            if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', after_pattern):
+                return True
+            
+            # Check for missing .html extension
+            if not after_pattern.endswith(".html"):
+                return True
+            
+            break  # Found a valid pattern, no need to check others
     
     return False
 
@@ -6347,6 +6371,32 @@ def extract_voicemail_info(
         # If we still don't have a phone number, log detailed debugging info
         logger.debug(f"Could not extract phone number for voicemail {filename}")
         logger.debug(f"HTML content preview: {str(soup)[:500]}...")
+        
+        # ENHANCED: Try one more fallback - look for any phone number patterns in the entire HTML
+        if not phone_number:
+            logger.debug(f"Trying final fallback phone extraction for voicemail {filename}")
+            # Look for any phone number patterns in the entire HTML content
+            text_content = soup.get_text()
+            phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
+            phone_match = phone_pattern.search(text_content)
+            if phone_match:
+                try:
+                    phone_number = format_number(
+                        phonenumbers.parse(phone_match.group(1), None)
+                    )
+                    logger.debug(f"Extracted phone number from HTML content: {phone_number}")
+                    
+                    # Return the voicemail info with the extracted phone number
+                    return {
+                        "phone_number": phone_number,
+                        "timestamp": timestamp,
+                        "duration": duration,
+                        "transcription": transcription,
+                        "filename": filename,
+                    }
+                except Exception as e:
+                    logger.debug(f"Failed to parse phone number from HTML content: {e}")
+        
         return None
 
     except Exception as e:
