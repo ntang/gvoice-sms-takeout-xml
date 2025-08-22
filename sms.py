@@ -1413,12 +1413,18 @@ class PhoneLookupManager:
                 if href.startswith("tel:"):
                     link_phone = href.split(":", 1)[-1]
                     if link_phone == phone_number:
-                        # Find the name in the fn class
+                        # First try to find the name in the fn class
                         fn_element = link.find(["span", "abbr"], class_="fn")
                         if fn_element:
                             name = fn_element.get_text(strip=True)
                             if name and name.lower() not in generic_phrases:
                                 return self.sanitize_alias(name)
+                        
+                        # If no fn class, try to get the name directly from the tel link text
+                        # This handles cases like: <a class="tel" href="tel:+1234567890">Name</a>
+                        link_text = link.get_text(strip=True)
+                        if link_text and link_text.lower() not in generic_phrases:
+                            return self.sanitize_alias(link_text)
 
             # Look for other patterns where phone numbers and names are associated
             # Pattern: <cite class="sender vcard"><a class="tel" href="tel:+1234567890">Name</a></cite>
@@ -1444,8 +1450,8 @@ class PhoneLookupManager:
                     # Look for tel links in the same container or nearby
                     container = fn.find_parent(["div", "span", "cite"])
                     if container:
-                                    tel_links = container.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
-            for tel_link in tel_links:
+                        tel_links = container.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
+                        for tel_link in tel_links:
                             href = tel_link.get("href", "")
                             if href.startswith("tel:"):
                                 link_phone = href.split(":", 1)[-1]
@@ -7000,12 +7006,22 @@ def extract_call_details_from_soup(soup: BeautifulSoup) -> Dict[str, str]:
                 duration = duration_text.strip("()")
 
         # Extract contact name if available
-        contributor = soup.find("div", class_="contributor")
         contact_name = ""
+        
+        # Method 1: Look for contributor div with fn span (older format)
+        contributor = soup.find("div", class_="contributor")
         if contributor:
             fn_elem = contributor.find("span", class_="fn")
             if fn_elem:
                 contact_name = fn_elem.get_text().strip()
+        
+        # Method 2: Look for tel link text (newer format like our test files)
+        if not contact_name:
+            tel_link = soup.find("a", class_="tel", href=True)
+            if tel_link:
+                link_text = tel_link.get_text(strip=True)
+                if link_text and link_text.lower() not in ["unknown", "me", "placed call to", "received call from", "missed call from"]:
+                    contact_name = link_text
 
         # Build rich message text
         if call_type == "Missed":
