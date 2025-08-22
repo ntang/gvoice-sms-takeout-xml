@@ -1209,7 +1209,22 @@ class ConversationManager:
             return message_text, attachments_str
 
         except Exception as e:
+            # Log the specific error and the content that caused it for debugging
             logger.error(f"Failed to extract message content: {e}")
+            logger.debug(f"Problematic content: {message_content[:200]}...")
+            
+            # Try to extract any readable text as a last resort
+            try:
+                # Strip HTML tags and extract any remaining text
+                text_only = re.sub(r'<[^>]+>', '', message_content)
+                text_only = re.sub(r'&[^;]+;', ' ', text_only)  # Replace HTML entities
+                text_only = re.sub(r'\s+', ' ', text_only).strip()  # Normalize whitespace
+                
+                if text_only and len(text_only) > 5:
+                    return f"[Partial content: {text_only[:100]}{'...' if len(text_only) > 100 else ''}]", "-"
+            except Exception:
+                pass
+            
             return "[Error parsing message]", "-"
 
     def _extract_sender_from_raw(self, message_content: str) -> str:
@@ -3586,6 +3601,34 @@ def is_valid_phone_number(phone_number: Union[str, int]) -> bool:
     return True
 
 
+def is_legitimate_google_voice_export(filename: str) -> bool:
+    """
+    Check if a filename is a legitimate Google Voice export with file parts.
+    
+    Args:
+        filename: Filename to check
+        
+    Returns:
+        bool: True if filename is a legitimate Google Voice export, False otherwise
+    """
+    import re
+    
+    # Check for legitimate Google Voice export patterns with file parts
+    for pattern in [" - Text - ", " - Voicemail - ", " - Received - ", " - Placed - ", " - Missed - "]:
+        if pattern in filename:
+            after_pattern = filename.split(pattern)[1]
+            
+            # Check for legitimate pattern: YYYY-MM-DDTHH_MM_SSZ-N-M
+            # Where N and M are typically single digits (0-9) representing file parts/versions
+            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]\.html$', after_pattern):
+                return True
+            # Also check without .html extension
+            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]$', after_pattern):
+                return True
+    
+    return False
+
+
 def should_skip_file(filename: str) -> bool:
     """
     Determine if a file should be skipped based on filename patterns and filtering settings.
@@ -3633,24 +3676,40 @@ def should_skip_file(filename: str) -> bool:
             
             # Check if the timestamp part is corrupted (has extra dashes/parts)
             if after_pattern.count("-") > 2:  # More than expected dashes in timestamp
-                logger.debug(f"Skipping corrupted filename with extra parts: {filename}")
-                return True
+                # But allow legitimate Google Voice export patterns
+                if is_legitimate_google_voice_export(filename):
+                    logger.debug(f"Allowing legitimate Google Voice export with file parts: {filename}")
+                    break  # This is legitimate, continue processing
+                else:
+                    logger.debug(f"Skipping corrupted filename with extra parts: {filename}")
+                    return True
             
             # Check if the timestamp part has unexpected characters or patterns
-            # Should end with .html and contain only timestamp characters
-            if not after_pattern.endswith(".html"):
-                logger.debug(f"Skipping filename without .html extension: {filename}")
-                return True
-            
-            # Remove .html and check if the timestamp part is valid
-            timestamp_part = after_pattern[:-5]  # Remove .html
+            # Allow both .html and no extension for legitimate patterns
+            has_html_extension = after_pattern.endswith(".html")
+            if has_html_extension:
+                timestamp_part = after_pattern[:-5]  # Remove .html
+            else:
+                # Check if this is a legitimate Google Voice export without .html extension
+                if is_legitimate_google_voice_export(filename):
+                    timestamp_part = after_pattern  # No extension, but legitimate
+                    logger.debug(f"Allowing legitimate Google Voice export without .html: {filename}")
+                else:
+                    # Missing .html extension and not a legitimate pattern
+                    logger.debug(f"Skipping filename without .html extension: {filename}")
+                    return True
             
             # Check for corrupted timestamp patterns (extra numbers/parts after timestamp)
             # Valid: "2024-07-29T16_10_03Z"
-            # Corrupted: "2024-07-29T16_10_03Z-6-1"
+            # BUT allow legitimate Google Voice export patterns like "2024-07-29T16_10_03Z-6-1"
             if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', timestamp_part):
-                logger.debug(f"Skipping corrupted filename with malformed timestamp: {filename}")
-                return True
+                # Check if this is a legitimate Google Voice export with file parts
+                if is_legitimate_google_voice_export(filename):
+                    logger.debug(f"Allowing legitimate Google Voice export with file parts: {filename}")
+                    break  # This is legitimate, continue processing
+                else:
+                    logger.debug(f"Skipping corrupted filename with malformed timestamp: {filename}")
+                    return True
             
             break  # Found a valid pattern, no need to check others
 
@@ -3700,11 +3759,20 @@ def clean_corrupted_filename(filename: str) -> str:
                 if has_html_extension:
                     timestamp_part = timestamp_part[:-5]
                 
-                # Look for the valid timestamp pattern and remove everything after it
+                # Look for the valid timestamp pattern and preserve legitimate Google Voice export patterns
                 # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
                 valid_timestamp_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z', timestamp_part)
                 if valid_timestamp_match:
                     clean_timestamp = valid_timestamp_match.group(0)
+                    
+                    # Check if this is a legitimate Google Voice export with file parts (e.g., "-6-1")
+                    # Only preserve single-digit patterns like "-6-1", not multi-digit like "-123-456"
+                    file_parts_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z(-[0-9]-[0-9])', timestamp_part)
+                    if file_parts_match:
+                        # Preserve the legitimate file parts (single digits only)
+                        file_parts = file_parts_match.group(1)
+                        clean_timestamp += file_parts
+                    
                     # Add .html extension if the original had it
                     extension = ".html" if has_html_extension else ""
                     cleaned_filename = f"{name_part}{pattern}{clean_timestamp}{extension}"
@@ -3736,12 +3804,19 @@ def is_corrupted_filename(filename: str) -> bool:
         if pattern in filename:
             after_pattern = filename.split(pattern)[1]
             
-            # Check for extra dashes in timestamp part
+            # First check if this is a legitimate Google Voice export with file parts
+            if is_legitimate_google_voice_export(filename):
+                return False
+            
+            # Check for extra dashes in timestamp part (but allow legitimate file parts)
             if after_pattern.count("-") > 2:
-                return True
+                # Allow legitimate patterns like "2024-07-29T16_10_03Z-6-1"
+                if not re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-\d+-\d+', after_pattern):
+                    return True
             
             # Check for corrupted timestamp with extra parts
             if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', after_pattern):
+                # If it doesn't match legitimate patterns, it's corrupted
                 return True
             
             # Check for missing .html extension
@@ -4493,6 +4568,23 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                         )
                     except Exception as e:
                         logger.error(f"Failed to process image {filename}: {e}")
+                        
+                        # Try to recover from common failure types
+                        try:
+                            # Check if it's a file permission issue
+                            if "Permission denied" in str(e) or "Access denied" in str(e):
+                                logger.error(f"Permission denied for image {filename} - check file permissions")
+                            # Check if it's a file not found issue
+                            elif "No such file" in str(e) or "FileNotFoundError" in str(e):
+                                logger.error(f"Image file {filename} not found in Calls directory")
+                            # Check if it's a disk space issue
+                            elif "No space left" in str(e) or "ENOSPC" in str(e):
+                                logger.error(f"Insufficient disk space to copy image {filename}")
+                            else:
+                                logger.error(f"Unknown error processing image {filename}: {type(e).__name__}: {e}")
+                        except Exception:
+                            # If error analysis fails, just log the original error
+                            pass
 
     return image_parts
 
@@ -4544,6 +4636,23 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                         )
                     except Exception as e:
                         logger.error(f"Failed to process vCard {filename}: {e}")
+                        
+                        # Try to recover from common failure types
+                        try:
+                            # Check if it's a file permission issue
+                            if "Permission denied" in str(e) or "Access denied" in str(e):
+                                logger.error(f"Permission denied for vCard {filename} - check file permissions")
+                            # Check if it's a file not found issue
+                            elif "No such file" in str(e) or "FileNotFoundError" in str(e):
+                                logger.error(f"vCard file {filename} not found in Calls directory")
+                            # Check if it's a disk space issue
+                            elif "No space left" in str(e) or "ENOSPC" in str(e):
+                                logger.error(f"Insufficient disk space to copy vCard {filename}")
+                            else:
+                                logger.error(f"Unknown error processing vCard {filename}: {type(e).__name__}: {e}")
+                        except Exception:
+                            # If error analysis fails, just log the original error
+                            pass
 
     return vcard_parts
 

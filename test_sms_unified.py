@@ -2768,19 +2768,19 @@ class TestSMSIntegration(unittest.TestCase):
         
         # Test cases for corrupted filenames
         corrupted_cases = [
-            # Case 1: Extra parts after timestamp
+            # Case 1: Legitimate Google Voice export with file parts (should NOT be skipped)
             {
                 "filename": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
-                "should_skip": True,
-                "description": "extra parts after timestamp",
-                "can_clean": True,
-                "cleaned": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z"
+                "should_skip": False,  # This is now legitimate
+                "description": "legitimate Google Voice export with file parts",
+                "can_clean": False,  # Should not be cleaned
+                "cleaned": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"  # Should remain unchanged
             },
-            # Case 2: Multiple extra dashes
+            # Case 2: Multiple extra dashes (not legitimate Google Voice export pattern)
             {
                 "filename": "John Doe - Text - 2024-08-15T12_30_45Z-123-456.html",
                 "should_skip": True,
-                "description": "multiple extra dashes",
+                "description": "multiple extra dashes (not legitimate pattern)",
                 "can_clean": True,
                 "cleaned": "John Doe - Text - 2024-08-15T12_30_45Z.html"
             },
@@ -2814,13 +2814,18 @@ class TestSMSIntegration(unittest.TestCase):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test should_skip_file
                 should_skip = sms.should_skip_file(test_case["filename"])
-                self.assertTrue(should_skip,
-                              f"Corrupted filename should be skipped: {test_case['description']}")
+                self.assertEqual(should_skip, test_case["should_skip"],
+                              f"Filename should_skip result: {test_case['description']}")
                 
                 # Test is_corrupted_filename
                 is_corrupted = sms.is_corrupted_filename(test_case["filename"])
-                self.assertTrue(is_corrupted,
-                              f"Corrupted filename should be detected: {test_case['description']}")
+                # For legitimate Google Voice exports, this should be False
+                if test_case["should_skip"]:
+                    self.assertTrue(is_corrupted,
+                                  f"Corrupted filename should be detected: {test_case['description']}")
+                else:
+                    self.assertFalse(is_corrupted,
+                                   f"Legitimate filename should NOT be detected as corrupted: {test_case['description']}")
                 
                 # Test cleaning if applicable
                 if test_case["can_clean"]:
@@ -3128,6 +3133,59 @@ class TestSMSIntegration(unittest.TestCase):
                 should_skip = sms.should_skip_file(filename)
                 self.assertTrue(should_skip, 
                               f"Corrupted filename should be skipped: '{filename}'")
+
+    def test_legitimate_google_voice_export_patterns(self):
+        """Test that legitimate Google Voice export patterns with file parts are properly handled."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        
+        # Test legitimate Google Voice export patterns with file parts
+        legitimate_files = [
+            "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
+            "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-08-05T14_21_52Z-6-1",
+            "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html",
+            "Alice Smith - Voicemail - 2025-08-13T12_08_52Z-3-1.html",
+            "Bob Johnson - Received - 2025-08-13T12_08_52Z-2-1.html",
+            "Carol Davis - Placed - 2025-08-13T12_08_52Z-1-3.html",
+            "David Wilson - Missed - 2025-08-13T12_08_52Z-4-2.html",
+        ]
+        
+        for filename in legitimate_files:
+            with self.subTest(filename=filename):
+                # These should be detected as legitimate Google Voice exports
+                self.assertTrue(sms.is_legitimate_google_voice_export(filename), 
+                              f"Should detect {filename} as legitimate Google Voice export")
+                # These should NOT be flagged as corrupted
+                self.assertFalse(sms.is_corrupted_filename(filename), 
+                               f"Should not flag {filename} as corrupted")
+                # These should NOT be skipped
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(should_skip, 
+                               f"Should not skip legitimate filename: {filename}")
+        
+        # Test edge cases
+        self.assertTrue(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-6-1"))
+        self.assertTrue(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-6-1.html"))
+        self.assertFalse(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z.html"))
+        self.assertFalse(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-extra-stuff.html"))
+        
+        # Test that cleaning preserves legitimate patterns
+        test_cases = [
+            {
+                "original": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
+                "expected": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"
+            },
+            {
+                "original": "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html",
+                "expected": "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html"
+            }
+        ]
+        
+        for test_case in test_cases:
+            with self.subTest(original=test_case["original"]):
+                cleaned = sms.clean_corrupted_filename(test_case["original"])
+                self.assertEqual(cleaned, test_case["expected"], 
+                               f"Should preserve legitimate pattern: {test_case['original']}")
 
 
 def create_test_suite(test_type="basic", test_limit=100):
