@@ -82,6 +82,7 @@ PHONE_LOOKUP_MANAGER = None
 INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
 DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
 DATE_FILTER_NEWER_THAN = None  # Filter out messages newer than this date
+FILTER_NUMBERS_WITHOUT_ALIASES = False  # Filter out numbers without aliases
 
 # Progress logging configuration
 PROGRESS_INTERVAL_PERCENT = 25  # Report progress every 25%
@@ -3625,6 +3626,20 @@ def write_sms_messages(
                     skipped_count += 1
                     continue
 
+                # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
+                if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
+                    if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
+                        logger.debug(f"Skipping message from {phone_number} - no alias found and filtering enabled")
+                        skipped_count += 1
+                        continue
+                    
+                    # Also check if the number is explicitly excluded
+                    if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
+                        exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
+                        logger.debug(f"Skipping message from {phone_number} - explicitly excluded: {exclusion_reason}")
+                        skipped_count += 1
+                        continue
+
                 # Get alias for the phone number, with filename-based fallback
                 alias = PHONE_LOOKUP_MANAGER.get_alias(str(phone_number), None)
                 
@@ -4496,6 +4511,26 @@ def write_mms_messages(
                 if should_skip_message_by_date(message_timestamp):
                     skipped_count += 1
                     continue
+
+                # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
+                if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
+                    # Check if any participant should be filtered out
+                    should_skip = False
+                    for phone in participants:
+                        if not PHONE_LOOKUP_MANAGER.has_alias(str(phone)):
+                            logger.debug(f"Skipping MMS from {phone} - no alias found and filtering enabled")
+                            should_skip = True
+                            break
+                        
+                        if PHONE_LOOKUP_MANAGER.is_excluded(str(phone)):
+                            exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone))
+                            logger.debug(f"Skipping MMS from {phone} - explicitly excluded: {exclusion_reason}")
+                            should_skip = True
+                            break
+                    
+                    if should_skip:
+                        skipped_count += 1
+                        continue
 
                 # Determine sender and message type
                 sender = get_mms_sender(message, participants)
@@ -6701,6 +6736,17 @@ def extract_call_info(
             if timestamp and should_skip_message_by_date(timestamp):
                 logger.debug(f"Skipping call due to date filtering: {filename}")
                 return None
+            
+            # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
+            if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
+                if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
+                    logger.debug(f"Skipping call from {phone_number} - no alias found and filtering enabled")
+                    return None
+                
+                if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
+                    exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
+                    logger.debug(f"Skipping call from {phone_number} - explicitly excluded: {exclusion_reason}")
+                    return None
                 
             return {
                 "type": call_type,
@@ -6797,6 +6843,17 @@ def extract_voicemail_info(
             if timestamp and should_skip_message_by_date(timestamp):
                 logger.debug(f"Skipping voicemail due to date filtering: {filename}")
                 return None
+            
+            # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
+            if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
+                if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
+                    logger.debug(f"Skipping voicemail from {phone_number} - no alias found and filtering enabled")
+                    return None
+                
+                if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
+                    exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
+                    logger.debug(f"Skipping voicemail from {phone_number} - explicitly excluded: {exclusion_reason}")
+                    return None
                 
             return {
                 "phone_number": phone_number,
@@ -7488,11 +7545,13 @@ Examples:
   # Output in XML format instead of HTML (HTML is now default)
   python sms.py /path/to/gvoice/data --output-format xml
 
-  # Filtering options
-  python sms.py /path/to/gvoice/data --include-service-codes  # Include service codes (default: filtered out)
-  python sms.py /path/to/gvoice/data --older-than 2023-01-01  # Filter out messages older than 2023
-  python sms.py /path/to/gvoice/data --newer-than 2024-12-31  # Filter out messages newer than 2024
-  python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00"  # Filter with time precision
+          # Filtering options
+        python sms.py /path/to/gvoice/data --include-service-codes  # Include service codes (default: filtered out)
+        python sms.py /path/to/gvoice/data --older-than 2023-01-01  # Filter out messages older than 2023
+        python sms.py /path/to/gvoice/data --newer-than 2024-12-31  # Filter out messages newer than 2024
+        python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00"  # Filter with time precision
+        python sms.py /path/to/gvoice/data --filter-no-alias  # Only process numbers with aliases/names
+        python sms.py /path/to/gvoice/data --exclude-no-alias  # Alternative to --filter-no-alias
   
   # Default behavior: Service codes (verification codes, alerts) are filtered out for cleaner output
   # Use --include-service-codes to include all service codes and short codes
@@ -7712,6 +7771,19 @@ Output:
             help="Filter out messages newer than specified date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)",
         )
 
+        # Phone number filtering options
+        parser.add_argument(
+            "--filter-no-alias",
+            action="store_true",
+            help="Filter out phone numbers that don't have aliases (only process numbers with names/aliases)",
+        )
+
+        parser.add_argument(
+            "--exclude-no-alias",
+            action="store_true",
+            help="Alternative to --filter-no-alias: exclude numbers without aliases",
+        )
+
         args = parser.parse_args()
 
         # Handle create-config option
@@ -7875,6 +7947,13 @@ Output:
             logger.info("🔓 SERVICE CODE FILTERING DISABLED - Including all service codes and short codes")
         else:
             logger.info("🔒 SERVICE CODE FILTERING ENABLED - Filtering out service codes and short codes (default)")
+        
+        # Set phone number filtering
+        FILTER_NUMBERS_WITHOUT_ALIASES = args.filter_no_alias or args.exclude_no_alias
+        if FILTER_NUMBERS_WITHOUT_ALIASES:
+            logger.info("🔒 PHONE FILTERING ENABLED - Only processing numbers with aliases/names")
+        else:
+            logger.info("🔓 PHONE FILTERING DISABLED - Processing all phone numbers (default)")
         
         # Parse and set date filters
         if args.older_than:

@@ -40,6 +40,10 @@ DEFAULT_COUNTRY_CODE = "US"
 PHONE_NUMBER_MIN_LENGTH = 7
 PHONE_NUMBER_MAX_LENGTH = 15
 
+# Phone filtering settings
+FILTER_NUMBERS_WITHOUT_ALIASES = False  # Default: include all numbers
+EXCLUDE_NUMBERS_WITHOUT_ALIASES = False  # Alternative name for the same setting
+
 # Date filtering
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 TIMESTAMP_PATTERNS = [

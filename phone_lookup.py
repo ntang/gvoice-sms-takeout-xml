@@ -43,7 +43,18 @@ class PhoneLookupManager:
                         if line and not line.startswith("#"):
                             try:
                                 phone, alias = line.split("|", 1)
-                                self.phone_aliases[phone.strip()] = alias.strip()
+                                phone = phone.strip()
+                                alias = alias.strip()
+                                
+                                # Check for exclusion patterns
+                                if alias.startswith("EXCLUDE:"):
+                                    # This number should be excluded from processing
+                                    self.phone_aliases[phone] = f"EXCLUDE:{alias[8:]}"
+                                    logger.debug(f"Loaded exclusion for {phone}: {alias}")
+                                else:
+                                    # Normal alias
+                                    self.phone_aliases[phone] = alias
+                                    
                             except ValueError:
                                 # Skip malformed lines
                                 continue
@@ -57,6 +68,8 @@ class PhoneLookupManager:
                     f.write("# Phone number lookup file\n")
                     f.write("# Format: phone_number|alias\n")
                     f.write("# Lines starting with # are comments\n")
+                    f.write("# To exclude a number, use: phone_number|EXCLUDE:reason\n")
+                    f.write("# Example: +1234567890|EXCLUDE:spam\n")
                 logger.info(f"Created new phone lookup file: {self.lookup_file}")
         except Exception as e:
             logger.error(f"Failed to load phone aliases: {e}")
@@ -250,3 +263,32 @@ class PhoneLookupManager:
         self.phone_aliases[phone_number] = sanitized_alias
         self.save_aliases_batched()
         logger.info(f"Added alias '{sanitized_alias}' for phone number {phone_number}")
+
+    def is_excluded(self, phone_number: str) -> bool:
+        """Check if a phone number is excluded from processing."""
+        if phone_number in self.phone_aliases:
+            alias = self.phone_aliases[phone_number]
+            return alias.startswith("EXCLUDE:")
+        return False
+
+    def get_exclusion_reason(self, phone_number: str) -> Optional[str]:
+        """Get the reason why a phone number is excluded, if any."""
+        if phone_number in self.phone_aliases:
+            alias = self.phone_aliases[phone_number]
+            if alias.startswith("EXCLUDE:"):
+                return alias[8:]  # Remove "EXCLUDE:" prefix
+        return None
+
+    def has_alias(self, phone_number: str) -> bool:
+        """Check if a phone number has a non-exclusion alias."""
+        if phone_number in self.phone_aliases:
+            alias = self.phone_aliases[phone_number]
+            return not alias.startswith("EXCLUDE:")
+        return False
+
+    def add_exclusion(self, phone_number: str, reason: str = "excluded"):
+        """Add a phone number to the exclusion list."""
+        exclusion_alias = f"EXCLUDE:{reason}"
+        self.phone_aliases[phone_number] = exclusion_alias
+        self.save_aliases_batched()
+        logger.info(f"Added exclusion for {phone_number}: {reason}")

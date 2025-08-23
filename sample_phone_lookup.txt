@@ -1,0 +1,21 @@
+# Phone number lookup file
+# Format: phone_number|alias
+# Lines starting with # are comments
+# To exclude a number, use: phone_number|EXCLUDE:reason
+# Example: +1234567890|EXCLUDE:spam
+
+# Example aliases
++15551234567|John Doe
++15559876543|Jane Smith
++15555555555|Mom
++15551111111|Dad
+
+# Example exclusions
++15559999999|EXCLUDE:spam
++15558888888|EXCLUDE:marketing
++15557777777|EXCLUDE:robocalls
++15556666666|EXCLUDE:unwanted
+
+# You can add your own phone numbers and aliases here
+# Each line should follow the format: phone_number|alias
+# To exclude a number, use: phone_number|EXCLUDE:reason

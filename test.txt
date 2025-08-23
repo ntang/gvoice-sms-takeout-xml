@@ -1,0 +1,5 @@
+# Phone number lookup file
+# Format: phone_number|alias
+# Lines starting with # are comments
+# To exclude a number, use: phone_number|EXCLUDE:reason
+# Example: +1234567890|EXCLUDE:spam
