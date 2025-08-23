@@ -45,6 +45,18 @@ FILTER_NUMBERS_WITHOUT_ALIASES = False  # Default: include all numbers
 EXCLUDE_NUMBERS_WITHOUT_ALIASES = False  # Alternative name for the same setting
 FILTER_NON_PHONE_NUMBERS = False  # Default: include all numbers (even shortcodes)
 
+# MMS and message type constants
+MMS_TYPE_SENT = 128
+MMS_TYPE_RECEIVED = 132
+MESSAGE_BOX_SENT = 1
+MESSAGE_BOX_RECEIVED = 2
+PARTICIPANT_TYPE_SENDER = 1
+PARTICIPANT_TYPE_RECEIVER = 2
+
+# Supported file types
+SUPPORTED_IMAGE_TYPES = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
+SUPPORTED_VCARD_TYPES = [".vcf", ".vcard"]
+
 # Date filtering
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 TIMESTAMP_PATTERNS = [
@@ -261,6 +273,16 @@ DEFAULT_CONFIG = {
     "test_mode": False,
     "test_limit": 0,
     "large_dataset": False,
+    # MMS and message type constants
+    "MMS_TYPE_SENT": MMS_TYPE_SENT,
+    "MMS_TYPE_RECEIVED": MMS_TYPE_RECEIVED,
+    "MESSAGE_BOX_SENT": MESSAGE_BOX_SENT,
+    "MESSAGE_BOX_RECEIVED": MESSAGE_BOX_RECEIVED,
+    "PARTICIPANT_TYPE_SENDER": PARTICIPANT_TYPE_SENDER,
+    "PARTICIPANT_TYPE_RECEIVER": PARTICIPANT_TYPE_RECEIVER,
+    # Supported file types
+    "SUPPORTED_IMAGE_TYPES": SUPPORTED_IMAGE_TYPES,
+    "SUPPORTED_VCARD_TYPES": SUPPORTED_VCARD_TYPES,
 }
 
 def get_config() -> Dict[str, Any]:

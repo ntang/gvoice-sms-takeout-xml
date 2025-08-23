@@ -15,6 +15,41 @@ import phonenumbers
 logger = logging.getLogger(__name__)
 
 
+def extract_phone_numbers_from_text(text: str) -> List[str]:
+    """
+    Extract phone numbers from text content.
+    
+    Args:
+        text: Text content to search for phone numbers
+        
+    Returns:
+        List of found phone numbers
+    """
+    import re
+    
+    # Pattern to match phone numbers in various formats
+    phone_patterns = [
+        r'tel:(\+?\d{1,3}[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4})',  # tel:+1234567890
+        r'(\+?\d{1,3}[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4})',     # +1234567890
+        r'(\+?\d{10,15})',                                          # Basic 10-15 digit numbers
+    ]
+    
+    phone_numbers = []
+    for pattern in phone_patterns:
+        matches = re.findall(pattern, text)
+        phone_numbers.extend(matches)
+    
+    # Remove duplicates while preserving order
+    unique_numbers = []
+    seen = set()
+    for number in phone_numbers:
+        if number not in seen:
+            unique_numbers.append(number)
+            seen.add(number)
+    
+    return unique_numbers
+
+
 def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> bool:
     """
     Check if a phone number is valid with enhanced validation.
@@ -39,8 +74,11 @@ def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> 
         return False
     
     # Handle names FIRST (allow them as valid "phone numbers" for conversation purposes)
-    if re.match(r'^[A-Za-z\s]+$', cleaned) and len(cleaned.strip()) > 2:
-        return True
+    # But be more strict - names should have spaces (not just random letters)
+    if re.match(r'^[A-Za-z\s\-\.]+$', cleaned) and len(cleaned.strip()) > 2:
+        # Names should have spaces to be considered valid
+        if ' ' in cleaned:
+            return True
     
     # Skip if it's clearly not a phone number (contains letters, etc.)
     # But only after we've checked for valid names
@@ -72,11 +110,10 @@ def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> 
         pass
     
     # Fallback validation for edge cases
-    # Check for common phone number patterns
+    # Check for common phone number patterns - be more strict
     phone_patterns = [
-        r'^\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$',  # US format
-        r'^\+?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}$',  # International
-        r'^\+?[0-9]{7,15}$',  # Simple international format
+        r'^\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$',  # US format: +1 (555) 123-4567
+        r'^\+[0-9]{7,15}$',  # International format: must start with +
     ]
     
     for pattern in phone_patterns:
@@ -84,12 +121,19 @@ def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> 
             return True
     
     # If it looks like a phone number but failed strict validation,
-    # allow it if it has the right length and format
+    # be more strict about what we accept
     if re.match(r'^\+?[0-9\s\-\(\)\.]+$', cleaned):
         # Remove all non-digits and check length
         digits_only = re.sub(r'[^0-9]', '', cleaned)
-        if 7 <= len(digits_only) <= 15:  # Reasonable phone number length
-            return True
+        # Must be at least 10 digits for US numbers, 7 for international
+        if len(digits_only) >= 10:
+            # Must start with +1 for US numbers or have proper international format
+            if cleaned.startswith('+1') or cleaned.startswith('1') or cleaned.startswith('+'):
+                return True
+        elif len(digits_only) >= 7:
+            # International numbers must start with +
+            if cleaned.startswith('+'):
+                return True
     
     return False
 
