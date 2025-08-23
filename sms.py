@@ -44,6 +44,25 @@ from templates import (
 # Import new modular components
 from conversation_manager import ConversationManager
 from phone_lookup import PhoneLookupManager
+from html_processor import (
+    parse_html_file, 
+    get_file_type, 
+    should_skip_file, 
+    extract_own_phone_number,
+    STRING_POOL
+)
+from file_processor import (
+    process_single_html_file,
+    get_file_processing_stats,
+    validate_file_for_processing
+)
+from attachment_manager import (
+    build_attachment_mapping_with_progress,
+    extract_src_with_source_files,
+    copy_mapped_attachments,
+    copy_attachments_parallel,
+    validate_attachment_mapping
+)
 
 from utils import (
     is_valid_phone_number
@@ -549,35 +568,6 @@ def validate_configuration():
     logger.info("Configuration validation passed")
 
 
-def copy_mapped_attachments(src_filename_map: Dict[str, str]) -> None:
-    """
-    Copy all mapped attachments to the attachments directory with optimized I/O.
-
-    Args:
-        src_filename_map: Mapping of src elements to attachment filenames
-    """
-    logger.info("Starting comprehensive attachment copying...")
-
-    # Get the attachments directory
-    attachments_dir = OUTPUT_DIRECTORY / "attachments"
-    attachments_dir.mkdir(exist_ok=True, mode=0o755)
-
-    # Get unique filenames from the mapping
-    unique_filenames = set()
-    for src, filename in src_filename_map.items():
-        if filename != "No unused match found":
-            unique_filenames.add(filename)
-
-    total_attachments = len(unique_filenames)
-    logger.info(f"Found {total_attachments} unique attachments to copy")
-
-    # Use parallel processing for large datasets
-    if ENABLE_PARALLEL_PROCESSING and total_attachments > MEMORY_EFFICIENT_THRESHOLD:
-        copy_attachments_parallel(unique_filenames, attachments_dir)
-    else:
-        copy_attachments_sequential(unique_filenames, attachments_dir)
-
-
 def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
     """Copy attachments sequentially with progress tracking."""
     copied_count = 0
@@ -783,7 +773,7 @@ def main():
         # Build attachment mapping
         logger.info("Building attachment mapping...")
         mapping_start = time.time()
-        src_filename_map = build_attachment_mapping_with_progress()
+        src_filename_map = build_attachment_mapping_with_progress(str(PROCESSING_DIRECTORY))
         mapping_time = time.time() - mapping_start
         logger.info(
             f"Found {len(src_filename_map)} attachment mappings in {mapping_time:.2f}s"
@@ -792,7 +782,7 @@ def main():
         # Copy all mapped attachments
         logger.info("Copying mapped attachments...")
         copy_start = time.time()
-        copy_mapped_attachments(src_filename_map)
+        copy_mapped_attachments(src_filename_map, str(OUTPUT_DIRECTORY))
         copy_time = time.time() - copy_start
         logger.info(f"Attachment copying completed in {copy_time:.2f}s")
 
@@ -919,35 +909,7 @@ def display_results(stats: Dict[str, int], elapsed_time: float):
     logger.info("=" * 60)
 
 
-def extract_own_phone_number(soup: BeautifulSoup) -> Optional[str]:
-    """
-    Extract the user's own phone number from the HTML.
-
-    Args:
-        soup: BeautifulSoup object of the HTML file
-
-    Returns:
-        Optional[str]: User's phone number or None if not found
-    """
-    try:
-        # Look for phone number in abbr elements with class 'fn'
-        for abbr_tag in soup.find_all("abbr", class_="fn"):
-            if abbr_tag.get_text(strip=True) == "Me":
-                a_tag = abbr_tag.find_previous("a", class_="tel")
-                if a_tag:
-                    phone_number = a_tag.get("href").split(":", 1)[-1]
-                    try:
-                        # Parse and format the phone number
-                        parsed_number = phonenumbers.parse(phone_number, None)
-                        return format_number(parsed_number)
-                    except phonenumbers.phonenumberutil.NumberParseException:
-                        return phone_number
-
-        return None
-
-    except Exception as e:
-        logger.error(f"Failed to extract own phone number: {e}")
-        return None
+# extract_own_phone_number function moved to html_processor module
 
 
 def remove_problematic_files() -> None:
@@ -1713,206 +1675,6 @@ def build_attachment_mapping() -> Dict[str, str]:
     return build_attachment_mapping_cached()
 
 
-def build_attachment_mapping_with_progress() -> Dict[str, str]:
-    """Build mapping from src elements to attachment filenames with progress tracking."""
-
-    logger.info("Starting attachment mapping build process...")
-
-    # Step 1: Extract src elements from HTML files with source tracking
-    logger.info("Starting src extraction from HTML files with source tracking")
-    src_to_files = extract_src_with_source_files()
-    src_elements = list(src_to_files.keys())
-
-    # Step 2: Scan for attachment files
-    logger.info("Starting attachment scan in processing directory")
-    att_filenames = list_att_filenames_with_progress()
-
-    # Step 3: Create mapping
-    logger.info(
-        f"Starting src-to-filename mapping for {len(src_elements)} src elements and {len(att_filenames)} attachment files"
-    )
-
-    # Pre-normalize filenames to avoid repeated processing
-    normalized_attachments = {}
-    for filename in att_filenames:
-        normalized = normalize_filename(filename)
-        if normalized not in normalized_attachments:
-            normalized_attachments[normalized] = filename
-
-    # Create comprehensive mapping that finds ALL attachments for each HTML file
-    mapping = {}
-
-    # First, create a reverse mapping: HTML base filename -> list of all matching attachments
-    # Use more efficient data structures for large datasets
-    html_to_attachments = {}
-
-    # Pre-process HTML files to avoid repeated string operations
-    html_bases = set()
-    for html_list in src_to_files.values():
-        for html_file in html_list:
-            html_base = html_file.replace(".html", "")
-            html_bases.add(html_base)
-
-    # Use dictionary comprehension for faster mapping creation
-    # Sort attachment filenames for binary search optimization
-    att_filenames_sorted = sorted(att_filenames)
-
-    # Create mapping using more efficient algorithm
-    for html_base in html_bases:
-        # Use binary search approach for finding matching attachments
-        matching_attachments = []
-
-        # Find the first attachment that starts with this HTML base
-        start_idx = 0
-        while start_idx < len(att_filenames_sorted):
-            filename = att_filenames_sorted[start_idx]
-            if filename.startswith(html_base):
-                # Found a match, collect all consecutive matches
-                while start_idx < len(att_filenames_sorted) and att_filenames_sorted[
-                    start_idx
-                ].startswith(html_base):
-                    matching_attachments.append(att_filenames_sorted[start_idx])
-                    start_idx += 1
-                break
-            elif filename < html_base:
-                start_idx += 1
-            else:
-                break
-
-        if matching_attachments:
-            html_to_attachments[html_base] = matching_attachments
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    f"HTML '{html_base}' has {len(matching_attachments)} attachments: {matching_attachments[:3]}{'...' if len(matching_attachments) > 3 else ''}"
-                )
-
-    # Now create the src -> filename mapping using more efficient algorithms
-    # Pre-compute used attachments set for O(1) lookups
-    used_attachments = set()
-
-    # Use list comprehension for faster mapping creation
-    mapping_items = []
-
-    for src in src_elements:
-        if not src.strip():
-            continue
-
-        src_normalized = src.strip()
-        assigned_filename = None
-
-        if src_normalized in src_to_files:
-            # Get the HTML files that contain this src reference
-            html_files = src_to_files[src_normalized]
-
-            # Find the first HTML file that has matching attachments
-            for html_file in html_files:
-                html_base = html_file.replace(".html", "")
-
-                if html_base in html_to_attachments:
-                    # Get the first available attachment for this HTML file
-                    available_attachments = html_to_attachments[html_base]
-
-                    # Find an attachment that hasn't been used yet
-                    for attachment in available_attachments:
-                        if attachment not in used_attachments:
-                            assigned_filename = attachment
-                            used_attachments.add(attachment)
-                            break
-
-                    if assigned_filename:
-                        break
-
-        # Fallback: Try exact matching if HTML-filename approach didn't work
-        if not assigned_filename:
-            for normalized, original in normalized_attachments.items():
-                filename_without_ext = (
-                    original.rsplit(".", 1)[0] if "." in original else original
-                )
-
-                if (
-                    normalized == src_normalized
-                    or normalized.replace("-", "_") == src_normalized
-                    or normalized.replace("_", "-") == src_normalized
-                    or filename_without_ext == src_normalized
-                ):
-                    assigned_filename = original
-                    break
-
-        mapping_items.append(
-            (src_normalized, assigned_filename or "No unused match found")
-        )
-
-    # Convert to dictionary more efficiently
-    mapping = dict(mapping_items)
-
-    # Log mapping statistics
-    total_mappings = len(mapping)
-    successful_mappings = len(
-        [f for f in mapping.values() if f != "No unused match found"]
-    )
-    unique_attachments = len(
-        set([f for f in mapping.values() if f != "No unused match found"])
-    )
-
-    logger.info("Mapping statistics:")
-    logger.info(f"  Total src elements: {total_mappings}")
-    logger.info(f"  Successful mappings: {successful_mappings}")
-    logger.info(f"  Unique attachments mapped: {unique_attachments}")
-    logger.info(f"  HTML files with attachments: {len(html_to_attachments)}")
-
-    # Log failed matches for debugging with enhanced corruption analysis
-    failed_matches = [
-        src for src, filename in mapping.items() if filename == "No unused match found"
-    ]
-    if failed_matches:
-        logger.error(
-            f"Found {len(failed_matches)} failed matches out of {total_mappings} total mappings"
-        )
-        
-        # Analyze failed matches for corruption patterns
-        corrupted_files = []
-        other_failures = []
-        
-        for src in failed_matches:
-            if is_corrupted_filename(src):
-                corrupted_files.append(src)
-            else:
-                other_failures.append(src)
-        
-        # Report corruption issues
-        if corrupted_files:
-            logger.error(f"Found {len(corrupted_files)} corrupted filenames:")
-            for src in corrupted_files[:5]:  # Show first 5 corrupted files
-                logger.error(f"  CORRUPTED: '{src}'")
-                # Try to suggest cleaned version
-                cleaned = clean_corrupted_filename(src)
-                if cleaned != src:
-                    logger.error(f"    Suggested clean version: '{cleaned}'")
-            if len(corrupted_files) > 5:
-                logger.error(f"    ... and {len(corrupted_files) - 5} more corrupted files")
-        
-        # Report other failures
-        if other_failures:
-            logger.error(f"Found {len(other_failures)} other failed matches:")
-            for src in other_failures[:5]:  # Show first 5 other failures
-                logger.error(f"  FAILED: '{src}'")
-            if len(other_failures) > 5:
-                logger.error(f"    ... and {len(other_failures) - 5} more failed matches")
-        
-        # Provide guidance
-        if corrupted_files:
-            logger.error("CORRUPTION DETECTED: Some filenames appear to be corrupted")
-            logger.error("This may indicate data export issues or file system corruption")
-            logger.error("Consider re-exporting from Google Voice or checking file integrity")
-        else:
-            logger.error("Failed matches detected - this may indicate data corruption or export issues")
-
-    # Log final performance metrics
-    logger.info(f"Completed attachment mapping build. Total mappings: {len(mapping)}")
-
-    return mapping
-
-
 def is_sms_mms_file(filename: str) -> bool:
     """
     Determine if a file is likely to contain SMS/MMS messages.
@@ -1948,32 +1710,7 @@ def is_sms_mms_file(filename: str) -> bool:
     return True
 
 
-def get_file_type(filename: str) -> str:
-    """
-    Determine the type of file based on filename.
-
-    Args:
-        filename: HTML filename to check
-
-    Returns:
-        str: File type ('sms', 'mms', 'call', 'voicemail', 'unknown')
-    """
-    filename_lower = filename.lower()
-
-    if "group conversation" in filename_lower:
-        return "mms"
-    elif "text" in filename_lower:
-        return "sms"
-    elif "placed" in filename_lower:
-        return "call"
-    elif "missed" in filename_lower:
-        return "call"
-    elif "received" in filename_lower:
-        return "call"
-    elif "voicemail" in filename_lower:
-        return "voicemail"
-    else:
-        return "unknown"
+# get_file_type function moved to html_processor module
 
 
 def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
@@ -2037,7 +1774,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
         for i, html_file in enumerate(all_files):
             try:
                 file_stats = process_single_html_file(
-                    html_file, src_filename_map, own_number
+                    html_file, src_filename_map, own_number, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
                 )
 
                 # Update statistics
@@ -2079,40 +1816,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
     return stats
 
 
-def process_single_html_file(
-    html_file: Path, src_filename_map: Dict[str, str], own_number: Optional[str]
-) -> Dict[str, Union[int, str]]:
-    """Process a single HTML file and return file-specific statistics."""
-    
-    # CHECK IF FILE SHOULD BE SKIPPED BEFORE PROCESSING
-    if should_skip_file(html_file.name):
-        logger.debug(f"Skipping corrupted or invalid file: {html_file.name}")
-        return {
-            "num_sms": 0,
-            "num_img": 0,
-            "num_vcf": 0,
-            "num_calls": 0,
-            "num_voicemails": 0,
-        }
-    
-    file_type = get_file_type(html_file.name)
-    logger.debug(f"Processing {html_file.name} (Type: {file_type})")
-
-    # Parse HTML file
-    soup = parse_html_file(html_file)
-
-    # Extract own phone number if not already found
-    if own_number is None:
-        own_number = extract_own_phone_number(soup)
-
-    # Handle different file types
-    if file_type == "call":
-        return process_call_file(html_file, soup, own_number, src_filename_map)
-    elif file_type == "voicemail":
-        return process_voicemail_file(html_file, soup, own_number, src_filename_map)
-    else:
-        # Process SMS/MMS files as before
-        return process_sms_mms_file(html_file, soup, own_number, src_filename_map)
+# process_single_html_file function moved to file_processor module
 
 
 def process_sms_mms_file(
@@ -2284,40 +1988,7 @@ def process_sms_mms_file(
     }
 
 
-@lru_cache(maxsize=100)
-def parse_html_file_cached(html_file_str: str) -> BeautifulSoup:
-    """
-    Cached HTML file parsing for performance optimization.
-
-    Args:
-        html_file_str: String representation of HTML file path
-
-    Returns:
-        BeautifulSoup: Parsed HTML content
-    """
-    return parse_html_file(Path(html_file_str))
-
-
-def parse_html_file(html_file: Path) -> BeautifulSoup:
-    """Parse HTML file and return BeautifulSoup object with optimized I/O."""
-    try:
-        file_size = html_file.stat().st_size
-
-        # Use memory mapping for large files to improve performance
-        if ENABLE_MMAP_FOR_LARGE_FILES and file_size > MMAP_THRESHOLD:
-            with open(html_file, "rb") as f:
-                with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    content = mm.read().decode("utf-8")
-        else:
-            # Use optimized buffer size for smaller files
-            with open(
-                html_file, "r", encoding="utf-8", buffering=FILE_READ_BUFFER_SIZE
-            ) as f:
-                content = f.read()
-
-        return BeautifulSoup(content, HTML_PARSER)
-    except Exception as e:
-        raise FileProcessingError(f"Failed to parse HTML file {html_file}: {e}")
+# parse_html_file function moved to html_processor module
 
 
 @lru_cache(maxsize=15000)
@@ -4997,87 +4668,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
 # STRING POOLING FOR PERFORMANCE OPTIMIZATION
 # ====================================================================
 
-# Common strings used throughout the application
-class StringPool:
-    """String pool to reduce memory allocations and improve performance."""
-    
-    # XML attributes and values
-    XML_ATTRS = {
-        "protocol": "0",
-        "address": "",
-        "type": "",
-        "subject": "null",
-        "body": "",
-        "toa": "null",
-        "sc_toa": "null",
-        "date": "",
-        "read": "1",
-        "status": "-1",
-        "locked": "0",
-    }
-    
-    # HTML classes and attributes
-    HTML_CLASSES = {
-        "dt": "dt",
-        "tel": "tel",
-        "sender": "sender",
-        "message": "message",
-        "timestamp": "timestamp",
-        "participants": "participants",
-        "vcard": "vcard",
-        "fn": "fn",
-        "duration": "duration",
-    }
-    
-    # File extensions
-    FILE_EXTENSIONS = {
-        "html": ".html",
-        "xml": ".xml",
-        "jpg": ".jpg",
-        "jpeg": ".jpeg",
-        "png": ".png",
-        "gif": ".gif",
-        "vcf": ".vcf",
-    }
-    
-    # Common patterns
-    PATTERNS = {
-        "tel_href": "tel:",
-        "group_marker": "Group conversation with:",
-        "voicemail_prefix": "🎙️",
-        "call_prefix": "📞",
-    }
-    
-    # Frequently used CSS selectors for performance optimization
-    CSS_SELECTORS = {
-        "message": ".message, div[class*='message'], tr[class*='message']",
-        "participants": ".participants, div[class*='participant'], .sender",
-        "timestamp": ".timestamp, .dt, abbr[title], time[datetime]",
-    }
-    
-    # Common timestamp indicators for early exit optimization
-    TIMESTAMP_INDICATORS = ["202", "201", "200", "199", "198", "197"]
-    
-    # Common timestamp classes and IDs for faster lookup
-    TIMESTAMP_CLASSES = ["timestamp", "date", "time", "when", "posted", "created"]
-    TIMESTAMP_IDS = ["timestamp", "date", "time", "when", "posted", "created"]
-    DATA_ATTRS = ["data-timestamp", "data-date", "data-time", "data-when"]
-    
-    # Additional CSS selectors for performance optimization
-    ADDITIONAL_SELECTORS = {
-        "tel_links": "a.tel[href], a[href*='tel:']",
-        "img_src": "img[src]",
-        "vcard_links": "a.vcard[href], a[href*='vcard']",
-        "fn_elements": "span.fn, abbr.fn, div.fn, .fn",
-        "dt_elements": "abbr.dt, .dt, time[datetime]",
-        "published_elements": "abbr.published, .published, time[datetime]",  # For call/voicemail timestamps
-        "time_elements": "time[datetime], span[datetime], abbr[title]",
-        "duration_elements": "abbr.duration, .duration",
-        "transcription_elements": ".message, .transcription, .content",
-    }
-
-# Global string pool instance
-STRING_POOL = StringPool()
+# String pool is now imported from html_processor module
 
 # ====================================================================
 # ERROR HANDLING AND LOGGING UTILITIES
