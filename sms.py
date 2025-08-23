@@ -6919,6 +6919,52 @@ def extract_voicemail_info(
         return None
 
 
+def is_valid_phone_extraction(phone_candidate: str) -> bool:
+    """
+    Validate that a phone number candidate is not part of a log message or other inappropriate content.
+    
+    Args:
+        phone_candidate: The phone number string to validate
+        
+    Returns:
+        bool: True if the phone number looks legitimate, False if it's suspicious
+    """
+    # Check for log message patterns
+    log_patterns = [
+        "INFO", "DEBUG", "ERROR", "WARNING", "CRITICAL",
+        "2025-", "2024-", "2023-", "2022-", "2021-", "2020-",
+        "20:29:", "20:30:", "20:31:", "20:32:", "20:33:", "20:34:",
+        "SMS processing progress", "File processing progress",
+        "Completed SMS processing", "Completed processing"
+    ]
+    
+    # Check if any log pattern is contained in the candidate
+    for pattern in log_patterns:
+        if pattern in phone_candidate:
+            return False
+    
+    # Check if it looks like a reasonable phone number length
+    # Remove all non-digits and check length
+    digits_only = re.sub(r'[^0-9]', '', phone_candidate)
+    if len(digits_only) < 7 or len(digits_only) > 15:
+        return False
+    
+    # Additional validation: ensure it starts with + and contains only valid phone characters
+    if not phone_candidate.startswith('+'):
+        return False
+    
+    # Check for valid phone number characters only
+    valid_chars = set('+0123456789 -()')
+    if not all(c in valid_chars for c in phone_candidate):
+        return False
+    
+    # Check that it's not just a name/alias (no letters)
+    if re.search(r'[a-zA-Z]', phone_candidate):
+        return False
+    
+    return True
+
+
 def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Optional[str]:
     """Extract phone number from call/voicemail HTML."""
     try:
@@ -6932,25 +6978,62 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                 if phone_match:
                     return phone_match.group(1)
 
-        # Try to find phone number in text content
-        phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
-        text_content = soup.get_text()
-        phone_match = phone_pattern.search(text_content)
-        if phone_match:
-            return phone_match.group(1)
-
-        # Try to find name/alias
-        name_elements = soup.find_all(
-            ["span", "div", "p"],
-            class_=lambda x: x
-            and any(
-                word in str(x).lower() for word in ["name", "sender", "participant"]
-            ),
-        )
-        for element in name_elements:
+        # Try to find phone number in text content (but be more selective)
+        # Use a more restrictive pattern to avoid matching log messages or other text
+        phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{3,4}\s?\d{3,4}\s?\d{3,4})")
+        
+        # Only look in specific elements that are likely to contain phone numbers
+        # Avoid extracting from the entire document which might contain log messages
+        phone_candidates = []
+        
+        # Look in cite elements (sender information)
+        cite_elements = soup.find_all("cite")
+        for cite in cite_elements:
+            text = cite.get_text().strip()
+            if text and len(text) > 2:
+                phone_match = phone_pattern.search(text)
+                if phone_match:
+                    phone_candidates.append(phone_match.group(1))
+        
+        # Look in specific message elements
+        message_elements = soup.find_all("div", class_="message")
+        for msg in message_elements:
+            # Only look in the cite part of messages
+            cite = msg.find("cite")
+            if cite:
+                text = cite.get_text().strip()
+                if text and len(text) > 2:
+                    phone_match = phone_pattern.search(text)
+                    if phone_match:
+                        phone_candidates.append(phone_match.group(1))
+        
+        # Look in specific participant elements
+        participant_elements = soup.find_all(["span", "div"], class_=lambda x: x and any(word in str(x).lower() for word in ["sender", "participant", "contact"]))
+        for element in participant_elements:
             text = element.get_text().strip()
-            if text and len(text) > 2 and not text.isdigit():
-                return text
+            if text and len(text) > 2:
+                phone_match = phone_pattern.search(text)
+                if phone_match:
+                    phone_candidates.append(phone_match.group(1))
+        
+        # Return the first valid phone number found
+        if phone_candidates:
+            # Validate that it looks like a real phone number (not part of a log message)
+            for candidate in phone_candidates:
+                # Use the new validation function
+                if is_valid_phone_extraction(candidate):
+                    logger.debug(f"Found valid phone number: {candidate}")
+                    return candidate
+                else:
+                    logger.debug(f"Phone number candidate failed validation: {candidate}")
+            
+            # If all candidates fail validation, return None
+            logger.debug(f"All phone number candidates failed validation: {phone_candidates}")
+            return None
+
+        # Note: We don't return names/aliases from phone extraction functions
+        # Names should be extracted separately and not treated as phone numbers
+        # This prevents issues like "Kang_Landlord" being treated as a phone number
 
         # ENHANCED: Try to extract phone number from filename if provided
         if filename:

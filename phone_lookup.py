@@ -61,6 +61,7 @@ class PhoneLookupManager:
                 logger.info(
                     f"Loaded {len(self.phone_aliases)} phone number aliases from {self.lookup_file}"
                 )
+                logger.debug(f"Loaded aliases: {self.phone_aliases}")
             else:
                 # Create the file with a header
                 self.lookup_file.parent.mkdir(parents=True, exist_ok=True)
@@ -202,7 +203,11 @@ class PhoneLookupManager:
 
     def get_alias(self, phone_number: str, soup: Optional[BeautifulSoup] = None) -> str:
         """Get alias for a phone number, prompting user if not found and prompts are enabled."""
+        logger.debug(f"Looking up alias for phone number: '{phone_number}'")
+        logger.debug(f"Available aliases: {list(self.phone_aliases.keys())}")
+        
         if phone_number in self.phone_aliases:
+            logger.debug(f"Found existing alias for {phone_number}: {self.phone_aliases[phone_number]}")
             return self.phone_aliases[phone_number]
 
         if not self.enable_prompts:
