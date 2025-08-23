@@ -3643,7 +3643,6 @@ def write_sms_messages(
 
                 # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
                 if FILTER_NON_PHONE_NUMBERS:
-                    from utils import is_valid_phone_number
                     if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
                         logger.debug(f"Skipping message from {phone_number} - toll-free or non-US number filtered out")
                         skipped_count += 1
@@ -4543,7 +4542,6 @@ def write_mms_messages(
 
                 # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
                 if FILTER_NON_PHONE_NUMBERS:
-                    from utils import is_valid_phone_number
                     should_skip = False
                     for phone in participants:
                         if not is_valid_phone_number(str(phone), filter_non_phone=True):
@@ -6773,7 +6771,6 @@ def extract_call_info(
             
             # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
             if FILTER_NON_PHONE_NUMBERS:
-                from utils import is_valid_phone_number
                 if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
                     logger.debug(f"Skipping call from {phone_number} - toll-free or non-US number filtered out")
                     return None
@@ -6887,7 +6884,6 @@ def extract_voicemail_info(
             
             # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
             if FILTER_NON_PHONE_NUMBERS:
-                from utils import is_valid_phone_number
                 if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
                     logger.debug(f"Skipping voicemail from {phone_number} - toll-free or non-US number filtered out")
                     return None
