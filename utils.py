@@ -15,12 +15,13 @@ import phonenumbers
 logger = logging.getLogger(__name__)
 
 
-def is_valid_phone_number(phone_number: str) -> bool:
+def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> bool:
     """
     Check if a phone number is valid with enhanced validation.
     
     Args:
         phone_number: Phone number string to validate
+        filter_non_phone: If True, filter out shortcodes and other non-phone patterns
         
     Returns:
         bool: True if phone number appears valid, False otherwise
@@ -45,6 +46,22 @@ def is_valid_phone_number(phone_number: str) -> bool:
     # But only after we've checked for valid names
     if re.search(r'[a-zA-Z]', cleaned):
         return False
+    
+    # Enhanced filtering for non-phone numbers when enabled
+    if filter_non_phone:
+        # Filter out toll-free numbers (800, 877, 888, 866, 855, 844, 833, 822, 800, 888, 877, 866, 855, 844, 833, 822)
+        toll_free_patterns = [
+            r'^\+?1?8[0-9]{2}',  # 800, 801, 802, 803, 804, 805, 806, 807, 808, 809
+            r'^\+?1?8[7-9][0-9]',  # 870-899 (covers 877, 888, 866, 855, 844, 833, 822)
+        ]
+        
+        for pattern in toll_free_patterns:
+            if re.match(pattern, cleaned):
+                return False
+        
+        # Filter out non-US numbers (don't start with +1 or 1)
+        if not re.match(r'^\+?1', cleaned):
+            return False
     
     # Try the strict phonenumbers library validation first
     try:
@@ -75,6 +92,9 @@ def is_valid_phone_number(phone_number: str) -> bool:
             return True
     
     return False
+
+
+
 
 
 def normalize_phone_number(phone_number: str) -> str:

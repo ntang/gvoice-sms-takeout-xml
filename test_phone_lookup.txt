@@ -1,13 +1,8 @@
-# Test phone lookup file
+# Phone number lookup file
 # Format: phone_number|alias
 # Lines starting with # are comments
-# To exclude a number, use: phone_number|EXCLUDE:reason
-# Example: +1234567890|EXCLUDE:spam
-
-# Test aliases
-+15557776666|Jane Smith
++15551111111|Test_User
 +15552221111|George Washington
-
-# Test exclusions
-+15559999999|EXCLUDE:spam
++15557776666|Jane Smith
 +15558888888|EXCLUDE:marketing
++15559999999|EXCLUDE:spam

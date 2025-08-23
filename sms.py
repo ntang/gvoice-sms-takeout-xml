@@ -83,6 +83,7 @@ INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
 DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
 DATE_FILTER_NEWER_THAN = None  # Filter out messages newer than this date
 FILTER_NUMBERS_WITHOUT_ALIASES = False  # Filter out numbers without aliases
+FILTER_NON_PHONE_NUMBERS = False  # Filter out non-phone numbers like shortcodes
 
 # Progress logging configuration
 PROGRESS_INTERVAL_PERCENT = 25  # Report progress every 25%
@@ -3640,6 +3641,14 @@ def write_sms_messages(
                         skipped_count += 1
                         continue
 
+                # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
+                if FILTER_NON_PHONE_NUMBERS:
+                    from utils import is_valid_phone_number
+                    if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
+                        logger.debug(f"Skipping message from {phone_number} - toll-free or non-US number filtered out")
+                        skipped_count += 1
+                        continue
+
                 # Get alias for the phone number, with filename-based fallback
                 alias = PHONE_LOOKUP_MANAGER.get_alias(str(phone_number), None)
                 
@@ -4525,6 +4534,20 @@ def write_mms_messages(
                         if PHONE_LOOKUP_MANAGER.is_excluded(str(phone)):
                             exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone))
                             logger.debug(f"Skipping MMS from {phone} - explicitly excluded: {exclusion_reason}")
+                            should_skip = True
+                            break
+                    
+                    if should_skip:
+                        skipped_count += 1
+                        continue
+
+                # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
+                if FILTER_NON_PHONE_NUMBERS:
+                    from utils import is_valid_phone_number
+                    should_skip = False
+                    for phone in participants:
+                        if not is_valid_phone_number(str(phone), filter_non_phone=True):
+                            logger.debug(f"Skipping MMS from {phone} - toll-free or non-US number filtered out")
                             should_skip = True
                             break
                     
@@ -6747,6 +6770,13 @@ def extract_call_info(
                     exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
                     logger.debug(f"Skipping call from {phone_number} - explicitly excluded: {exclusion_reason}")
                     return None
+            
+            # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
+            if FILTER_NON_PHONE_NUMBERS:
+                from utils import is_valid_phone_number
+                if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
+                    logger.debug(f"Skipping call from {phone_number} - toll-free or non-US number filtered out")
+                    return None
                 
             return {
                 "type": call_type,
@@ -6853,6 +6883,13 @@ def extract_voicemail_info(
                 if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
                     exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
                     logger.debug(f"Skipping voicemail from {phone_number} - explicitly excluded: {exclusion_reason}")
+                    return None
+            
+            # NON-PHONE FILTERING: Skip toll-free and non-US numbers if filtering is enabled
+            if FILTER_NON_PHONE_NUMBERS:
+                from utils import is_valid_phone_number
+                if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
+                    logger.debug(f"Skipping voicemail from {phone_number} - toll-free or non-US number filtered out")
                     return None
                 
             return {
@@ -7635,6 +7672,7 @@ Examples:
         python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00"  # Filter with time precision
         python sms.py /path/to/gvoice/data --filter-no-alias  # Only process numbers with aliases/names
         python sms.py /path/to/gvoice/data --exclude-no-alias  # Alternative to --filter-no-alias
+        python sms.py /path/to/gvoice/data --filter-non-phone  # Filter out toll-free and non-US numbers
   
   # Default behavior: Service codes (verification codes, alerts) are filtered out for cleaner output
   # Use --include-service-codes to include all service codes and short codes
@@ -7867,6 +7905,12 @@ Output:
             help="Alternative to --filter-no-alias: exclude numbers without aliases",
         )
 
+        parser.add_argument(
+            "--filter-non-phone",
+            action="store_true",
+            help="Filter out toll-free numbers (800, 877, 888, etc.) and non-US numbers",
+        )
+
         args = parser.parse_args()
 
         # Handle create-config option
@@ -8037,6 +8081,13 @@ Output:
             logger.info("🔒 PHONE FILTERING ENABLED - Only processing numbers with aliases/names")
         else:
             logger.info("🔓 PHONE FILTERING DISABLED - Processing all phone numbers (default)")
+        
+        # Set non-phone number filtering
+        FILTER_NON_PHONE_NUMBERS = args.filter_non_phone
+        if FILTER_NON_PHONE_NUMBERS:
+            logger.info("🔒 NON-PHONE FILTERING ENABLED - Filtering out toll-free and non-US numbers")
+        else:
+            logger.info("🔓 NON-PHONE FILTERING DISABLED - Processing all numbers including toll-free and international (default)")
         
         # Parse and set date filters
         if args.older_than:

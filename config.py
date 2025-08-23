@@ -43,6 +43,7 @@ PHONE_NUMBER_MAX_LENGTH = 15
 # Phone filtering settings
 FILTER_NUMBERS_WITHOUT_ALIASES = False  # Default: include all numbers
 EXCLUDE_NUMBERS_WITHOUT_ALIASES = False  # Alternative name for the same setting
+FILTER_NON_PHONE_NUMBERS = False  # Default: include all numbers (even shortcodes)
 
 # Date filtering
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
