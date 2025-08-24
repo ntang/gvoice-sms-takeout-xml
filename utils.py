@@ -50,19 +50,23 @@ def extract_phone_numbers_from_text(text: str) -> List[str]:
     return unique_numbers
 
 
-def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> bool:
+def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
     """
     Check if a phone number is valid with enhanced validation.
     
     Args:
-        phone_number: Phone number string to validate
+        phone_number: Phone number string or integer to validate
         filter_non_phone: If True, filter out shortcodes and other non-phone patterns
         
     Returns:
         bool: True if phone number appears valid, False otherwise
     """
-    if not phone_number or not isinstance(phone_number, str):
+    if not phone_number:
         return False
+    
+    # Convert to string if it's an integer or other type
+    if not isinstance(phone_number, str):
+        phone_number = str(phone_number)
     
     # Clean the phone number
     cleaned = phone_number.strip()
@@ -72,6 +76,14 @@ def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> 
     # Skip if it's a fallback conversation ID
     if cleaned.startswith('unknown_'):
         return False
+    
+    # Handle hash-based fallback numbers (6-8 digits) for conversation management
+    # These are generated when no real phone number is found but we need a conversation identifier
+    # Must be exactly 6-8 digits, no more, no less
+    # Only accept these if they're not too long and not too short
+    if re.match(r'^[0-9]+$', cleaned) and 6 <= len(cleaned) <= 8:
+        # This is a hash-based fallback number, accept it for conversation purposes
+        return True
     
     # Handle names FIRST (allow them as valid "phone numbers" for conversation purposes)
     # But be more strict - names should have spaces (not just random letters)
@@ -125,6 +137,11 @@ def is_valid_phone_number(phone_number: str, filter_non_phone: bool = False) -> 
     if re.match(r'^\+?[0-9\s\-\(\)\.]+$', cleaned):
         # Remove all non-digits and check length
         digits_only = re.sub(r'[^0-9]', '', cleaned)
+        
+        # Reject numbers that are too long (more than 15 digits is not a valid phone number)
+        if len(digits_only) > 15:
+            return False
+            
         # Must be at least 10 digits for US numbers, 7 for international
         if len(digits_only) >= 10:
             # Must start with +1 for US numbers or have proper international format
