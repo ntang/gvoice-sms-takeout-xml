@@ -1364,7 +1364,12 @@ class TestSMSIntegration(unittest.TestCase):
         
         # This should not raise a NameError about 'soup' not being defined
         try:
-            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, soup=None)
+            # Create mock objects for required parameters
+            mock_conversation_manager = type('MockConversationManager', (), {})()
+            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+            
+            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, 
+                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
             # Function executed successfully
         except NameError as e:
             if 'soup' in str(e):
@@ -1373,7 +1378,7 @@ class TestSMSIntegration(unittest.TestCase):
                 # Other NameErrors are acceptable in this test context
                 pass
         except Exception:
-            # Other exceptions are expected in the test context
+            # Other exceptions are expected in this test context
             pass
 
     def test_message_type_determination_with_none_cite(self):
@@ -1495,7 +1500,12 @@ class TestSMSIntegration(unittest.TestCase):
         
         # This should not raise a NoneType error about soup.find_all
         try:
-            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, soup=None)
+            # Create mock objects for required parameters
+            mock_conversation_manager = type('MockConversationManager', (), {})()
+            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+            
+            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, 
+                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
             # Function executed successfully
         except AttributeError as e:
             if "'NoneType' object has no attribute 'find_all'" in str(e):
@@ -1567,7 +1577,12 @@ class TestSMSIntegration(unittest.TestCase):
         
         # This should not crash when soup is None
         try:
-            sms.write_mms_messages('test_mms_none_soup.html', participants_raw, messages, None, {}, soup=None)
+            # Create mock objects for required parameters
+            mock_conversation_manager = type('MockConversationManager', (), {})()
+            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+            
+            sms.write_mms_messages('test_mms_none_soup.html', participants_raw, messages, None, {}, 
+                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
             # Function should execute without NoneType errors
         except AttributeError as e:
             if "'NoneType' object has no attribute 'find_all'" in str(e):
@@ -1797,7 +1812,12 @@ class TestSMSIntegration(unittest.TestCase):
         
         # This should extract phone number from filename
         try:
-            sms.write_mms_messages(filename_with_phone, participants_raw, messages, None, {}, soup=None)
+            # Create mock objects for required parameters
+            mock_conversation_manager = type('MockConversationManager', (), {})()
+            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+            
+            sms.write_mms_messages(filename_with_phone, participants_raw, messages, None, {}, 
+                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
             # Function should execute without errors
         except Exception as e:
             self.fail(f"MMS processing with phone in filename should not fail: {e}")
@@ -1806,7 +1826,12 @@ class TestSMSIntegration(unittest.TestCase):
         filename_without_phone = "John Doe - Text - 2025-08-13T12_08_52Z.html"
         
         try:
-            sms.write_mms_messages(filename_without_phone, participants_raw, messages, None, {}, soup=None)
+            # Create mock objects for required parameters
+            mock_conversation_manager = type('MockConversationManager', (), {})()
+            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+            
+            sms.write_mms_messages(filename_without_phone, participants_raw, messages, None, {}, 
+                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
             # Function should execute without errors and create default participant
         except Exception as e:
             self.fail(f"MMS processing without phone in filename should not fail: {e}")
@@ -1894,12 +1919,18 @@ class TestSMSIntegration(unittest.TestCase):
                 messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
                 
                 try:
+                    # Create mock objects for required parameters
+                    mock_conversation_manager = type('MockConversationManager', (), {})()
+                    mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
+                    
                     sms.write_mms_messages(
                         test_case["filename"], 
                         test_case["participants_raw"], 
                         messages, 
                         None, 
                         {}, 
+                        mock_conversation_manager,
+                        mock_phone_lookup_manager,
                         soup=test_case["soup"]
                     )
                     # Function should execute without errors

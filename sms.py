@@ -782,7 +782,7 @@ def main():
         # Copy all mapped attachments
         logger.info("Copying mapped attachments...")
         copy_start = time.time()
-        copy_mapped_attachments(src_filename_map, str(OUTPUT_DIRECTORY))
+        copy_mapped_attachments(src_filename_map, str(OUTPUT_DIRECTORY), str(PROCESSING_DIRECTORY))
         copy_time = time.time() - copy_start
         logger.info(f"Attachment copying completed in {copy_time:.2f}s")
 
@@ -1824,6 +1824,8 @@ def process_sms_mms_file(
     soup: BeautifulSoup,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    conversation_manager: 'ConversationManager',
+    phone_lookup_manager: 'PhoneLookupManager'
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
     # Strategy 1: Use cached CSS selector for better performance
@@ -1967,6 +1969,8 @@ def process_sms_mms_file(
         messages_raw,
         own_number,
         src_filename_map,
+        conversation_manager,
+        phone_lookup_manager,
         page_participants_raw=participants_raw,
         soup=soup,
     )
@@ -2050,6 +2054,8 @@ def write_sms_messages(
     messages_raw: List,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    conversation_manager: 'ConversationManager',
+    phone_lookup_manager: 'PhoneLookupManager',
     page_participants_raw: Optional[List] = None,
     soup: Optional[BeautifulSoup] = None,
 ):
@@ -2248,6 +2254,8 @@ def write_sms_messages(
                         [message],
                         own_number,
                         src_filename_map,
+                        conversation_manager,
+                        phone_lookup_manager,
                         soup=None,  # No soup available in SMS context
                     )
                     processed_count += 1  # Count as processed, not skipped
@@ -2266,15 +2274,15 @@ def write_sms_messages(
                     continue
 
                 # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
-                if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
-                    if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
+                if FILTER_NUMBERS_WITHOUT_ALIASES and phone_lookup_manager:
+                    if not phone_lookup_manager.has_alias(str(phone_number)):
                         logger.debug(f"Skipping message from {phone_number} - no alias found and filtering enabled")
                         skipped_count += 1
                         continue
                     
                     # Also check if the number is explicitly excluded
-                    if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
-                        exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone_number))
+                    if phone_lookup_manager.is_excluded(str(phone_number)):
+                        exclusion_reason = phone_lookup_manager.get_exclusion_reason(str(phone_number))
                         logger.debug(f"Skipping message from {phone_number} - explicitly excluded: {exclusion_reason}")
                         skipped_count += 1
                         continue
@@ -2287,7 +2295,7 @@ def write_sms_messages(
                         continue
 
                 # Get alias for the phone number, with filename-based fallback
-                alias = PHONE_LOOKUP_MANAGER.get_alias(str(phone_number), None)
+                alias = phone_lookup_manager.get_alias(str(phone_number), None)
                 
                 # If no alias found, try to extract from filename
                 if not alias and file and " - Text -" in file:
@@ -2309,10 +2317,10 @@ def write_sms_messages(
                 sms_text = format_sms_xml(sms_values)
 
                 # Write to conversation file
-                conversation_id = CONVERSATION_MANAGER.get_conversation_id(
+                conversation_id = conversation_manager.get_conversation_id(
                     [str(phone_number)], False
                 )
-                if CONVERSATION_MANAGER.output_format == "html":
+                if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
                     message_text = sms_values.get("message", "")
                     if not message_text or message_text.strip() == "":
@@ -2320,7 +2328,7 @@ def write_sms_messages(
                     attachments = []
                     # Determine sender display for SMS
                     sender_display = "Me" if sms_values.get("type") == 2 else alias
-                    CONVERSATION_MANAGER.write_message_with_content(
+                    conversation_manager.write_message_with_content(
                         conversation_id,
                         message_text,
                         attachments,
@@ -2329,7 +2337,7 @@ def write_sms_messages(
                     )
                 else:
                     # For XML output, use the XML format
-                    CONVERSATION_MANAGER.write_message(
+                    conversation_manager.write_message(
                         conversation_id, sms_text, sms_values["time"]
                     )
 
@@ -2876,6 +2884,8 @@ def write_mms_messages(
     messages_raw: List,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    conversation_manager: 'ConversationManager',
+    phone_lookup_manager: 'PhoneLookupManager',
     soup: Optional[BeautifulSoup] = None,
 ):
     """
@@ -3159,17 +3169,17 @@ def write_mms_messages(
                     continue
 
                 # PHONE FILTERING: Skip numbers without aliases if filtering is enabled
-                if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
+                if FILTER_NUMBERS_WITHOUT_ALIASES and phone_lookup_manager:
                     # Check if any participant should be filtered out
                     should_skip = False
                     for phone in participants:
-                        if not PHONE_LOOKUP_MANAGER.has_alias(str(phone)):
+                        if not phone_lookup_manager.has_alias(str(phone)):
                             logger.debug(f"Skipping MMS from {phone} - no alias found and filtering enabled")
                             should_skip = True
                             break
                         
-                        if PHONE_LOOKUP_MANAGER.is_excluded(str(phone)):
-                            exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(str(phone))
+                        if phone_lookup_manager.is_excluded(str(phone)):
+                            exclusion_reason = phone_lookup_manager.get_exclusion_reason(str(phone))
                             logger.debug(f"Skipping MMS from {phone} - explicitly excluded: {exclusion_reason}")
                             should_skip = True
                             break
@@ -3202,7 +3212,7 @@ def write_mms_messages(
                         final_aliases.append(participant_aliases[participant_idx])
                     else:
                         # Fall back to phone lookup
-                        alias = PHONE_LOOKUP_MANAGER.get_alias(phone, None)
+                        alias = phone_lookup_manager.get_alias(phone, None)
                         final_aliases.append(alias)
 
                 # Determine if message has images or vCards
@@ -3232,10 +3242,10 @@ def write_mms_messages(
                 )
 
                 # Write to conversation file
-                conversation_id = CONVERSATION_MANAGER.get_conversation_id(
+                conversation_id = conversation_manager.get_conversation_id(
                     participants, True
                 )
-                if CONVERSATION_MANAGER.output_format == "html":
+                if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
                     message_text = message_content
                     if not message_text or message_text.strip() == "":
@@ -3274,11 +3284,11 @@ def write_mms_messages(
                             if idx < len(participant_aliases) and participant_aliases[idx]:
                                 sender_display = participant_aliases[idx]
                         # Fall back to phone lookup alias
-                        if PHONE_LOOKUP_MANAGER:
-                            sender_display = PHONE_LOOKUP_MANAGER.get_alias(sender_display, None)
+                        if phone_lookup_manager:
+                            sender_display = phone_lookup_manager.get_alias(sender_display, None)
                     except Exception:
                         pass
-                    CONVERSATION_MANAGER.write_message_with_content(
+                    conversation_manager.write_message_with_content(
                         conversation_id,
                         message_text,
                         attachments,
@@ -3287,7 +3297,7 @@ def write_mms_messages(
                     )
                 else:
                     # For XML output, use the XML format
-                    CONVERSATION_MANAGER.write_message(
+                    conversation_manager.write_message(
                         conversation_id, mms_xml, get_time_unix(message)
                     )
 
