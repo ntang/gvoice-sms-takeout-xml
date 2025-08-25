@@ -18,7 +18,7 @@ IMAGE_PART_TEMPLATE = '    <part seq="0" ct="image/{type}" name="{name}" chset="
 VCARD_PART_TEMPLATE = '    <part seq="0" ct="text/x-vCard" name="{name}" chset="null" cd="null" fn="null" cid="&lt;{name}&gt;" cl="{name}" ctt_s="null" ctt_t="null" text="null" data="attachments/{name}" />\n'
 
 # Call log XML template
-CALL_XML_TEMPLATE = '''<call number="{alias}" duration="{duration}" date="{time}" type="{call_type}" presentation="1" readable_date="{readable_date}" readable_duration="{readable_duration}" />'''
+CALL_XML_TEMPLATE = """<call number="{alias}" duration="{duration}" date="{time}" type="{call_type}" presentation="1" readable_date="{readable_date}" readable_duration="{readable_duration}" />"""
 
-# Voicemail XML template  
-VOICEMAIL_XML_TEMPLATE = '''<voicemail number="{alias}" duration="{duration}" date="{time}" transcription="{transcription}" />'''
+# Voicemail XML template
+VOICEMAIL_XML_TEMPLATE = """<voicemail number="{alias}" duration="{duration}" date="{time}" transcription="{transcription}" />"""

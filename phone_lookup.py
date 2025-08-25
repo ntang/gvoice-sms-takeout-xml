@@ -32,14 +32,15 @@ class PhoneLookupManager:
         self.lookup_file = lookup_file
         self.enable_prompts = enable_prompts
         self.phone_aliases = {}  # Maps phone numbers to aliases
-        
+
         # Thread safety: Add lock for file operations
         self._file_lock = threading.Lock()
-        
+
         self.load_aliases()
-        
+
         # Register cleanup handler to save aliases on exit
         import atexit
+
         atexit.register(self.force_save_aliases)
 
     def load_aliases(self):
@@ -55,16 +56,20 @@ class PhoneLookupManager:
                                     phone, alias = line.split("|", 1)
                                     phone = phone.strip()
                                     alias = alias.strip()
-                                    
+
                                     # Check for exclusion patterns
                                     if alias.startswith("EXCLUDE:"):
                                         # This number should be excluded from processing
-                                        self.phone_aliases[phone] = f"EXCLUDE:{alias[8:]}"
-                                        logger.debug(f"Loaded exclusion for {phone}: {alias}")
+                                        self.phone_aliases[
+                                            phone
+                                        ] = f"EXCLUDE:{alias[8:]}"
+                                        logger.debug(
+                                            f"Loaded exclusion for {phone}: {alias}"
+                                        )
                                     else:
                                         # Normal alias
                                         self.phone_aliases[phone] = alias
-                                        
+
                                 except ValueError:
                                     # Skip malformed lines
                                     continue
@@ -79,7 +84,9 @@ class PhoneLookupManager:
                         f.write("# Phone number lookup file\n")
                         f.write("# Format: phone_number|alias\n")
                         f.write("# Lines starting with # are comments\n")
-                        f.write("# To exclude a number, use: phone_number|EXCLUDE:reason\n")
+                        f.write(
+                            "# To exclude a number, use: phone_number|EXCLUDE:reason\n"
+                        )
                         f.write("# Example: +1234567890|EXCLUDE:spam\n")
                     logger.info(f"Created new phone lookup file: {self.lookup_file}")
             except Exception as e:
@@ -100,7 +107,7 @@ class PhoneLookupManager:
                 )
             except Exception as e:
                 logger.error(f"Failed to save phone aliases: {e}")
-        
+
     def save_aliases_batched(self, batch_every: int = 100):
         """Save aliases only every N new entries to reduce disk IO."""
         if not hasattr(self, "_unsaved_count"):
@@ -109,12 +116,14 @@ class PhoneLookupManager:
         if self._unsaved_count >= batch_every:
             self.save_aliases()
             self._unsaved_count = 0
-    
+
     def force_save_aliases(self):
         """Force save all aliases immediately to disk."""
         self.save_aliases()
-        logger.info(f"Force saved all {len(self.phone_aliases)} aliases to {self.lookup_file}")
-    
+        logger.info(
+            f"Force saved all {len(self.phone_aliases)} aliases to {self.lookup_file}"
+        )
+
     def get_unsaved_count(self) -> int:
         """Get the number of unsaved aliases."""
         if not hasattr(self, "_unsaved_count"):
@@ -178,7 +187,7 @@ class PhoneLookupManager:
                             name = fn_element.get_text(strip=True)
                             if name and name.lower() not in generic_phrases:
                                 return self.sanitize_alias(name)
-                        
+
                         # If no fn class, try to get the name directly from the tel link text
                         # This handles cases like: <a class="tel" href="tel:+1234567890">Name</a>
                         link_text = link.get_text(strip=True)
@@ -227,9 +236,11 @@ class PhoneLookupManager:
         """Get alias for a phone number, prompting user if not found and prompts are enabled."""
         logger.debug(f"Looking up alias for phone number: '{phone_number}'")
         logger.debug(f"Available aliases: {list(self.phone_aliases.keys())}")
-        
+
         if phone_number in self.phone_aliases:
-            logger.debug(f"Found existing alias for {phone_number}: {self.phone_aliases[phone_number]}")
+            logger.debug(
+                f"Found existing alias for {phone_number}: {self.phone_aliases[phone_number]}"
+            )
             return self.phone_aliases[phone_number]
 
         if not self.enable_prompts:
@@ -267,7 +278,9 @@ class PhoneLookupManager:
                 # CRITICAL: Save immediately to disk to prevent data loss
                 # Don't use batched saving for user-specified aliases
                 self.save_aliases()
-                logger.info(f"Immediately saved alias '{sanitized_alias}' for {phone_number} to {self.lookup_file}")
+                logger.info(
+                    f"Immediately saved alias '{sanitized_alias}' for {phone_number} to {self.lookup_file}"
+                )
 
                 return sanitized_alias
             else:
@@ -290,10 +303,12 @@ class PhoneLookupManager:
         """Manually add a phone number to alias mapping."""
         sanitized_alias = self.sanitize_alias(alias)
         self.phone_aliases[phone_number] = sanitized_alias
-        
+
         # CRITICAL: Save immediately to disk to prevent data loss
         self.save_aliases()
-        logger.info(f"Immediately saved alias '{sanitized_alias}' for phone number {phone_number} to {self.lookup_file}")
+        logger.info(
+            f"Immediately saved alias '{sanitized_alias}' for phone number {phone_number} to {self.lookup_file}"
+        )
 
     def is_excluded(self, phone_number: str) -> bool:
         """Check if a phone number is excluded from processing."""
@@ -321,7 +336,9 @@ class PhoneLookupManager:
         """Add a phone number to the exclusion list."""
         exclusion_alias = f"EXCLUDE:{reason}"
         self.phone_aliases[phone_number] = exclusion_alias
-        
+
         # CRITICAL: Save immediately to disk to prevent data loss
         self.save_aliases()
-        logger.info(f"Immediately saved exclusion for {phone_number}: {reason} to {self.lookup_file}")
+        logger.info(
+            f"Immediately saved exclusion for {phone_number}: {reason} to {self.lookup_file}"
+        )

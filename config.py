@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 # Logging configuration
 LOG_LEVEL = logging.INFO
-LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # File processing settings
 DEFAULT_BUFFER_SIZE = 8192
@@ -60,10 +60,10 @@ SUPPORTED_VCARD_TYPES = [".vcf", ".vcard"]
 # Date filtering
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 TIMESTAMP_PATTERNS = [
-    r'(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z)',  # 2024-01-01T12_00_00Z
-    r'(\d{4}-\d{2}-\d{2})',  # 2024-01-01
-    r'(\d{8})',  # 20240101
-    r'(\d{4}_\d{2}_\d{2})',  # 2024_01_01
+    r"(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z)",  # 2024-01-01T12_00_00Z
+    r"(\d{4}-\d{2}-\d{2})",  # 2024-01-01
+    r"(\d{8})",  # 20240101
+    r"(\d{4}_\d{2}_\d{2})",  # 2024_01_01
 ]
 
 # HTML parsing settings
@@ -285,40 +285,52 @@ DEFAULT_CONFIG = {
     "SUPPORTED_VCARD_TYPES": SUPPORTED_VCARD_TYPES,
 }
 
+
 def get_config() -> Dict[str, Any]:
     """Get default configuration."""
     return DEFAULT_CONFIG.copy()
 
+
 def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Validate and sanitize configuration values."""
     validated = config.copy()
-    
+
     # Validate buffer size
-    if not isinstance(validated.get("buffer_size"), int) or validated["buffer_size"] <= 0:
+    if (
+        not isinstance(validated.get("buffer_size"), int)
+        or validated["buffer_size"] <= 0
+    ):
         validated["buffer_size"] = DEFAULT_BUFFER_SIZE
-    
+
     # Validate batch size
     if not isinstance(validated.get("batch_size"), int) or validated["batch_size"] <= 0:
         validated["batch_size"] = DEFAULT_BATCH_SIZE
-    
+
     # Validate output format
     if validated.get("output_format") not in ["xml", "html"]:
         validated["output_format"] = DEFAULT_OUTPUT_FORMAT
-    
+
     # Validate encoding
     if not validated.get("encoding"):
         validated["encoding"] = DEFAULT_ENCODING
-    
+
     # Validate boolean flags
-    for key in ["enable_prompts", "strict_mode", "include_service_codes", "test_mode", "large_dataset"]:
+    for key in [
+        "enable_prompts",
+        "strict_mode",
+        "include_service_codes",
+        "test_mode",
+        "large_dataset",
+    ]:
         if not isinstance(validated.get(key), bool):
             validated[key] = DEFAULT_CONFIG[key]
-    
+
     # Validate test limit
     if not isinstance(validated.get("test_limit"), int) or validated["test_limit"] < 0:
         validated["test_limit"] = DEFAULT_CONFIG["test_limit"]
-    
+
     return validated
+
 
 def get_output_directory(base_dir: Path, config: Dict[str, Any]) -> Path:
     """Get output directory based on configuration."""
@@ -327,12 +339,14 @@ def get_output_directory(base_dir: Path, config: Dict[str, Any]) -> Path:
         output_dir = output_dir / "html"
     else:
         output_dir = output_dir / "xml"
-    
+
     return output_dir
+
 
 def get_attachments_directory(base_dir: Path) -> Path:
     """Get attachments directory."""
     return base_dir / ATTACHMENTS_DIR
+
 
 def get_index_file_path(output_dir: Path) -> Path:
     """Get index file path."""

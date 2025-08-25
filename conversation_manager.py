@@ -13,14 +13,14 @@ from typing import Dict, List, Optional, Union
 from datetime import datetime
 
 from templates import (
-    format_index_template, 
-    format_conversation_template, 
+    format_index_template,
+    format_conversation_template,
     SMS_XML_TEMPLATE,
     MMS_XML_TEMPLATE,
     TEXT_PART_TEMPLATE,
     PARTICIPANT_TEMPLATE,
     IMAGE_PART_TEMPLATE,
-    VCARD_PART_TEMPLATE
+    VCARD_PART_TEMPLATE,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class StringBuilder:
         if text:
             self.parts.append(text)
             self.length += len(text)
-            
+
             # Prevent excessive memory usage by limiting parts list size
             if len(self.parts) > 1000:  # Arbitrary limit to prevent memory leaks
                 # Combine parts into larger chunks to reduce list size
@@ -66,14 +66,14 @@ class StringBuilder:
 
     def __len__(self):
         return self.length
-    
+
     def cleanup(self):
         """Clean up memory by combining parts and reducing list size."""
         if len(self.parts) > 100:
             combined = "".join(self.parts)
             self.parts = [combined]
             self.length = len(combined)
-    
+
     def __del__(self):
         """Cleanup when object is destroyed."""
         self.cleanup()
@@ -148,6 +148,7 @@ class ConversationManager:
                 # Use the phone lookup manager if available, otherwise use phone number
                 try:
                     from sms import PHONE_LOOKUP_MANAGER
+
                     if PHONE_LOOKUP_MANAGER:
                         alias = PHONE_LOOKUP_MANAGER.get_alias(phone, None)
                     else:
@@ -178,7 +179,9 @@ class ConversationManager:
 
                 # Create stable hash for remaining participants
                 remaining_participants = unique_aliases[5:]
-                stable = hashlib.sha1("_".join(remaining_participants).encode("utf-8")).hexdigest()[:6]
+                stable = hashlib.sha1(
+                    "_".join(remaining_participants).encode("utf-8")
+                ).hexdigest()[:6]
 
                 conversation_id = (
                     "_".join(truncated_aliases)
@@ -200,6 +203,7 @@ class ConversationManager:
                 # Validate that the phone number is valid
                 try:
                     from sms import is_valid_phone_number
+
                     if not is_valid_phone_number(phone_number):
                         return "unknown"
                 except (AttributeError, NameError, ImportError):
@@ -208,6 +212,7 @@ class ConversationManager:
                 # Get alias for the phone number
                 try:
                     from sms import PHONE_LOOKUP_MANAGER
+
                     if PHONE_LOOKUP_MANAGER:
                         alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, None)
                     else:
@@ -320,7 +325,9 @@ class ConversationManager:
                     sorted_messages = sorted(file_info["messages"], key=lambda x: x[0])
 
                     if self.output_format == "xml":
-                        self._finalize_xml_file(file_info, sorted_messages, conversation_id)
+                        self._finalize_xml_file(
+                            file_info, sorted_messages, conversation_id
+                        )
                     elif self.output_format == "html":
                         self._finalize_html_file(
                             file_info, sorted_messages, conversation_id
@@ -624,6 +631,7 @@ class ConversationManager:
                 # Try to use XML parser for XML files to avoid warnings
                 try:
                     from bs4 import BeautifulSoup
+
                     soup = BeautifulSoup(content, "xml")
                 except Exception:
                     # Fall back to HTML parser if XML parser is not available
@@ -631,6 +639,7 @@ class ConversationManager:
             else:
                 # Use HTML parser for HTML files
                 from bs4 import BeautifulSoup
+
                 soup = BeautifulSoup(content, "html.parser")
 
             # Initialize counters
@@ -729,7 +738,7 @@ class ConversationManager:
         # Write sorted messages in optimized batches
         batch_size = self._batch_size
         for i in range(0, len(sorted_messages), batch_size):
-            batch = sorted_messages[i:i + batch_size]
+            batch = sorted_messages[i : i + batch_size]
             # Use generator expression for memory efficiency
             batch_content = "".join(xml_content for _, xml_content in batch)
             file_info["file"].write(batch_content)
@@ -874,6 +883,7 @@ class ConversationManager:
 
             # First try to extract SMS message content from body attribute
             import re
+
             body_match = re.search(r'body="([^"]*)"', message_content)
             if body_match:
                 message_text = body_match.group(1)
@@ -900,12 +910,12 @@ class ConversationManager:
                     )
                 else:
                     # Fallback: look for content between tags
-                    text_match = re.search(r'<text>([^<]*)</text>', message_content)
+                    text_match = re.search(r"<text>([^<]*)</text>", message_content)
                     if text_match:
                         message_text = text_match.group(1)
                     else:
                         # Last resort: look for content between tags
-                        content_match = re.search(r'>([^<]+)<', message_content)
+                        content_match = re.search(r">([^<]+)<", message_content)
                         if content_match:
                             message_text = content_match.group(1)
 
@@ -914,7 +924,7 @@ class ConversationManager:
             if re.search(r'ct="image/[^"]*"', message_content):
                 attachments.append("📷 Image")
             # Check for traditional HTML img tags
-            elif re.search(r'<img', message_content):
+            elif re.search(r"<img", message_content):
                 attachments.append("📷 Image")
             # Check for vCard attachments
             if re.search(r'<a[^>]*class=[\'"]vcard[\'"][^>]*>', message_content):
@@ -922,12 +932,12 @@ class ConversationManager:
             # Check for audio attachments
             if re.search(r'ct="audio/[^"]*"', message_content):
                 attachments.append("🎵 Audio")
-            elif re.search(r'<audio', message_content):
+            elif re.search(r"<audio", message_content):
                 attachments.append("🎵 Audio")
             # Check for video attachments
             if re.search(r'ct="video/[^"]*"', message_content):
                 attachments.append("🎬 Video")
-            elif re.search(r'<video', message_content):
+            elif re.search(r"<video", message_content):
                 attachments.append("🎬 Video")
 
             # Clean up message text
@@ -944,28 +954,37 @@ class ConversationManager:
             # Log the specific error and the content that caused it for debugging
             logger.error(f"Failed to extract message content: {e}")
             logger.debug(f"Problematic content: {message_content[:200]}...")
-            
+
             # Try to extract any readable text as a last resort
             try:
                 # Strip HTML tags and extract any remaining text
                 import re
-                text_only = re.sub(r'<[^>]+>', '', message_content)
-                text_only = re.sub(r'&[^;]+;', ' ', text_only)  # Replace HTML entities
-                text_only = re.sub(r'\s+', ' ', text_only).strip()  # Normalize whitespace
-                
+
+                text_only = re.sub(r"<[^>]+>", "", message_content)
+                text_only = re.sub(r"&[^;]+;", " ", text_only)  # Replace HTML entities
+                text_only = re.sub(
+                    r"\s+", " ", text_only
+                ).strip()  # Normalize whitespace
+
                 if text_only and len(text_only) > 5:
-                    return f"[Partial content: {text_only[:100]}{'...' if len(text_only) > 100 else ''}]", "-"
+                    return (
+                        f"[Partial content: {text_only[:100]}{'...' if len(text_only) > 100 else ''}]",
+                        "-",
+                    )
             except Exception:
                 pass
-            
+
             return "[Error parsing message]", "-"
 
     def _extract_sender_from_raw(self, message_content: str) -> str:
         """Best-effort sender extraction from raw XML/HTML content for legacy writes."""
         try:
             import re
+
             # Look for addr entries in MMS XML
-            m = re.search(r'<addr[^>]*address="([^"]+)"[^>]*type="137"', message_content)
+            m = re.search(
+                r'<addr[^>]*address="([^"]+)"[^>]*type="137"', message_content
+            )
             if m:
                 return m.group(1)
             # Look for tel: links

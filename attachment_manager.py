@@ -49,12 +49,20 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 
         for i, html_file in enumerate(html_files):
             try:
-                with open(html_file, "r", encoding="utf-8", buffering=STRING_POOL.FILE_READ_BUFFER_SIZE) as file:
+                with open(
+                    html_file,
+                    "r",
+                    encoding="utf-8",
+                    buffering=STRING_POOL.FILE_READ_BUFFER_SIZE,
+                ) as file:
                     soup = BeautifulSoup(file, STRING_POOL.HTML_PARSER)
 
                     # Extract image src attributes - use cached selector for performance
                     img_srcs = [
-                        img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
+                        img["src"]
+                        for img in soup.select(
+                            STRING_POOL.ADDITIONAL_SELECTORS["img_src"]
+                        )
                     ]
                     for src in img_srcs:
                         if src not in src_to_files:
@@ -64,7 +72,9 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
                     # Extract vCard href attributes - use cached selector for performance
                     vcard_hrefs = [
                         a["href"]
-                        for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
+                        for a in soup.select(
+                            STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"]
+                        )
                     ]
                     for src in vcard_hrefs:
                         if src not in src_to_files:
@@ -73,7 +83,9 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 
                 # Report progress every 100 files
                 if (i + 1) % 100 == 0:
-                    logger.info(f"Processed {i + 1}/{total_files} files, found {len(src_to_files)} unique src elements")
+                    logger.info(
+                        f"Processed {i + 1}/{total_files} files, found {len(src_to_files)} unique src elements"
+                    )
 
             except Exception as e:
                 logger.warning(f"Failed to process {html_file}: {e}")
@@ -94,78 +106,90 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 def list_att_filenames_with_progress(processing_directory: str = None) -> List[str]:
     """
     List all attachment filenames in the processing directory with progress tracking.
-    
+
     Args:
         processing_directory: Directory to search for attachments
-        
+
     Returns:
         List of attachment filenames
     """
     if processing_directory is None:
         processing_directory = "."
-        
+
     att_filenames = []
-    
+
     try:
         # Look for common attachment file extensions
         attachment_extensions = [
-            "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.webp",  # Images
-            "*.vcf", "*.vcard",  # vCards
-            "*.mp3", "*.wav", "*.m4a",  # Audio files
-            "*.mp4", "*.avi", "*.mov",  # Video files
+            "*.jpg",
+            "*.jpeg",
+            "*.png",
+            "*.gif",
+            "*.bmp",
+            "*.webp",  # Images
+            "*.vcf",
+            "*.vcard",  # vCards
+            "*.mp3",
+            "*.wav",
+            "*.m4a",  # Audio files
+            "*.mp4",
+            "*.avi",
+            "*.mov",  # Video files
         ]
-        
+
         total_files = 0
         for ext in attachment_extensions:
             files = list(Path(processing_directory).rglob(ext))
             total_files += len(files)
-            
+
         logger.info(f"Found {total_files} potential attachment files")
-        
+
         # Collect all attachment files
         for ext in attachment_extensions:
             files = list(Path(processing_directory).rglob(ext))
             for file_path in files:
                 att_filenames.append(file_path.name)
-                
+
         logger.info(f"Collected {len(att_filenames)} attachment filenames")
-        
+
     except Exception as e:
         logger.error(f"Failed to list attachment filenames: {e}")
-        
+
     return att_filenames
 
 
 def normalize_filename(filename: str) -> str:
     """
     Normalize a filename for consistent comparison.
-    
+
     Args:
         filename: Original filename
-        
+
     Returns:
         Normalized filename
     """
     # Remove common file extensions
     base_name = filename
-    for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.vcf', '.vcard']:
+    for ext in [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".vcf", ".vcard"]:
         if filename.lower().endswith(ext):
-            base_name = filename[:-len(ext)]
+            base_name = filename[: -len(ext)]
             break
-            
+
     # Remove common prefixes/suffixes
-    base_name = base_name.replace('att_', '').replace('_att', '')
-    
+    base_name = base_name.replace("att_", "").replace("_att", "")
+
     return base_name
 
 
-def build_attachment_mapping_with_progress(processing_directory: str = None) -> Dict[str, str]:
+def build_attachment_mapping_with_progress(
+    processing_directory: str = None,
+) -> Dict[str, str]:
     """
     Build mapping from src elements to attachment filenames with progress tracking.
-    
+
     Args:
         processing_directory: Directory to search for HTML files and attachments
-        
+
     Returns:
         Dictionary mapping src elements to attachment filenames
     """
@@ -287,10 +311,14 @@ def build_attachment_mapping_with_progress(processing_directory: str = None) -> 
     return mapping
 
 
-def copy_mapped_attachments(src_filename_map: Dict[str, str], output_directory: str = None, source_directory: str = None) -> None:
+def copy_mapped_attachments(
+    src_filename_map: Dict[str, str],
+    output_directory: str = None,
+    source_directory: str = None,
+) -> None:
     """
     Copy all mapped attachments to the output directory.
-    
+
     Args:
         src_filename_map: Mapping of src elements to attachment filenames
         output_directory: Directory to copy attachments to
@@ -298,19 +326,21 @@ def copy_mapped_attachments(src_filename_map: Dict[str, str], output_directory: 
     """
     if output_directory is None:
         output_directory = "conversations"
-    
+
     if source_directory is None:
         # Default to current directory if not specified
         source_directory = "."
-        
+
     output_path = Path(output_directory)
     output_path.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Copying {len(src_filename_map)} mapped attachments from {source_directory} to {output_path}")
-    
+
+    logger.info(
+        f"Copying {len(src_filename_map)} mapped attachments from {source_directory} to {output_path}"
+    )
+
     copied_count = 0
     failed_count = 0
-    
+
     for src, filename in src_filename_map.items():
         try:
             # Look for the attachment file in the source directory and subdirectories
@@ -319,36 +349,44 @@ def copy_mapped_attachments(src_filename_map: Dict[str, str], output_directory: 
                 if filename in files:
                     source_file = Path(root) / filename
                     break
-                    
+
             if source_file and source_file.exists():
                 dest_file = output_path / filename
                 shutil.copy2(source_file, dest_file)
                 copied_count += 1
-                
+
                 if copied_count % 100 == 0:
-                    logger.info(f"Copied {copied_count}/{len(src_filename_map)} attachments")
+                    logger.info(
+                        f"Copied {copied_count}/{len(src_filename_map)} attachments"
+                    )
             else:
                 logger.warning(f"Attachment file not found: {filename}")
                 failed_count += 1
-                
+
         except Exception as e:
             logger.error(f"Failed to copy attachment {filename}: {e}")
             failed_count += 1
-            
-    logger.info(f"Attachment copying completed. Successfully copied {copied_count}, failed {failed_count}")
+
+    logger.info(
+        f"Attachment copying completed. Successfully copied {copied_count}, failed {failed_count}"
+    )
 
 
-def copy_attachments_parallel(filenames: Set[str], attachments_dir: Path, max_workers: int = 4) -> None:
+def copy_attachments_parallel(
+    filenames: Set[str], attachments_dir: Path, max_workers: int = 4
+) -> None:
     """
     Copy attachments in parallel for better performance.
-    
+
     Args:
         filenames: Set of attachment filenames to copy
         attachments_dir: Directory containing the attachments
         max_workers: Maximum number of parallel workers
     """
-    logger.info(f"Copying {len(filenames)} attachments in parallel using {max_workers} workers")
-    
+    logger.info(
+        f"Copying {len(filenames)} attachments in parallel using {max_workers} workers"
+    )
+
     def copy_single_attachment(filename: str) -> bool:
         try:
             source_file = attachments_dir / filename
@@ -364,16 +402,19 @@ def copy_attachments_parallel(filenames: Set[str], attachments_dir: Path, max_wo
         except Exception as e:
             logger.error(f"Failed to copy attachment {filename}: {e}")
             return False
-    
+
     # Thread-safe statistics tracking
     completed = 0
     failed = 0
     stats_lock = threading.Lock()
-    
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all copy tasks
-        future_to_filename = {executor.submit(copy_single_attachment, filename): filename for filename in filenames}
-        
+        future_to_filename = {
+            executor.submit(copy_single_attachment, filename): filename
+            for filename in filenames
+        }
+
         # Process completed tasks
         for future in as_completed(future_to_filename):
             filename = future_to_filename[future]
@@ -385,26 +426,30 @@ def copy_attachments_parallel(filenames: Set[str], attachments_dir: Path, max_wo
                         completed += 1
                     else:
                         failed += 1
-                    
+
                     # Log progress every 100 attachments
                     if (completed + failed) % 100 == 0:
-                        logger.info(f"Progress: {completed + failed}/{len(filenames)} attachments processed")
-                    
+                        logger.info(
+                            f"Progress: {completed + failed}/{len(filenames)} attachments processed"
+                        )
+
             except Exception as e:
                 logger.error(f"Exception occurred while copying {filename}: {e}")
                 with stats_lock:
                     failed += 1
-                
-    logger.info(f"Parallel attachment copying completed. Successfully copied {completed}, failed {failed}")
+
+    logger.info(
+        f"Parallel attachment copying completed. Successfully copied {completed}, failed {failed}"
+    )
 
 
 def validate_attachment_mapping(src_filename_map: Dict[str, str]) -> Dict[str, int]:
     """
     Validate the attachment mapping for completeness and correctness.
-    
+
     Args:
         src_filename_map: Mapping of src elements to attachment filenames
-        
+
     Returns:
         Dictionary with validation statistics
     """
@@ -415,7 +460,7 @@ def validate_attachment_mapping(src_filename_map: Dict[str, str]) -> Dict[str, i
         "missing_attachments": 0,
         "duplicate_attachments": 0,
     }
-    
+
     # Check for duplicate attachments
     attachment_counts = {}
     for src, filename in src_filename_map.items():
@@ -424,7 +469,7 @@ def validate_attachment_mapping(src_filename_map: Dict[str, str]) -> Dict[str, i
             validation_stats["duplicate_attachments"] += 1
         else:
             attachment_counts[filename] = 1
-            
+
     # Check if attachments exist
     for src, filename in src_filename_map.items():
         attachment_found = False
@@ -432,11 +477,11 @@ def validate_attachment_mapping(src_filename_map: Dict[str, str]) -> Dict[str, i
             if filename in files:
                 attachment_found = True
                 break
-                
+
         if attachment_found:
             validation_stats["valid_mappings"] += 1
         else:
             validation_stats["missing_attachments"] += 1
             validation_stats["invalid_mappings"] += 1
-            
+
     return validation_stats

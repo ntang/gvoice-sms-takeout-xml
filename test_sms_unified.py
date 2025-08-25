@@ -641,7 +641,9 @@ class TestSMSAdvanced(unittest.TestCase):
         # Set up the attrs attribute as a dictionary-like object
         mock_time.attrs = {"title": "2023-01-01T12:00:00.000Z"}
         # Set up dictionary-style access for the title attribute
-        mock_time.__getitem__ = Mock(side_effect=lambda key: {"title": "2023-01-01T12:00:00.000Z"}[key])
+        mock_time.__getitem__ = Mock(
+            side_effect=lambda key: {"title": "2023-01-01T12:00:00.000Z"}[key]
+        )
         # Also set up the get method for compatibility
         mock_time.get.return_value = "2023-01-01T12:00:00.000Z"
 
@@ -1161,8 +1163,12 @@ class TestSMSIntegration(unittest.TestCase):
 
         conversation_id = "sms_sender_display"
         # Simulate two messages: sent by Me and received from Alice
-        manager.write_message_with_content(conversation_id, "Hi", [], 1640995200000, sender="Me")
-        manager.write_message_with_content(conversation_id, "Hello", [], 1640995300000, sender="Alice")
+        manager.write_message_with_content(
+            conversation_id, "Hi", [], 1640995200000, sender="Me"
+        )
+        manager.write_message_with_content(
+            conversation_id, "Hello", [], 1640995300000, sender="Alice"
+        )
         manager.finalize_conversation_files()
 
         html_file = manager.output_dir / f"{conversation_id}.html"
@@ -1174,12 +1180,12 @@ class TestSMSIntegration(unittest.TestCase):
         """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
-        
+
         # Create a call file with a specific timestamp in HTML
         calls_dir = test_dir / "Calls"
         calls_dir.mkdir(parents=True, exist_ok=True)
         call_file = calls_dir / "test-call-2020.html"
-        
+
         # HTML with timestamp from 2020 - using published class like real Google Voice data
         call_html = """
         <html><head><title>Placed call</title></head><body>
@@ -1189,30 +1195,36 @@ class TestSMSIntegration(unittest.TestCase):
         </body></html>
         """
         call_file.write_text(call_html, encoding="utf-8")
-        
+
         # Wait a moment to ensure file mtime differs from content timestamp
         import time
+
         time.sleep(0.1)
-        
+
         # Touch the file to change its modification time to current time
         call_file.touch()
-        
+
         # Extract call info - should get timestamp from HTML content, not file mtime
         with open(call_file, "r", encoding="utf-8") as f:
             soup = BeautifulSoup(f.read(), "html.parser")
-        
+
         call_info = sms.extract_call_info(str(call_file), soup)
         self.assertIsNotNone(call_info)
         self.assertEqual(call_info["phone_number"], "+15550000001")
-        
+
         # Timestamp should be from 2020, not current time
-        expected_ts = int(datetime(2020, 6, 15, 14, 30, 0, tzinfo=timezone(timedelta(hours=-4))).timestamp() * 1000)
+        expected_ts = int(
+            datetime(
+                2020, 6, 15, 14, 30, 0, tzinfo=timezone(timedelta(hours=-4))
+            ).timestamp()
+            * 1000
+        )
         self.assertEqual(call_info["timestamp"], expected_ts)
-        
+
         # Verify file mtime is different (should be current time)
         file_mtime_ts = int(call_file.stat().st_mtime * 1000)
         self.assertNotEqual(call_info["timestamp"], file_mtime_ts)
-        
+
         # Test voicemail with different timestamp format
         vm_file = calls_dir / "test-vm-2019.html"
         vm_html = """
@@ -1224,17 +1236,22 @@ class TestSMSIntegration(unittest.TestCase):
         """
         vm_file.write_text(vm_html, encoding="utf-8")
         vm_file.touch()  # Update mtime to current time
-        
+
         with open(vm_file, "r", encoding="utf-8") as f:
             vm_soup = BeautifulSoup(f.read(), "html.parser")
-        
+
         vm_info = sms.extract_voicemail_info(str(vm_file), vm_soup)
         self.assertIsNotNone(vm_info)
-        
+
         # Should extract timestamp from HTML datetime attribute
-        expected_vm_ts = int(datetime(2019, 12, 25, 9, 15, 0, tzinfo=timezone(timedelta(hours=-5))).timestamp() * 1000)
+        expected_vm_ts = int(
+            datetime(
+                2019, 12, 25, 9, 15, 0, tzinfo=timezone(timedelta(hours=-5))
+            ).timestamp()
+            * 1000
+        )
         self.assertEqual(vm_info["timestamp"], expected_vm_ts)
-        
+
         # Verify it's not using file mtime
         vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
         self.assertNotEqual(vm_info["timestamp"], vm_file_mtime_ts)
@@ -1243,13 +1260,13 @@ class TestSMSIntegration(unittest.TestCase):
         """Test that published timestamps are correctly extracted from call/voicemail HTML."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create a voicemail file with the exact structure from real Google Voice data
         calls_dir = test_dir / "Calls"
         calls_dir.mkdir(parents=True, exist_ok=True)
-        
+
         vm_file = calls_dir / "real-voicemail.html"
-        vm_html = '''<?xml version="1.0" ?>
+        vm_html = """<?xml version="1.0" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -1264,39 +1281,53 @@ class TestSMSIntegration(unittest.TestCase):
 <span class="description"><span class="full-text">Test voicemail message</span></span>
 </div>
 </body>
-</html>'''
+</html>"""
         vm_file.write_text(vm_html, encoding="utf-8")
-        
+
         # Extract timestamp directly
         with open(vm_file, "r", encoding="utf-8") as f:
             vm_soup = BeautifulSoup(f.read(), "html.parser")
-        
+
         timestamp = sms.extract_timestamp_from_call(vm_soup)
-        
+
         # Verify the timestamp matches the published element
-        expected_ts = int(datetime(2011, 2, 26, 15, 19, 40, tzinfo=timezone(timedelta(hours=-5))).timestamp() * 1000)
-        self.assertEqual(timestamp, expected_ts, 
-                       "Should extract timestamp from abbr.published element")
-        
+        expected_ts = int(
+            datetime(
+                2011, 2, 26, 15, 19, 40, tzinfo=timezone(timedelta(hours=-5))
+            ).timestamp()
+            * 1000
+        )
+        self.assertEqual(
+            timestamp,
+            expected_ts,
+            "Should extract timestamp from abbr.published element",
+        )
+
         # Test that it's not using script execution time
         current_time = int(time.time() * 1000)
-        self.assertNotEqual(timestamp, current_time, 
-                           "Timestamp should not be current script execution time")
-        
+        self.assertNotEqual(
+            timestamp,
+            current_time,
+            "Timestamp should not be current script execution time",
+        )
+
         # Test that it's not using file modification time
         vm_file_mtime_ts = int(vm_file.stat().st_mtime * 1000)
-        self.assertNotEqual(timestamp, vm_file_mtime_ts,
-                           "Timestamp should not be file modification time")
+        self.assertNotEqual(
+            timestamp,
+            vm_file_mtime_ts,
+            "Timestamp should not be file modification time",
+        )
 
     def test_file_handle_management(self):
         """Test that file handles are properly managed to avoid 'too many open files' errors."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create multiple call files to test file handle management
         calls_dir = test_dir / "Calls"
         calls_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create several call files
         call_files = []
         for i in range(10):
@@ -1310,43 +1341,49 @@ class TestSMSIntegration(unittest.TestCase):
             """
             call_file.write_text(call_html, encoding="utf-8")
             call_files.append(call_file)
-        
+
         # Process all call files to test file handle management
         for call_file in call_files:
             try:
                 with open(call_file, "r", encoding="utf-8") as f:
                     soup = BeautifulSoup(f.read(), "html.parser")
-                
+
                 # Extract call info
                 call_info = sms.extract_call_info(str(call_file), soup)
-                self.assertIsNotNone(call_info, f"Should extract info from {call_file.name}")
-                
+                self.assertIsNotNone(
+                    call_info, f"Should extract info from {call_file.name}"
+                )
+
                 # Write call entry (this should not open additional file handles)
                 sms.write_call_entry(str(call_file), call_info, None, soup)
-                
+
             except Exception as e:
                 self.fail(f"File handle management failed for {call_file.name}: {e}")
-        
+
         # Verify that conversation files were created
         manager = sms.CONVERSATION_MANAGER
-        self.assertTrue(len(manager.conversation_files) > 0, 
-                       "Call entries should create conversation files")
-        
-                # Test that we can still open new files (no file handle leaks)
+        self.assertTrue(
+            len(manager.conversation_files) > 0,
+            "Call entries should create conversation files",
+        )
+
+        # Test that we can still open new files (no file handle leaks)
         test_file = test_dir / "test_file_handle_test.txt"
         test_file.write_text("test content", encoding="utf-8")
 
         with open(test_file, "r", encoding="utf-8") as f:
             content = f.read()
-        self.assertEqual(content, "test content", "Should still be able to open new files")
+        self.assertEqual(
+            content, "test content", "Should still be able to open new files"
+        )
 
     def test_mms_message_processing_with_soup_parameter(self):
         """Test that MMS message processing works correctly with soup parameter."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create test HTML with MMS message structure
-        test_html = '''
+        test_html = """
         <div class='message'>
             <cite class='sender vcard'>
                 <a class='tel' href='tel:+15551234567'>
@@ -1357,23 +1394,40 @@ class TestSMSIntegration(unittest.TestCase):
             <img src='test-image.jpg' alt='Test image'>
             <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
         </div>
-        '''
-        
-        messages = [BeautifulSoup(test_html, 'html.parser')]
-        participants_raw = [[BeautifulSoup('<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>', 'html.parser')]]
-        
+        """
+
+        messages = [BeautifulSoup(test_html, "html.parser")]
+        participants_raw = [
+            [
+                BeautifulSoup(
+                    '<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>',
+                    "html.parser",
+                )
+            ]
+        ]
+
         # This should not raise a NameError about 'soup' not being defined
         try:
             # Create mock objects for required parameters
-            mock_conversation_manager = type('MockConversationManager', (), {})()
-            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-            
-            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, 
-                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
+            mock_conversation_manager = type("MockConversationManager", (), {})()
+            mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
+            sms.write_mms_messages(
+                "test_mms.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                mock_conversation_manager,
+                mock_phone_lookup_manager,
+                soup=None,
+            )
             # Function executed successfully
         except NameError as e:
-            if 'soup' in str(e):
-                self.fail(f"MMS processing still references undefined 'soup' variable: {e}")
+            if "soup" in str(e):
+                self.fail(
+                    f"MMS processing still references undefined 'soup' variable: {e}"
+                )
             else:
                 # Other NameErrors are acceptable in this test context
                 pass
@@ -1385,24 +1439,28 @@ class TestSMSIntegration(unittest.TestCase):
         """Test that message type determination handles None cite elements gracefully."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create test HTML with no cite element
-        test_html = '''
+        test_html = """
         <div class='message'>
             <q>Test message without cite</q>
             <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
         </div>
-        '''
-        
-        message = BeautifulSoup(test_html, 'html.parser')
-        
+        """
+
+        message = BeautifulSoup(test_html, "html.parser")
+
         # This should not raise AttributeError about NoneType having no attribute 'span'
         try:
             message_type = sms.get_message_type(message)
             # Should return a valid message type (1 or 2)
-            self.assertIn(message_type, [1, 2], f"Message type should be 1 or 2, got {message_type}")
+            self.assertIn(
+                message_type,
+                [1, 2],
+                f"Message type should be 1 or 2, got {message_type}",
+            )
         except AttributeError as e:
-            if 'NoneType' in str(e) and 'span' in str(e):
+            if "NoneType" in str(e) and "span" in str(e):
                 self.fail(f"Message type determination still fails with None cite: {e}")
             else:
                 # Other AttributeErrors are acceptable
@@ -1415,74 +1473,86 @@ class TestSMSIntegration(unittest.TestCase):
         """Test get_time_unix with various HTML structures for timestamp extraction."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various timestamp formats and structures
         test_cases = [
             # Strategy 1: dt class with title
             {
                 "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test message</q></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 2: abbr with title
             {
                 "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test message</q></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 3: time with datetime
             {
                 "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test message</q></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 4: any element with datetime
             {
                 "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test message</q></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 5: ISO pattern in text
             {
                 "html": '<div class="message"><q>Test message</q><span>2024-05-12T11:30:00Z</span></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 6: Flexible date parsing
             {
                 "html": '<div class="message"><q>Test message</q><span>12/25/2024 3:45 PM</span></div>',
-                "should_extract": True
+                "should_extract": True,
             },
             # Strategy 7: Element text parsing
             {
                 "html": '<div class="message"><q>Test message</q><div>2024-06-18</div></div>',
-                "should_extract": True
-            }
+                "should_extract": True,
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i):
                 soup = BeautifulSoup(test_case["html"], "html.parser")
                 message = soup.find("div", class_="message")
                 if not message:
                     message = soup.find("div")  # Fallback if no message class
-                
+
                 result = sms.get_time_unix(message)
-                
+
                 # Verify the timestamp is reasonable (not epoch 0, not current time fallback)
-                self.assertIsInstance(result, int, f"Strategy {i+1} should return integer timestamp")
-                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
-                
+                self.assertIsInstance(
+                    result, int, f"Strategy {i+1} should return integer timestamp"
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Strategy {i+1} should return reasonable timestamp (after 2001)",
+                )
+
                 # Verify it's not the current time fallback (should be significantly different)
                 current_time = int(time.time() * 1000)
                 time_diff = abs(result - current_time)
-                self.assertGreater(time_diff, 1000000, f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)")
-                
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)",
+                )
+
                 # Log the actual timestamp for debugging
-                print(f"Strategy {i+1} extracted timestamp: {result} from {test_case['html']}")
+                print(
+                    f"Strategy {i+1} extracted timestamp: {result} from {test_case['html']}"
+                )
 
     def test_mms_processing_with_none_soup_parameter(self):
         """Test that MMS processing works correctly when soup parameter is None."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create test HTML with MMS message structure
-        test_html = '''
+        test_html = """
         <div class='message'>
             <cite class='sender vcard'>
                 <a class='tel' href='tel:+15551234567'>
@@ -1493,23 +1563,40 @@ class TestSMSIntegration(unittest.TestCase):
             <img src='test-image.jpg' alt='Test image'>
             <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
         </div>
-        '''
-        
-        messages = [BeautifulSoup(test_html, 'html.parser')]
-        participants_raw = [[BeautifulSoup('<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>', 'html.parser')]]
-        
+        """
+
+        messages = [BeautifulSoup(test_html, "html.parser")]
+        participants_raw = [
+            [
+                BeautifulSoup(
+                    '<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>',
+                    "html.parser",
+                )
+            ]
+        ]
+
         # This should not raise a NoneType error about soup.find_all
         try:
             # Create mock objects for required parameters
-            mock_conversation_manager = type('MockConversationManager', (), {})()
-            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-            
-            sms.write_mms_messages('test_mms.html', participants_raw, messages, None, {}, 
-                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
+            mock_conversation_manager = type("MockConversationManager", (), {})()
+            mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
+            sms.write_mms_messages(
+                "test_mms.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                mock_conversation_manager,
+                mock_phone_lookup_manager,
+                soup=None,
+            )
             # Function executed successfully
         except AttributeError as e:
             if "'NoneType' object has no attribute 'find_all'" in str(e):
-                self.fail(f"MMS processing still has NoneType error when soup is None: {e}")
+                self.fail(
+                    f"MMS processing still has NoneType error when soup is None: {e}"
+                )
             else:
                 # Other AttributeErrors are acceptable in this test context
                 pass
@@ -1521,68 +1608,79 @@ class TestSMSIntegration(unittest.TestCase):
         """Test timestamp extraction with edge cases and malformed HTML."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test edge cases that might cause timestamp extraction to fail
         edge_cases = [
             # Empty message
-            {
-                "html": '<div class="message"></div>',
-                "should_fail": True
-            },
+            {"html": '<div class="message"></div>', "should_fail": True},
             # Message with no timestamp elements
             {
                 "html": '<div class="message"><q>Just text, no timestamp</q></div>',
-                "should_fail": True
+                "should_fail": True,
             },
             # Message with malformed timestamp
             {
                 "html": '<div class="message"><abbr title="invalid-date">Invalid</abbr><q>Test</q></div>',
-                "should_fail": True
+                "should_fail": True,
             },
             # Message with very short text
-            {
-                "html": '<div class="message"><q>Hi</q></div>',
-                "should_fail": True
-            }
+            {"html": '<div class="message"><q>Hi</q></div>', "should_fail": True},
         ]
-        
+
         for i, test_case in enumerate(edge_cases):
             with self.subTest(i=i):
                 soup = BeautifulSoup(test_case["html"], "html.parser")
                 message = soup.find("div", class_="message")
                 if not message:
                     message = soup.find("div")
-                
+
                 if test_case["should_fail"]:
                     # Should fall back to current time
                     result = sms.get_time_unix(message)
                     current_time = int(time.time() * 1000)
                     # Allow for small timing differences (within 1 second)
-                    self.assertLess(abs(result - current_time), 1000, 
-                                  f"Edge case {i} should fall back to current time")
+                    self.assertLess(
+                        abs(result - current_time),
+                        1000,
+                        f"Edge case {i} should fall back to current time",
+                    )
                 else:
                     # Should extract valid timestamp
                     result = sms.get_time_unix(message)
-                    self.assertIsInstance(result, int, f"Edge case {i} should return valid timestamp")
-                    self.assertGreater(result, 0, f"Edge case {i} should return positive timestamp")
+                    self.assertIsInstance(
+                        result, int, f"Edge case {i} should return valid timestamp"
+                    )
+                    self.assertGreater(
+                        result, 0, f"Edge case {i} should return positive timestamp"
+                    )
 
     def test_mms_participant_extraction_with_none_soup(self):
         """Test that MMS participant extraction gracefully handles None soup parameter."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create test data that would normally require soup for participant extraction
-        messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
+        messages = [
+            BeautifulSoup('<div class="message"><q>Test MMS</q></div>', "html.parser")
+        ]
         participants_raw = []  # Empty participants to trigger fallback logic
-        
+
         # This should not crash when soup is None
         try:
             # Create mock objects for required parameters
-            mock_conversation_manager = type('MockConversationManager', (), {})()
-            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-            
-            sms.write_mms_messages('test_mms_none_soup.html', participants_raw, messages, None, {}, 
-                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
+            mock_conversation_manager = type("MockConversationManager", (), {})()
+            mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
+            sms.write_mms_messages(
+                "test_mms_none_soup.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                mock_conversation_manager,
+                mock_phone_lookup_manager,
+                soup=None,
+            )
             # Function should execute without NoneType errors
         except AttributeError as e:
             if "'NoneType' object has no attribute 'find_all'" in str(e):
@@ -1598,67 +1696,81 @@ class TestSMSIntegration(unittest.TestCase):
         """Test all timestamp fallback strategies comprehensively."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that each strategy is tried in order and works
         strategies = [
             # Strategy 1: dt class with title
             {
                 "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test</q></div>',
-                "description": "dt class with title attribute"
+                "description": "dt class with title attribute",
             },
             # Strategy 2: abbr with title (no dt class)
             {
                 "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test</q></div>',
-                "description": "abbr element with title attribute"
+                "description": "abbr element with title attribute",
             },
             # Strategy 3: time with datetime
             {
                 "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test</q></div>',
-                "description": "time element with datetime attribute"
+                "description": "time element with datetime attribute",
             },
             # Strategy 4: any element with datetime
             {
                 "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test</q></div>',
-                "description": "any element with datetime attribute"
+                "description": "any element with datetime attribute",
             },
             # Strategy 5: ISO pattern in text
             {
                 "html": '<div class="message"><q>Test</q><span>2024-05-12T11:30:00Z</span></div>',
-                "description": "ISO timestamp pattern in text content"
+                "description": "ISO timestamp pattern in text content",
             },
             # Strategy 6: Flexible date parsing
             {
                 "html": '<div class="message"><q>Test</q><span>12/25/2023 3:45 PM</span></div>',
-                "description": "flexible date/time parsing"
+                "description": "flexible date/time parsing",
             },
             # Strategy 7: Element text parsing
             {
                 "html": '<div class="message"><q>Test</q><div>2024-06-18</div></div>',
-                "description": "timestamp in element text"
-            }
+                "description": "timestamp in element text",
+            },
         ]
-        
+
         for i, strategy in enumerate(strategies):
             with self.subTest(i=i, strategy=strategy["description"]):
                 soup = BeautifulSoup(strategy["html"], "html.parser")
                 message = soup.find("div", class_="message")
                 if not message:
                     message = soup.find("div")
-                
+
                 # Should extract timestamp successfully
                 result = sms.get_time_unix(message)
-                self.assertIsInstance(result, int, f"Strategy {i+1} should return valid timestamp")
-                self.assertGreater(result, 0, f"Strategy {i+1} should return positive timestamp")
-                
+                self.assertIsInstance(
+                    result, int, f"Strategy {i+1} should return valid timestamp"
+                )
+                self.assertGreater(
+                    result, 0, f"Strategy {i+1} should return positive timestamp"
+                )
+
                 # Verify it's a reasonable timestamp (not epoch 0 or current time fallback)
                 current_time = int(time.time() * 1000)
                 # Allow for timezone differences and parsing variations
                 # The timestamp should be reasonable (not epoch 0, not too far in future)
-                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Strategy {i+1} should return reasonable timestamp (after 2001)",
+                )
                 # For past dates, ensure they're not unreasonably far in the future
                 # Allow up to 1 year in the future to account for timezone and parsing differences
-                max_allowed_future = current_time + (365 * 24 * 60 * 60 * 1000)  # 1 year in milliseconds
-                self.assertLess(result, max_allowed_future, f"Strategy {i+1} should not return unreasonably far future timestamp")
+                max_allowed_future = current_time + (
+                    365 * 24 * 60 * 60 * 1000
+                )  # 1 year in milliseconds
+                self.assertLess(
+                    result,
+                    max_allowed_future,
+                    f"Strategy {i+1} should not return unreasonably far future timestamp",
+                )
 
     def test_calls_and_voicemails_processed(self):
         """Ensure calls and voicemails are captured and timestamps vary."""
@@ -1713,125 +1825,157 @@ class TestSMSIntegration(unittest.TestCase):
         """Test all 10 enhanced timestamp extraction strategies comprehensively."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test all 10 strategies with various HTML structures
         test_cases = [
             # Strategy 1: dt class with title
             {
                 "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test</q></div>',
                 "description": "dt class with title attribute",
-                "filename": "test_strategy1.html"
+                "filename": "test_strategy1.html",
             },
             # Strategy 2: abbr with title (no dt class)
             {
                 "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test</q></div>',
                 "description": "abbr element with title attribute",
-                "filename": "test_strategy2.html"
+                "filename": "test_strategy2.html",
             },
             # Strategy 3: time with datetime
             {
                 "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test</q></div>',
                 "description": "time element with datetime attribute",
-                "filename": "test_strategy3.html"
+                "filename": "test_strategy3.html",
             },
             # Strategy 4: any element with datetime
             {
                 "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test</q></div>',
                 "description": "any element with datetime attribute",
-                "filename": "test_strategy4.html"
+                "filename": "test_strategy4.html",
             },
             # Strategy 5: ISO pattern in text
             {
                 "html": '<div class="message"><q>Test</q><span>2024-05-12T11:30:00Z</span></div>',
                 "description": "ISO timestamp pattern in text content",
-                "filename": "test_strategy5.html"
+                "filename": "test_strategy5.html",
             },
             # Strategy 6: Flexible date parsing
             {
                 "html": '<div class="message"><q>Test</q><span>12/25/2024 3:45 PM</span></div>',
                 "description": "flexible date/time parsing",
-                "filename": "test_strategy6.html"
+                "filename": "test_strategy6.html",
             },
             # Strategy 7: Element text parsing
             {
                 "html": '<div class="message"><q>Test</q><div>2024-06-18</div></div>',
                 "description": "timestamp in element text",
-                "filename": "test_strategy7.html"
+                "filename": "test_strategy7.html",
             },
             # Strategy 8: Element with timestamp class
             {
                 "html": '<div class="message"><q>Test</q><span class="timestamp">2024-07-20 14:30:00</span></div>',
                 "description": "element with timestamp class",
-                "filename": "test_strategy8.html"
+                "filename": "test_strategy8.html",
             },
             # Strategy 9: Element with timestamp id
             {
                 "html": '<div class="message"><q>Test</q><span id="timestamp">2024-08-15 09:45:00</span></div>',
                 "description": "element with timestamp id",
-                "filename": "test_strategy9.html"
+                "filename": "test_strategy9.html",
             },
             # Strategy 10: Element with data timestamp attribute
             {
                 "html": '<div class="message"><q>Test</q><span data-timestamp="2024-09-10 16:20:00"></span></div>',
                 "description": "element with data timestamp attribute",
-                "filename": "test_strategy10.html"
-            }
+                "filename": "test_strategy10.html",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, strategy=test_case["description"]):
                 soup = BeautifulSoup(test_case["html"], "html.parser")
                 message = soup.find("div", class_="message")
                 if not message:
                     message = soup.find("div")
-                
+
                 # Should extract timestamp successfully with filename parameter
                 result = sms.get_time_unix(message, test_case["filename"])
-                
+
                 # Verify the timestamp is reasonable
-                self.assertIsInstance(result, int, f"Strategy {i+1} should return integer timestamp")
-                self.assertGreater(result, 1000000000000, f"Strategy {i+1} should return reasonable timestamp (after 2001)")
-                
+                self.assertIsInstance(
+                    result, int, f"Strategy {i+1} should return integer timestamp"
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Strategy {i+1} should return reasonable timestamp (after 2001)",
+                )
+
                 # Verify it's not the current time fallback (should be significantly different)
                 current_time = int(time.time() * 1000)
                 time_diff = abs(result - current_time)
-                self.assertGreater(time_diff, 1000000, f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)")
-                
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Strategy {i+1} should not return current time fallback (diff: {time_diff}ms)",
+                )
+
                 # Log the actual timestamp for debugging
-                print(f"Strategy {i+1} ({test_case['description']}) extracted timestamp: {result} from {test_case['filename']}")
+                print(
+                    f"Strategy {i+1} ({test_case['description']}) extracted timestamp: {result} from {test_case['filename']}"
+                )
 
     def test_mms_participant_extraction_with_filename_fallback(self):
         """Test that MMS participant extraction works with filename-based fallback strategies."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test case 1: Filename with phone number
-        filename_with_phone = "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html"
-        messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
+        filename_with_phone = (
+            "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html"
+        )
+        messages = [
+            BeautifulSoup('<div class="message"><q>Test MMS</q></div>', "html.parser")
+        ]
         participants_raw = []  # Empty participants to trigger fallback logic
-        
+
         # This should extract phone number from filename
         try:
             # Create mock objects for required parameters
-            mock_conversation_manager = type('MockConversationManager', (), {})()
-            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-            
-            sms.write_mms_messages(filename_with_phone, participants_raw, messages, None, {}, 
-                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
+            mock_conversation_manager = type("MockConversationManager", (), {})()
+            mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
+            sms.write_mms_messages(
+                filename_with_phone,
+                participants_raw,
+                messages,
+                None,
+                {},
+                mock_conversation_manager,
+                mock_phone_lookup_manager,
+                soup=None,
+            )
             # Function should execute without errors
         except Exception as e:
             self.fail(f"MMS processing with phone in filename should not fail: {e}")
-        
+
         # Test case 2: Filename without phone number (should create default)
         filename_without_phone = "John Doe - Text - 2025-08-13T12_08_52Z.html"
-        
+
         try:
             # Create mock objects for required parameters
-            mock_conversation_manager = type('MockConversationManager', (), {})()
-            mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-            
-            sms.write_mms_messages(filename_without_phone, participants_raw, messages, None, {}, 
-                                  mock_conversation_manager, mock_phone_lookup_manager, soup=None)
+            mock_conversation_manager = type("MockConversationManager", (), {})()
+            mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
+            sms.write_mms_messages(
+                filename_without_phone,
+                participants_raw,
+                messages,
+                None,
+                {},
+                mock_conversation_manager,
+                mock_phone_lookup_manager,
+                soup=None,
+            )
             # Function should execute without errors and create default participant
         except Exception as e:
             self.fail(f"MMS processing without phone in filename should not fail: {e}")
@@ -1840,44 +1984,52 @@ class TestSMSIntegration(unittest.TestCase):
         """Test that error logging includes filename context for better debugging."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test case: Message with no timestamp elements (should trigger error logging)
         test_html = '<div class="message"><q>Just text, no timestamp</q></div>'
         test_filename = "no_timestamp_message.html"
-        
+
         soup = BeautifulSoup(test_html, "html.parser")
         message = soup.find("div", class_="message")
-        
+
         # Capture log output to verify filename is included
         import io
         import logging
-        
+
         # Create a string buffer to capture log output
         log_buffer = io.StringIO()
         log_handler = logging.StreamHandler(log_buffer)
-        log_handler.setLevel(logging.WARNING)  # Changed from ERROR to WARNING to capture fallback messages
-        
+        log_handler.setLevel(
+            logging.WARNING
+        )  # Changed from ERROR to WARNING to capture fallback messages
+
         # Get the logger and add our handler temporarily
         logger = logging.getLogger("sms")
         original_handlers = logger.handlers.copy()
         original_level = logger.level
         logger.setLevel(logging.WARNING)  # Ensure logger level allows warnings
         logger.addHandler(log_handler)
-        
+
         try:
             # This should now succeed with fallback strategies instead of failing
             result = sms.get_time_unix(message, test_filename)
-            
+
             # Verify that the function returned a valid timestamp (fallback behavior)
-            self.assertIsInstance(result, int, "Function should return a valid timestamp")
+            self.assertIsInstance(
+                result, int, "Function should return a valid timestamp"
+            )
             self.assertGreater(result, 0, "Timestamp should be positive")
-            
+
             # Get the log output to verify fallback behavior is logged
             log_output = log_buffer.getvalue()
-            
+
             # Verify that fallback behavior is logged (warning instead of error)
-            self.assertIn("Using current time as fallback timestamp", log_output, "Should log fallback behavior")
-            
+            self.assertIn(
+                "Using current time as fallback timestamp",
+                log_output,
+                "Should log fallback behavior",
+            )
+
         finally:
             # Restore original handlers and level
             logger.handlers = original_handlers
@@ -1888,7 +2040,7 @@ class TestSMSIntegration(unittest.TestCase):
         """Test all MMS participant extraction fallback strategies comprehensively."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various scenarios that should trigger different fallback strategies
         test_cases = [
             # Case 1: No participants, no soup, filename with phone
@@ -1896,158 +2048,181 @@ class TestSMSIntegration(unittest.TestCase):
                 "filename": "Alice Smith +15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "participants_raw": [],
                 "soup": None,
-                "description": "filename with phone number fallback"
+                "description": "filename with phone number fallback",
             },
             # Case 2: No participants, no soup, filename without phone
             {
                 "filename": "Bob Johnson - Text - 2025-08-13T12_08_52Z.html",
                 "participants_raw": [],
                 "soup": None,
-                "description": "filename without phone number fallback"
+                "description": "filename without phone number fallback",
             },
             # Case 3: No participants, with soup, but soup has no useful data
             {
                 "filename": "Carol Davis - Text - 2025-08-13T12_08_52Z.html",
                 "participants_raw": [],
-                "soup": BeautifulSoup('<html><body><p>No useful data</p></body></html>', 'html.parser'),
-                "description": "soup with no useful data fallback"
-            }
+                "soup": BeautifulSoup(
+                    "<html><body><p>No useful data</p></body></html>", "html.parser"
+                ),
+                "description": "soup with no useful data fallback",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
-                messages = [BeautifulSoup('<div class="message"><q>Test MMS</q></div>', 'html.parser')]
-                
+                messages = [
+                    BeautifulSoup(
+                        '<div class="message"><q>Test MMS</q></div>', "html.parser"
+                    )
+                ]
+
                 try:
                     # Create mock objects for required parameters
-                    mock_conversation_manager = type('MockConversationManager', (), {})()
-                    mock_phone_lookup_manager = type('MockPhoneLookupManager', (), {})()
-                    
+                    mock_conversation_manager = type(
+                        "MockConversationManager", (), {}
+                    )()
+                    mock_phone_lookup_manager = type("MockPhoneLookupManager", (), {})()
+
                     sms.write_mms_messages(
-                        test_case["filename"], 
-                        test_case["participants_raw"], 
-                        messages, 
-                        None, 
-                        {}, 
+                        test_case["filename"],
+                        test_case["participants_raw"],
+                        messages,
+                        None,
+                        {},
                         mock_conversation_manager,
                         mock_phone_lookup_manager,
-                        soup=test_case["soup"]
+                        soup=test_case["soup"],
                     )
                     # Function should execute without errors
                 except Exception as e:
-                    self.fail(f"MMS processing with {test_case['description']} should not fail: {e}")
+                    self.fail(
+                        f"MMS processing with {test_case['description']} should not fail: {e}"
+                    )
 
     def test_edge_case_timestamp_extraction(self):
         """Test timestamp extraction with extreme edge cases and malformed HTML."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test extreme edge cases
         edge_cases = [
             # Case 1: Empty message with only whitespace
             {
                 "html": '<div class="message">   </div>',
                 "filename": "empty_whitespace.html",
-                "should_fail": True
+                "should_fail": True,
             },
             # Case 2: Message with only punctuation
             {
                 "html": '<div class="message">!@#$%^&*()</div>',
                 "filename": "only_punctuation.html",
-                "should_fail": True
+                "should_fail": True,
             },
             # Case 3: Message with very short text
             {
                 "html": '<div class="message">Hi</div>',
                 "filename": "very_short.html",
-                "should_fail": True
+                "should_fail": True,
             },
             # Case 4: Message with malformed HTML
             {
                 "html": '<div class="message"><unclosed_tag>Test</div>',
                 "filename": "malformed_html.html",
-                "should_fail": True
+                "should_fail": True,
             },
             # Case 5: Message with nested malformed elements
             {
                 "html": '<div class="message"><span><div>Test</span></div>',
                 "filename": "nested_malformed.html",
-                "should_fail": True
-            }
+                "should_fail": True,
+            },
         ]
-        
+
         for i, test_case in enumerate(edge_cases):
             with self.subTest(i=i, case=test_case["filename"]):
                 soup = BeautifulSoup(test_case["html"], "html.parser")
                 message = soup.find("div", class_="message")
                 if not message:
                     message = soup.find("div")
-                
+
                 if test_case["should_fail"]:
                     # Should fall back to current time
                     result = sms.get_time_unix(message, test_case["filename"])
                     current_time = int(time.time() * 1000)
                     # Allow for small timing differences (within 1 second)
-                    self.assertLess(abs(result - current_time), 1000, 
-                                  f"Edge case {i} should fall back to current time")
+                    self.assertLess(
+                        abs(result - current_time),
+                        1000,
+                        f"Edge case {i} should fall back to current time",
+                    )
                 else:
                     # Should extract valid timestamp
                     result = sms.get_time_unix(message, test_case["filename"])
-                    self.assertIsInstance(result, int, f"Edge case {i} should return valid timestamp")
-                    self.assertGreater(result, 0, f"Edge case {i} should return positive timestamp")
+                    self.assertIsInstance(
+                        result, int, f"Edge case {i} should return valid timestamp"
+                    )
+                    self.assertGreater(
+                        result, 0, f"Edge case {i} should return positive timestamp"
+                    )
 
     def test_filename_based_participant_extraction(self):
         """Test that participant extraction from filename patterns works correctly."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various filename patterns
         filename_patterns = [
             # Pattern 1: Name - Text - Timestamp
             {
                 "filename": "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Susan Nowak Tang",
-                "description": "standard name - text - timestamp pattern"
+                "description": "standard name - text - timestamp pattern",
             },
             # Pattern 2: Name with Phone - Text - Timestamp
             {
                 "filename": "John Doe +15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "John Doe +15551234567",
-                "description": "name with phone - text - timestamp pattern"
+                "description": "name with phone - text - timestamp pattern",
             },
             # Pattern 3: Just Name - Text
             {
                 "filename": "Alice Smith - Text.html",
                 "expected_name": "Alice Smith",
-                "description": "name - text pattern without timestamp"
+                "description": "name - text pattern without timestamp",
             },
             # Pattern 4: Complex name with special characters
             {
                 "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
-                "description": "complex name with special characters"
-            }
+                "description": "complex name with special characters",
+            },
         ]
-        
+
         for i, test_case in enumerate(filename_patterns):
             with self.subTest(i=i, pattern=test_case["description"]):
                 # Test that the filename parsing logic works correctly
                 if " - Text -" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text -")[0]
-                    self.assertEqual(name_part, test_case["expected_name"], 
-                                   f"Filename parsing should extract correct name for {test_case['description']}")
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Filename parsing should extract correct name for {test_case['description']}",
+                    )
                 elif " - Text" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text")[0]
-                    self.assertEqual(name_part, test_case["expected_name"], 
-                                   f"Filename parsing should extract correct name for {test_case['description']}")
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Filename parsing should extract correct name for {test_case['description']}",
+                    )
 
     def test_timestamp_extraction_performance_with_filename(self):
         """Test that timestamp extraction performance is maintained with filename parameter."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create a complex message with multiple timestamp candidates
-        complex_html = '''
+        complex_html = """
         <div class="message">
             <abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr>
             <q>Test message</q>
@@ -2055,91 +2230,117 @@ class TestSMSIntegration(unittest.TestCase):
             <time datetime="2024-01-15T10:30:00Z">Jan 15</time>
             <div data-timestamp="2024-01-15T10:30:00Z">Extra info</div>
         </div>
-        '''
-        
+        """
+
         soup = BeautifulSoup(complex_html, "html.parser")
         message = soup.find("div", class_="message")
-        
+
         # Test performance: should still use Strategy 1 (fastest) even with filename parameter
         import time as time_module
-        
+
         start_time = time_module.time()
         result1 = sms.get_time_unix(message, "performance_test.html")
         end_time = time_module.time()
-        
+
         execution_time = end_time - start_time
-        
+
         # Should execute quickly (within 100ms)
-        self.assertLess(execution_time, 0.1, "Timestamp extraction should be fast even with filename parameter")
-        
+        self.assertLess(
+            execution_time,
+            0.1,
+            "Timestamp extraction should be fast even with filename parameter",
+        )
+
         # Should return the correct timestamp (Strategy 1 should win)
-        expected_time = int(datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        expected_time = int(
+            datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1000
+        )
         # Allow for timezone differences (within 6 hours)
         time_diff = abs(result1 - expected_time)
-        self.assertLess(time_diff, 21600000, "Should extract correct timestamp from Strategy 1")
-        
-        print(f"Performance test: extracted timestamp {result1} in {execution_time:.4f} seconds")
+        self.assertLess(
+            time_diff, 21600000, "Should extract correct timestamp from Strategy 1"
+        )
+
+        print(
+            f"Performance test: extracted timestamp {result1} in {execution_time:.4f} seconds"
+        )
 
     def test_filename_based_timestamp_extraction(self):
         """Test that timestamps can be extracted from filename patterns."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various filename timestamp patterns
         test_cases = [
             # Standard format: Name - Text - ISO timestamp
             {
                 "filename": "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html",
                 "expected_timestamp": "2025-08-13T12:08:52Z",
-                "description": "standard ISO timestamp with underscores"
+                "description": "standard ISO timestamp with underscores",
             },
             # Format with colons: Name - Text - ISO timestamp with colons
             {
                 "filename": "John Doe - Text - 2024-12-25T15:30:45Z.html",
                 "expected_timestamp": "2024-12-25T15:30:45Z",
-                "description": "ISO timestamp with colons"
+                "description": "ISO timestamp with colons",
             },
             # Different date format: Name - Text - different date
             {
                 "filename": "Alice Smith - Text - 2023-06-15T09:15:30Z.html",
                 "expected_timestamp": "2023-06-15T09:15:30Z",
-                "description": "different date and time"
+                "description": "different date and time",
             },
             # Edge case: very recent date
             {
                 "filename": "Bob Johnson - Text - 2025-01-01T00:00:00Z.html",
                 "expected_timestamp": "2025-01-01T00:00:00Z",
-                "description": "new year timestamp"
-            }
+                "description": "new year timestamp",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Create a message with no timestamp elements to force filename fallback
-                test_html = '<div class="message"><q>Test message with no timestamp</q></div>'
+                test_html = (
+                    '<div class="message"><q>Test message with no timestamp</q></div>'
+                )
                 soup = BeautifulSoup(test_html, "html.parser")
                 message = soup.find("div", class_="message")
-                
+
                 # Should extract timestamp from filename (Strategy 11)
                 result = sms.get_time_unix(message, test_case["filename"])
-                
+
                 # Verify the timestamp is reasonable and not current time fallback
-                self.assertIsInstance(result, int, f"Should return integer timestamp for {test_case['description']}")
-                self.assertGreater(result, 1000000000000, f"Should return reasonable timestamp (after 2001) for {test_case['description']}")
-                
+                self.assertIsInstance(
+                    result,
+                    int,
+                    f"Should return integer timestamp for {test_case['description']}",
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Should return reasonable timestamp (after 2001) for {test_case['description']}",
+                )
+
                 # Verify it's not the current time fallback
                 current_time = int(time.time() * 1000)
                 time_diff = abs(result - current_time)
-                self.assertGreater(time_diff, 1000000, f"Should not return current time fallback for {test_case['description']}")
-                
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Should not return current time fallback for {test_case['description']}",
+                )
+
                 # Log the actual timestamp for verification
-                print(f"Filename timestamp extraction: {test_case['description']} -> {result}")
+                print(
+                    f"Filename timestamp extraction: {test_case['description']} -> {result}"
+                )
 
     def test_enhanced_filename_participant_extraction(self):
         """Test enhanced participant extraction from various filename patterns."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various filename participant patterns
         test_cases = [
             # Case 1: Name with phone number
@@ -2147,82 +2348,95 @@ class TestSMSIntegration(unittest.TestCase):
                 "filename": "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Susan Nowak Tang +15551234567",
                 "expected_phone": "+15551234567",
-                "description": "name with phone number"
+                "description": "name with phone number",
             },
             # Case 2: Name with formatted phone
             {
                 "filename": "John Doe (555) 123-4567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "John Doe (555) 123-4567",
                 "expected_phone": "(555) 123-4567",
-                "description": "name with formatted phone"
+                "description": "name with formatted phone",
             },
             # Case 3: Name with spaced phone
             {
                 "filename": "Alice Smith 555 123 4567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Alice Smith 555 123 4567",
                 "expected_phone": "555 123 4567",
-                "description": "name with spaced phone"
+                "description": "name with spaced phone",
             },
             # Case 4: Just name, no phone
             {
                 "filename": "Bob Johnson - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Bob Johnson",
                 "expected_phone": None,
-                "description": "just name, no phone"
+                "description": "just name, no phone",
             },
             # Case 5: Complex name with special characters
             {
                 "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
                 "expected_phone": None,
-                "description": "complex name with special characters"
-            }
+                "description": "complex name with special characters",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test that the filename parsing logic works correctly
                 if " - Text -" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text -")[0]
-                    self.assertEqual(name_part, test_case["expected_name"], 
-                                   f"Filename parsing should extract correct name for {test_case['description']}")
-                    
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Filename parsing should extract correct name for {test_case['description']}",
+                    )
+
                     # Test phone number extraction if expected
                     if test_case["expected_phone"]:
                         # This would be tested in the actual MMS processing function
                         # For now, just verify the name extraction works
-                        self.assertIn(test_case["expected_phone"], name_part, 
-                                     f"Phone number should be in name part for {test_case['description']}")
+                        self.assertIn(
+                            test_case["expected_phone"],
+                            name_part,
+                            f"Phone number should be in name part for {test_case['description']}",
+                        )
 
     def test_filename_based_sms_alias_extraction(self):
         """Test that SMS processing uses filename information for better alias extraction."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that SMS processing can extract aliases from filenames
         test_filename = "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html"
-        
+
         # Create a test message
         test_html = '<div class="message"><q>Test SMS message</q></div>'
         soup = BeautifulSoup(test_html, "html.parser")
         message = soup.find("div", class_="message")
-        
+
         # Mock the phone lookup manager to return None (no alias found)
         original_get_alias = sms.PHONE_LOOKUP_MANAGER.get_alias
         sms.PHONE_LOOKUP_MANAGER.get_alias = lambda phone, default: None
-        
+
         try:
             # This should trigger the filename-based alias extraction
             # We can't easily test the full SMS processing without more setup,
             # but we can verify the filename parsing logic works
             if " - Text -" in test_filename:
                 name_part = test_filename.split(" - Text -")[0]
-                self.assertEqual(name_part, "Susan Nowak Tang", 
-                               "Should extract correct name from filename")
-                
+                self.assertEqual(
+                    name_part,
+                    "Susan Nowak Tang",
+                    "Should extract correct name from filename",
+                )
+
                 # Verify it looks like a person's name
-                self.assertGreater(len(name_part.strip()), 2, "Name should be longer than 2 characters")
-                self.assertFalse(name_part.strip().isdigit(), "Name should not be just digits")
+                self.assertGreater(
+                    len(name_part.strip()), 2, "Name should be longer than 2 characters"
+                )
+                self.assertFalse(
+                    name_part.strip().isdigit(), "Name should not be just digits"
+                )
         finally:
             # Restore original function
             sms.PHONE_LOOKUP_MANAGER.get_alias = original_get_alias
@@ -2231,7 +2445,7 @@ class TestSMSIntegration(unittest.TestCase):
         """Test filename parsing with various edge cases and malformed patterns."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test edge cases
         edge_cases = [
             # Case 1: Filename without " - Text -" pattern
@@ -2239,121 +2453,141 @@ class TestSMSIntegration(unittest.TestCase):
                 "filename": "just_a_filename.html",
                 "should_have_timestamp": False,
                 "should_have_name": False,
-                "description": "no text pattern"
+                "description": "no text pattern",
             },
             # Case 2: Filename with empty name part
             {
                 "filename": " - Text - 2025-08-13T12_08_52Z.html",
                 "should_have_timestamp": True,
                 "should_have_name": False,
-                "description": "empty name part"
+                "description": "empty name part",
             },
             # Case 3: Filename with only timestamp
             {
                 "filename": "Text - 2025-08-13T12_08_52Z.html",
                 "should_have_timestamp": True,
                 "should_have_name": False,
-                "description": "no name, just text and timestamp"
+                "description": "no name, just text and timestamp",
             },
             # Case 4: Malformed timestamp in filename
             {
                 "filename": "John Doe - Text - invalid-timestamp.html",
                 "should_have_timestamp": False,
                 "should_have_name": True,
-                "description": "malformed timestamp"
+                "description": "malformed timestamp",
             },
             # Case 5: Very long name
             {
                 "filename": "Dr. John Jacob Jingleheimer Schmidt III, Esq. - Text - 2025-08-13T12_08_52Z.html",
                 "should_have_timestamp": True,
                 "should_have_name": True,
-                "description": "very long name"
-            }
+                "description": "very long name",
+            },
         ]
-        
+
         for i, test_case in enumerate(edge_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test timestamp extraction
-                if test_case["should_have_timestamp"] and " - Text -" in test_case["filename"]:
+                if (
+                    test_case["should_have_timestamp"]
+                    and " - Text -" in test_case["filename"]
+                ):
                     # Create message with no timestamp to force filename fallback
                     test_html = '<div class="message"><q>Test</q></div>'
                     soup = BeautifulSoup(test_html, "html.parser")
                     message = soup.find("div", class_="message")
-                    
+
                     try:
                         result = sms.get_time_unix(message, test_case["filename"])
                         # Should either extract timestamp or fall back to current time
-                        self.assertIsInstance(result, int, f"Should return integer timestamp for {test_case['description']}")
+                        self.assertIsInstance(
+                            result,
+                            int,
+                            f"Should return integer timestamp for {test_case['description']}",
+                        )
                     except Exception as e:
                         # If timestamp extraction fails, it should fall back gracefully
-                        self.assertIn("Message timestamp element not found", str(e), 
-                                     f"Should raise appropriate error for {test_case['description']}")
-                
+                        self.assertIn(
+                            "Message timestamp element not found",
+                            str(e),
+                            f"Should raise appropriate error for {test_case['description']}",
+                        )
+
                 # Test name extraction
-                if test_case["should_have_name"] and " - Text -" in test_case["filename"]:
+                if (
+                    test_case["should_have_name"]
+                    and " - Text -" in test_case["filename"]
+                ):
                     name_part = test_case["filename"].split(" - Text -")[0]
                     if name_part.strip():  # Only test if there's actually a name
-                        self.assertGreater(len(name_part.strip()), 0, 
-                                         f"Should extract non-empty name for {test_case['description']}")
+                        self.assertGreater(
+                            len(name_part.strip()),
+                            0,
+                            f"Should extract non-empty name for {test_case['description']}",
+                        )
 
     def test_filename_timestamp_performance(self):
         """Test that filename-based timestamp extraction is performant."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test performance of filename timestamp extraction
         test_filename = "Performance Test - Text - 2025-08-13T12_08_52Z.html"
-        
+
         # Create a message with no timestamp elements to force filename fallback
         test_html = '<div class="message"><q>Performance test message</q></div>'
         soup = BeautifulSoup(test_html, "html.parser")
         message = soup.find("div", class_="message")
-        
+
         import time as time_module
-        
+
         # Measure performance
         start_time = time_module.time()
         result = sms.get_time_unix(message, test_filename)
         end_time = time_module.time()
-        
+
         execution_time = end_time - start_time
-        
+
         # Should execute quickly (within 100ms)
-        self.assertLess(execution_time, 0.1, "Filename timestamp extraction should be fast")
-        
+        self.assertLess(
+            execution_time, 0.1, "Filename timestamp extraction should be fast"
+        )
+
         # Should return a valid timestamp
         self.assertIsInstance(result, int, "Should return integer timestamp")
         self.assertGreater(result, 1000000000000, "Should return reasonable timestamp")
-        
-        print(f"Filename timestamp extraction performance: {execution_time:.4f} seconds")
+
+        print(
+            f"Filename timestamp extraction performance: {execution_time:.4f} seconds"
+        )
 
     def test_numeric_filename_handling(self):
         """Test handling of numeric-only filenames that currently get skipped."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test numeric-only filenames that should be handled gracefully
         test_cases = [
             # Case 1: Pure numeric filename
             {
                 "filename": "22891 - Text - 2022-04-22T18_31_20Z.html",
                 "should_be_processed": True,
-                "description": "pure numeric filename"
+                "description": "pure numeric filename",
             },
             # Case 2: Numeric with text
             {
                 "filename": "12345 - Text - 2021-12-31T19_09_30Z.html",
                 "should_be_processed": True,
-                "description": "numeric with text pattern"
+                "description": "numeric with text pattern",
             },
             # Case 3: Mixed numeric and text
             {
                 "filename": "286669 - Text - 2021-08-01T12_33_13Z.html",
                 "should_be_processed": True,
-                "description": "mixed numeric and text"
-            }
+                "description": "mixed numeric and text",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test that numeric filenames can be processed
@@ -2362,23 +2596,28 @@ class TestSMSIntegration(unittest.TestCase):
                     timestamp_part = test_case["filename"].split(" - Text -")[1]
                     if timestamp_part.endswith(".html"):
                         timestamp_part = timestamp_part[:-5]
-                    
+
                     # Should be able to parse timestamp
                     timestamp_part = timestamp_part.replace("_", ":")
                     try:
                         # This should work for valid timestamps
                         time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
-                        self.assertIsInstance(time_obj, datetime, 
-                                           f"Should parse timestamp for {test_case['description']}")
+                        self.assertIsInstance(
+                            time_obj,
+                            datetime,
+                            f"Should parse timestamp for {test_case['description']}",
+                        )
                     except Exception as e:
                         # If parsing fails, it should be due to invalid timestamp, not filename format
-                        self.fail(f"Timestamp parsing should work for {test_case['description']}: {e}")
+                        self.fail(
+                            f"Timestamp parsing should work for {test_case['description']}: {e}"
+                        )
 
     def test_improved_name_extraction_from_filenames(self):
         """Test that name extraction from filenames works better than generic name_hashes."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test cases that should extract actual names instead of generic hashes
         test_cases = [
             # Case 1: Simple name
@@ -2386,49 +2625,60 @@ class TestSMSIntegration(unittest.TestCase):
                 "filename": "Charles Tang - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Charles Tang",
                 "should_not_be_generic": True,
-                "description": "simple name extraction"
+                "description": "simple name extraction",
             },
             # Case 2: Name with phone
             {
                 "filename": "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Susan Nowak Tang +15551234567",
                 "should_not_be_generic": True,
-                "description": "name with phone extraction"
+                "description": "name with phone extraction",
             },
             # Case 3: Complex name
             {
                 "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
                 "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
                 "should_not_be_generic": True,
-                "description": "complex name extraction"
-            }
+                "description": "complex name extraction",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 if " - Text -" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text -")[0]
-                    
+
                     # Should extract the actual name
-                    self.assertEqual(name_part, test_case["expected_name"], 
-                                   f"Should extract correct name for {test_case['description']}")
-                    
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Should extract correct name for {test_case['description']}",
+                    )
+
                     # Should not be a generic hash
                     if test_case["should_not_be_generic"]:
-                        self.assertFalse(name_part.startswith("name_"), 
-                                       f"Should not generate generic name hash for {test_case['description']}")
-                        self.assertFalse(name_part.startswith("default_"), 
-                                       f"Should not generate default participant for {test_case['description']}")
+                        self.assertFalse(
+                            name_part.startswith("name_"),
+                            f"Should not generate generic name hash for {test_case['description']}",
+                        )
+                        self.assertFalse(
+                            name_part.startswith("default_"),
+                            f"Should not generate default participant for {test_case['description']}",
+                        )
 
     def test_mms_participant_extraction_improvements(self):
         """Test that MMS participant extraction works better and doesn't skip messages."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that MMS messages with name-based filenames get proper participants
         test_filename = "Charles Tang - Text - 2025-08-13T12_08_52Z.html"
-        test_messages = [BeautifulSoup('<div class="message"><q>Test MMS message</q></div>', 'html.parser')]
-        
+        test_messages = [
+            BeautifulSoup(
+                '<div class="message"><q>Test MMS message</q></div>', "html.parser"
+            )
+        ]
+
         # This should create a proper participant instead of generic name_hash
         try:
             # Mock the participant extraction to see what happens
@@ -2436,20 +2686,31 @@ class TestSMSIntegration(unittest.TestCase):
             # but we can verify the filename parsing logic works correctly
             if " - Text -" in test_filename:
                 name_part = test_filename.split(" - Text -")[0]
-                
+
                 # Should extract the actual name
-                self.assertEqual(name_part, "Charles Tang", 
-                               "Should extract actual name from filename")
-                
+                self.assertEqual(
+                    name_part,
+                    "Charles Tang",
+                    "Should extract actual name from filename",
+                )
+
                 # Should be suitable for participant creation
-                self.assertGreater(len(name_part.strip()), 2, "Name should be long enough")
-                self.assertFalse(name_part.strip().isdigit(), "Name should not be just digits")
-                
+                self.assertGreater(
+                    len(name_part.strip()), 2, "Name should be long enough"
+                )
+                self.assertFalse(
+                    name_part.strip().isdigit(), "Name should not be just digits"
+                )
+
                 # Should not generate generic participant names
-                self.assertFalse(name_part.startswith("name_"), 
-                               "Should not generate generic name hash")
-                self.assertFalse(name_part.startswith("default_"), 
-                               "Should not generate default participant")
+                self.assertFalse(
+                    name_part.startswith("name_"),
+                    "Should not generate generic name hash",
+                )
+                self.assertFalse(
+                    name_part.startswith("default_"),
+                    "Should not generate default participant",
+                )
         except Exception as e:
             self.fail(f"MMS participant extraction should work: {e}")
 
@@ -2457,116 +2718,140 @@ class TestSMSIntegration(unittest.TestCase):
         """Test timestamp extraction from various filename timestamp formats."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various timestamp formats found in filenames
         test_cases = [
             # Case 1: Standard ISO with underscores
             {
                 "filename": "Test - Text - 2025-08-13T12_08_52Z.html",
                 "expected_timestamp": "2025-08-13T12:08:52Z",
-                "description": "ISO with underscores"
+                "description": "ISO with underscores",
             },
             # Case 2: Different date format
             {
                 "filename": "Test - Text - 2022-04-22T18_31_20Z.html",
                 "expected_timestamp": "2022-04-22T18:31:20Z",
-                "description": "different date with underscores"
+                "description": "different date with underscores",
             },
             # Case 3: Very old date
             {
                 "filename": "Test - Text - 2011-05-18T19_48_15Z.html",
                 "expected_timestamp": "2011-05-18T19:48:15Z",
-                "description": "very old date"
+                "description": "very old date",
             },
             # Case 4: Recent date
             {
                 "filename": "Test - Text - 2025-07-01T15_39_34Z.html",
                 "expected_timestamp": "2025-07-01T15:39:34Z",
-                "description": "recent date"
-            }
+                "description": "recent date",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Create message with no timestamp to force filename fallback
                 test_html = '<div class="message"><q>Test message</q></div>'
                 soup = BeautifulSoup(test_html, "html.parser")
                 message = soup.find("div", class_="message")
-                
+
                 # Should extract timestamp from filename (Strategy 11)
                 result = sms.get_time_unix(message, test_case["filename"])
-                
+
                 # Verify the timestamp is reasonable
-                self.assertIsInstance(result, int, f"Should return integer timestamp for {test_case['description']}")
-                self.assertGreater(result, 1000000000000, f"Should return reasonable timestamp for {test_case['description']}")
-                
+                self.assertIsInstance(
+                    result,
+                    int,
+                    f"Should return integer timestamp for {test_case['description']}",
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Should return reasonable timestamp for {test_case['description']}",
+                )
+
                 # Verify it's not the current time fallback
                 current_time = int(time.time() * 1000)
                 time_diff = abs(result - current_time)
-                self.assertGreater(time_diff, 1000000, f"Should not return current time fallback for {test_case['description']}")
-                
-                print(f"Filename timestamp extraction: {test_case['description']} -> {result}")
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Should not return current time fallback for {test_case['description']}",
+                )
+
+                print(
+                    f"Filename timestamp extraction: {test_case['description']} -> {result}"
+                )
 
     def test_conversation_file_generation_quality(self):
         """Test that conversation files are generated with proper names and content."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that conversation files get proper names instead of generic hashes
         test_cases = [
             # Case 1: Name-based filename should generate name-based conversation
             {
                 "filename": "Charles Tang - Text - 2025-08-13T12_08_52Z.html",
                 "expected_conversation_name": "Charles Tang",
-                "description": "name-based conversation generation"
+                "description": "name-based conversation generation",
             },
             # Case 2: Phone-based filename should generate phone-based conversation
             {
                 "filename": "+15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_conversation_name": "+15551234567",
-                "description": "phone-based conversation generation"
+                "description": "phone-based conversation generation",
             },
             # Case 3: Mixed filename should prioritize name
             {
                 "filename": "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html",
                 "expected_conversation_name": "Susan Nowak Tang +15551234567",
-                "description": "mixed filename conversation generation"
-            }
+                "description": "mixed filename conversation generation",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 if " - Text -" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text -")[0]
-                    
+
                     # Should extract the expected name/phone
-                    self.assertEqual(name_part, test_case["expected_conversation_name"], 
-                                   f"Should extract correct conversation name for {test_case['description']}")
-                    
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_conversation_name"],
+                        f"Should extract correct conversation name for {test_case['description']}",
+                    )
+
                     # Should be suitable for file naming
-                    self.assertGreater(len(name_part.strip()), 0, "Conversation name should not be empty")
-                    
+                    self.assertGreater(
+                        len(name_part.strip()),
+                        0,
+                        "Conversation name should not be empty",
+                    )
+
                     # Should not contain invalid characters for filenames
-                    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+                    invalid_chars = ["<", ">", ":", '"', "/", "\\", "|", "?", "*"]
                     for char in invalid_chars:
-                        self.assertNotIn(char, name_part, 
-                                       f"Conversation name should not contain invalid character '{char}'")
+                        self.assertNotIn(
+                            char,
+                            name_part,
+                            f"Conversation name should not contain invalid character '{char}'",
+                        )
 
     def test_performance_with_filename_extraction(self):
         """Test that filename-based extraction doesn't impact performance significantly."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test performance of filename-based extraction
         test_filename = "Performance Test - Text - 2025-08-13T12_08_52Z.html"
-        
+
         # Create a message with no timestamp elements to force filename fallback
         test_html = '<div class="message"><q>Performance test message</q></div>'
         soup = BeautifulSoup(test_html, "html.parser")
         message = soup.find("div", class_="message")
-        
+
         import time as time_module
-        
+
         # Measure performance multiple times to get average
         times = []
         for _ in range(10):
@@ -2574,115 +2859,154 @@ class TestSMSIntegration(unittest.TestCase):
             result = sms.get_time_unix(message, test_filename)
             end_time = time_module.time()
             times.append(end_time - start_time)
-        
+
         avg_time = sum(times) / len(times)
         max_time = max(times)
-        
+
         # Should execute quickly (within 50ms average, 100ms max)
-        self.assertLess(avg_time, 0.05, f"Filename timestamp extraction should be fast (avg: {avg_time:.4f}s)")
-        self.assertLess(max_time, 0.1, f"Filename timestamp extraction should be consistently fast (max: {max_time:.4f}s)")
-        
+        self.assertLess(
+            avg_time,
+            0.05,
+            f"Filename timestamp extraction should be fast (avg: {avg_time:.4f}s)",
+        )
+        self.assertLess(
+            max_time,
+            0.1,
+            f"Filename timestamp extraction should be consistently fast (max: {max_time:.4f}s)",
+        )
+
         # Should return valid timestamp
         self.assertIsInstance(result, int, "Should return integer timestamp")
         self.assertGreater(result, 1000000000000, "Should return reasonable timestamp")
-        
-        print(f"Filename timestamp extraction performance: avg={avg_time:.4f}s, max={max_time:.4f}s")
+
+        print(
+            f"Filename timestamp extraction performance: avg={avg_time:.4f}s, max={max_time:.4f}s"
+        )
 
     def test_error_handling_for_malformed_filenames(self):
         """Test that malformed filenames are handled gracefully without crashing."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various malformed filename scenarios
         malformed_cases = [
             # Case 1: Empty filename
             {
                 "filename": "",
                 "should_handle_gracefully": True,
-                "description": "empty filename"
+                "description": "empty filename",
             },
             # Case 2: Filename with no pattern
             {
                 "filename": "just_a_filename.html",
                 "should_handle_gracefully": True,
-                "description": "no text pattern"
+                "description": "no text pattern",
             },
             # Case 3: Filename with malformed timestamp
             {
                 "filename": "Test - Text - invalid-timestamp.html",
                 "should_handle_gracefully": True,
-                "description": "malformed timestamp"
+                "description": "malformed timestamp",
             },
             # Case 4: Filename with only timestamp
             {
                 "filename": " - Text - 2025-08-13T12_08_52Z.html",
                 "should_handle_gracefully": True,
-                "description": "empty name part"
-            }
+                "description": "empty name part",
+            },
         ]
-        
+
         for i, test_case in enumerate(malformed_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Create a test message
                 test_html = '<div class="message"><q>Test message</q></div>'
                 soup = BeautifulSoup(test_html, "html.parser")
                 message = soup.find("div", class_="message")
-                
+
                 try:
                     # Should handle malformed filenames gracefully
                     result = sms.get_time_unix(message, test_case["filename"])
-                    
+
                     # Should return some timestamp (either extracted or fallback)
-                    self.assertIsInstance(result, int, f"Should return integer timestamp for {test_case['description']}")
-                    self.assertGreater(result, 0, f"Should return positive timestamp for {test_case['description']}")
-                    
+                    self.assertIsInstance(
+                        result,
+                        int,
+                        f"Should return integer timestamp for {test_case['description']}",
+                    )
+                    self.assertGreater(
+                        result,
+                        0,
+                        f"Should return positive timestamp for {test_case['description']}",
+                    )
+
                 except Exception as e:
                     # If it raises an exception, it should be a known, expected error
-                    self.assertIn("Message timestamp element not found", str(e), 
-                                 f"Should raise appropriate error for {test_case['description']}")
+                    self.assertIn(
+                        "Message timestamp element not found",
+                        str(e),
+                        f"Should raise appropriate error for {test_case['description']}",
+                    )
 
     def test_conversation_id_generation_consistency(self):
         """Test that conversation IDs are generated consistently for the same participants."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that the same participants always generate the same conversation ID
         test_participants = ["+15551234567", "Susan Nowak Tang"]
-        
+
         # Generate conversation ID multiple times
         conversation_ids = []
         for _ in range(5):
-            conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(test_participants, True)
+            conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(
+                test_participants, True
+            )
             conversation_ids.append(conversation_id)
-        
+
         # All conversation IDs should be the same
         unique_ids = set(conversation_ids)
-        self.assertEqual(len(unique_ids), 1, 
-                        f"Same participants should always generate same conversation ID, got: {unique_ids}")
-        
+        self.assertEqual(
+            len(unique_ids),
+            1,
+            f"Same participants should always generate same conversation ID, got: {unique_ids}",
+        )
+
         # Test with different participant orders
         reversed_participants = list(reversed(test_participants))
-        reversed_conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(reversed_participants, True)
-        
+        reversed_conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(
+            reversed_participants, True
+        )
+
         # Should generate different IDs for different orders (this is correct behavior)
-        self.assertNotEqual(conversation_ids[0], reversed_conversation_id, 
-                           "Conversation ID should be order-dependent for proper conversation management")
-        
+        self.assertNotEqual(
+            conversation_ids[0],
+            reversed_conversation_id,
+            "Conversation ID should be order-dependent for proper conversation management",
+        )
+
         # But both should be valid conversation IDs
-        self.assertIsInstance(conversation_ids[0], str, "Conversation ID should be string")
-        self.assertIsInstance(reversed_conversation_id, str, "Reversed conversation ID should be string")
-        
-        print(f"Conversation ID generation test: {conversation_ids[0]} (consistent across 5 calls)")
-        print(f"Reversed order generates: {reversed_conversation_id} (different, as expected)")
-    
+        self.assertIsInstance(
+            conversation_ids[0], str, "Conversation ID should be string"
+        )
+        self.assertIsInstance(
+            reversed_conversation_id, str, "Reversed conversation ID should be string"
+        )
+
+        print(
+            f"Conversation ID generation test: {conversation_ids[0]} (consistent across 5 calls)"
+        )
+        print(
+            f"Reversed order generates: {reversed_conversation_id} (different, as expected)"
+        )
+
     def test_service_code_filtering_command_line(self):
         """Test that service code filtering can be controlled via command line arguments."""
         test_dir = Path(self.test_dir)
-        
+
         # Test default behavior (service codes filtered out)
         sms.INCLUDE_SERVICE_CODES = False
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Service codes should be skipped by default
         test_cases = [
             "262966 - Text - 2022-01-12T00_54_17Z.html",
@@ -2691,117 +3015,145 @@ class TestSMSIntegration(unittest.TestCase):
             "692639 - Text - 2025-04-19T19_47_09Z.html",
             "78015 - Text - 2020-05-08T17_00_37Z.html",
         ]
-        
+
         for filename in test_cases:
             with self.subTest(filename=filename):
                 should_skip = sms.should_skip_file(filename)
-                self.assertTrue(should_skip, 
-                              f"Service code should be skipped by default: {filename}")
-        
+                self.assertTrue(
+                    should_skip,
+                    f"Service code should be skipped by default: {filename}",
+                )
+
         # Test with service codes enabled
         sms.INCLUDE_SERVICE_CODES = True
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Service codes should NOT be skipped when enabled
         for filename in test_cases:
             with self.subTest(filename=filename):
                 should_skip = sms.should_skip_file(filename)
-                self.assertFalse(should_skip, 
-                               f"Service code should NOT be skipped when enabled: {filename}")
-    
+                self.assertFalse(
+                    should_skip,
+                    f"Service code should NOT be skipped when enabled: {filename}",
+                )
+
     def test_date_filtering_functionality(self):
         """Test that date filtering works correctly for messages."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test older-than filter
         sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
-        
+
         # Messages from 2022 should be skipped
         old_timestamp = int(datetime(2022, 6, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(old_timestamp)
-        self.assertTrue(should_skip, "Message from 2022 should be skipped with older-than 2023 filter")
-        
+        self.assertTrue(
+            should_skip,
+            "Message from 2022 should be skipped with older-than 2023 filter",
+        )
+
         # Messages from 2023 should NOT be skipped
         new_timestamp = int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(new_timestamp)
-        self.assertFalse(should_skip, "Message from 2023 should NOT be skipped with older-than 2023 filter")
-        
+        self.assertFalse(
+            should_skip,
+            "Message from 2023 should NOT be skipped with older-than 2023 filter",
+        )
+
         # Reset filter
         sms.DATE_FILTER_OLDER_THAN = None
-        
+
         # Test newer-than filter
         sms.DATE_FILTER_NEWER_THAN = datetime(2024, 12, 31)
-        
+
         # Messages from 2025 should be skipped
         future_timestamp = int(datetime(2025, 1, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(future_timestamp)
-        self.assertTrue(should_skip, "Message from 2025 should be skipped with newer-than 2024 filter")
-        
+        self.assertTrue(
+            should_skip,
+            "Message from 2025 should be skipped with newer-than 2024 filter",
+        )
+
         # Messages from 2024 should NOT be skipped
         current_timestamp = int(datetime(2024, 6, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(current_timestamp)
-        self.assertFalse(should_skip, "Message from 2024 should NOT be skipped with newer-than 2024 filter")
-        
+        self.assertFalse(
+            should_skip,
+            "Message from 2024 should NOT be skipped with newer-than 2024 filter",
+        )
+
         # Reset filter
         sms.DATE_FILTER_NEWER_THAN = None
-        
+
         # Test both filters together
         sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
         sms.DATE_FILTER_NEWER_THAN = datetime(2024, 12, 31)
-        
+
         # Message from 2022 should be skipped (too old)
         old_timestamp = int(datetime(2022, 6, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(old_timestamp)
-        self.assertTrue(should_skip, "Message from 2022 should be skipped with both filters")
-        
+        self.assertTrue(
+            should_skip, "Message from 2022 should be skipped with both filters"
+        )
+
         # Message from 2025 should be skipped (too new)
         future_timestamp = int(datetime(2025, 1, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(future_timestamp)
-        self.assertTrue(should_skip, "Message from 2025 should be skipped with both filters")
-        
+        self.assertTrue(
+            should_skip, "Message from 2025 should be skipped with both filters"
+        )
+
         # Message from 2023 should NOT be skipped (within range)
         within_timestamp = int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000)
         should_skip = sms.should_skip_message_by_date(within_timestamp)
-        self.assertFalse(should_skip, "Message from 2023 should NOT be skipped with both filters")
-        
+        self.assertFalse(
+            should_skip, "Message from 2023 should NOT be skipped with both filters"
+        )
+
         # Reset filters
         sms.DATE_FILTER_OLDER_THAN = None
         sms.DATE_FILTER_NEWER_THAN = None
-    
+
     def test_date_filtering_edge_cases(self):
         """Test edge cases for date filtering."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test with no filters (should not skip anything)
         sms.DATE_FILTER_OLDER_THAN = None
         sms.DATE_FILTER_NEWER_THAN = None
-        
+
         test_timestamps = [
             int(datetime(2020, 1, 1, 0, 0, 0).timestamp() * 1000),  # Very old
             int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000),  # Recent
             int(datetime(2025, 12, 31, 23, 59, 59).timestamp() * 1000),  # Future
         ]
-        
+
         for timestamp in test_timestamps:
             with self.subTest(timestamp=timestamp):
                 should_skip = sms.should_skip_message_by_date(timestamp)
-                self.assertFalse(should_skip, f"Message should NOT be skipped with no filters: {timestamp}")
-        
+                self.assertFalse(
+                    should_skip,
+                    f"Message should NOT be skipped with no filters: {timestamp}",
+                )
+
         # Test with invalid timestamps (should not skip)
         invalid_timestamps = [0, -1, 999999999999999]  # Invalid Unix timestamps
-        
+
         for timestamp in invalid_timestamps:
             with self.subTest(timestamp=timestamp):
                 should_skip = sms.should_skip_message_by_date(timestamp)
-                self.assertFalse(should_skip, f"Invalid timestamp should NOT cause skipping: {timestamp}")
-    
+                self.assertFalse(
+                    should_skip,
+                    f"Invalid timestamp should NOT cause skipping: {timestamp}",
+                )
+
     def test_corrupted_filename_detection(self):
         """Test that corrupted Google Voice filenames are properly detected and handled."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test cases for corrupted filenames
         corrupted_cases = [
             # Case 1: Legitimate Google Voice export with file parts (should NOT be skipped)
@@ -2810,7 +3162,7 @@ class TestSMSIntegration(unittest.TestCase):
                 "should_skip": False,  # This is now legitimate
                 "description": "legitimate Google Voice export with file parts",
                 "can_clean": False,  # Should not be cleaned
-                "cleaned": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"  # Should remain unchanged
+                "cleaned": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",  # Should remain unchanged
             },
             # Case 2: Multiple extra dashes (not legitimate Google Voice export pattern)
             {
@@ -2818,14 +3170,14 @@ class TestSMSIntegration(unittest.TestCase):
                 "should_skip": True,
                 "description": "multiple extra dashes (not legitimate pattern)",
                 "can_clean": True,
-                "cleaned": "John Doe - Text - 2024-08-15T12_30_45Z.html"
+                "cleaned": "John Doe - Text - 2024-08-15T12_30_45Z.html",
             },
             # Case 3: Missing .html extension
             {
                 "filename": "Jane Smith - Text - 2024-06-20T09_15_30Z",
                 "should_skip": True,
                 "description": "missing .html extension",
-                "can_clean": False
+                "can_clean": False,
             },
             # Case 4: Corrupted timestamp with extra numbers
             {
@@ -2833,290 +3185,344 @@ class TestSMSIntegration(unittest.TestCase):
                 "should_skip": True,
                 "description": "corrupted timestamp with extra numbers",
                 "can_clean": True,
-                "cleaned": "Bob Wilson - Text - 2024-05-10T14_25_00Z.html"
-            }
+                "cleaned": "Bob Wilson - Text - 2024-05-10T14_25_00Z.html",
+            },
         ]
-        
+
         # Test valid filenames (should not be skipped)
         valid_cases = [
             "John Doe - Text - 2024-08-15T12_30_45Z.html",
             "Jane Smith - Text - 2024-06-20T09_15_30Z.html",
             "Bob Wilson - Text - 2024-05-10T14_25_00Z.html",
-            "Group Conversation - 2024-07-01T10_00_00Z.html"
+            "Group Conversation - 2024-07-01T10_00_00Z.html",
         ]
-        
+
         # Test corrupted filename detection
         for i, test_case in enumerate(corrupted_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test should_skip_file
                 should_skip = sms.should_skip_file(test_case["filename"])
-                self.assertEqual(should_skip, test_case["should_skip"],
-                              f"Filename should_skip result: {test_case['description']}")
-                
+                self.assertEqual(
+                    should_skip,
+                    test_case["should_skip"],
+                    f"Filename should_skip result: {test_case['description']}",
+                )
+
                 # Test is_corrupted_filename
                 is_corrupted = sms.is_corrupted_filename(test_case["filename"])
                 # For legitimate Google Voice exports, this should be False
                 if test_case["should_skip"]:
-                    self.assertTrue(is_corrupted,
-                                  f"Corrupted filename should be detected: {test_case['description']}")
+                    self.assertTrue(
+                        is_corrupted,
+                        f"Corrupted filename should be detected: {test_case['description']}",
+                    )
                 else:
-                    self.assertFalse(is_corrupted,
-                                   f"Legitimate filename should NOT be detected as corrupted: {test_case['description']}")
-                
+                    self.assertFalse(
+                        is_corrupted,
+                        f"Legitimate filename should NOT be detected as corrupted: {test_case['description']}",
+                    )
+
                 # Test cleaning if applicable
                 if test_case["can_clean"]:
                     cleaned = sms.clean_corrupted_filename(test_case["filename"])
-                    self.assertEqual(cleaned, test_case["cleaned"],
-                                   f"Should clean corrupted filename: {test_case['description']}")
+                    self.assertEqual(
+                        cleaned,
+                        test_case["cleaned"],
+                        f"Should clean corrupted filename: {test_case['description']}",
+                    )
                 else:
                     cleaned = sms.clean_corrupted_filename(test_case["filename"])
-                    self.assertEqual(cleaned, test_case["filename"],
-                                   f"Should not clean uncorrupted filename: {test_case['description']}")
-        
+                    self.assertEqual(
+                        cleaned,
+                        test_case["filename"],
+                        f"Should not clean uncorrupted filename: {test_case['description']}",
+                    )
+
         # Test valid filenames
         for filename in valid_cases:
             with self.subTest(filename=filename):
                 # Test should_skip_file
                 should_skip = sms.should_skip_file(filename)
-                self.assertFalse(should_skip,
-                               f"Valid filename should NOT be skipped: {filename}")
-                
+                self.assertFalse(
+                    should_skip, f"Valid filename should NOT be skipped: {filename}"
+                )
+
                 # Test is_corrupted_filename
                 is_corrupted = sms.is_corrupted_filename(filename)
-                self.assertFalse(is_corrupted,
-                               f"Valid filename should NOT be detected as corrupted: {filename}")
-                
+                self.assertFalse(
+                    is_corrupted,
+                    f"Valid filename should NOT be detected as corrupted: {filename}",
+                )
+
                 # Test cleaning (should return original)
                 cleaned = sms.clean_corrupted_filename(filename)
-                self.assertEqual(cleaned, filename,
-                               f"Valid filename should not be modified: {filename}")
-    
+                self.assertEqual(
+                    cleaned,
+                    filename,
+                    f"Valid filename should not be modified: {filename}",
+                )
+
     def test_corrupted_filename_cleaning_edge_cases(self):
         """Test edge cases for corrupted filename cleaning."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test edge cases
         edge_cases = [
             # Case 1: Very long corrupted filename
             {
                 "filename": "Very Long Name With Many Words And Spaces - Text - 2024-01-01T00_00_00Z-123-456-789-012-345-678-901-234-567-890.html",
                 "should_skip": True,
-                "description": "very long corrupted filename"
+                "description": "very long corrupted filename",
             },
             # Case 2: Corrupted filename with special characters
             {
                 "filename": "Name@Company - Text - 2024-02-02T01_01_01Z-abc-def.html",
                 "should_skip": True,
-                "description": "corrupted filename with special characters"
+                "description": "corrupted filename with special characters",
             },
             # Case 3: Corrupted filename with underscores in name
             {
                 "filename": "John_Doe_Smith - Text - 2024-03-03T02_02_02Z-xyz.html",
                 "should_skip": True,
-                "description": "corrupted filename with underscores in name"
+                "description": "corrupted filename with underscores in name",
             },
             # Case 4: Corrupted filename with numbers in name
             {
                 "filename": "John123 Doe456 - Text - 2024-04-04T03_03_03Z-789.html",
                 "should_skip": True,
-                "description": "corrupted filename with numbers in name"
-            }
+                "description": "corrupted filename with numbers in name",
+            },
         ]
-        
+
         for i, test_case in enumerate(edge_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 # Test should_skip_file
                 should_skip = sms.should_skip_file(test_case["filename"])
-                self.assertTrue(should_skip,
-                              f"Edge case corrupted filename should be skipped: {test_case['description']}")
-                
+                self.assertTrue(
+                    should_skip,
+                    f"Edge case corrupted filename should be skipped: {test_case['description']}",
+                )
+
                 # Test is_corrupted_filename
                 is_corrupted = sms.is_corrupted_filename(test_case["filename"])
-                self.assertTrue(is_corrupted,
-                              f"Edge case corrupted filename should be detected: {test_case['description']}")
-    
+                self.assertTrue(
+                    is_corrupted,
+                    f"Edge case corrupted filename should be detected: {test_case['description']}",
+                )
+
     def test_numeric_filename_processing_fixes(self):
         """Test that numeric filenames are now filtered out by default (service codes)."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test cases that are now filtered out by default (service codes)
         test_cases = [
             # Case 1: Numeric service codes (common for verification codes)
             {
                 "filename": "262966 - Text - 2022-01-12T00_54_17Z.html",
                 "should_skip": True,  # Now filtered out by default
-                "description": "verification service code"
+                "description": "verification service code",
             },
             # Case 2: Bank alerts and notifications
             {
                 "filename": "274624 - Text - 2025-04-16T18_34_53Z.html",
                 "should_skip": True,  # Now filtered out by default
-                "description": "bank alert code"
+                "description": "bank alert code",
             },
             # Case 3: Emergency/service notifications
             {
                 "filename": "30368 - Text - 2016-11-13T23_17_42Z.html",
                 "should_skip": True,  # Now filtered out by default
-                "description": "emergency notification code"
+                "description": "emergency notification code",
             },
             # Case 4: Marketing/promotional codes
             {
                 "filename": "692639 - Text - 2025-04-19T19_47_09Z.html",
                 "should_skip": True,  # Now filtered out by default
-                "description": "promotional code"
+                "description": "promotional code",
             },
             # Case 5: Various other service codes
             {
                 "filename": "78015 - Text - 2020-05-08T17_00_37Z.html",
                 "should_skip": True,  # Now filtered out by default
-                "description": "service notification code"
+                "description": "service notification code",
             },
             # Case 6: Still skip truly invalid patterns
             {
                 "filename": " - Text - 2020-05-08T17_00_37Z.html",
                 "should_skip": True,
-                "description": "invalid empty pattern"
+                "description": "invalid empty pattern",
             },
             # Case 7: Still skip corrupted filenames
             {
                 "filename": 'test<>:"|?*.html',
                 "should_skip": True,
-                "description": "corrupted filename with invalid characters"
-            }
+                "description": "corrupted filename with invalid characters",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 result = sms.should_skip_file(test_case["filename"])
-                
+
                 if test_case["should_skip"]:
-                    self.assertTrue(result, 
-                                   f"Should skip {test_case['description']}: {test_case['filename']}")
+                    self.assertTrue(
+                        result,
+                        f"Should skip {test_case['description']}: {test_case['filename']}",
+                    )
                 else:
-                    self.assertFalse(result, 
-                                    f"Should NOT skip {test_case['description']}: {test_case['filename']}")
-    
+                    self.assertFalse(
+                        result,
+                        f"Should NOT skip {test_case['description']}: {test_case['filename']}",
+                    )
+
     def test_improved_name_based_participants(self):
         """Test that name-based participants use actual names instead of generic hashes."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test cases that should create meaningful participant names
         test_cases = [
             # Case 1: Person's name should be used directly
             {
                 "filename": "John Doe - Text - 2025-08-13T12_08_52Z.html",
                 "expected_participant": "John_Doe",  # Safe filename version
-                "expected_alias": "John Doe",        # Display version
-                "description": "person name with space"
+                "expected_alias": "John Doe",  # Display version
+                "description": "person name with space",
             },
             # Case 2: Business name
             {
                 "filename": "Eastern Car Service SMS - Text - 2018-01-22T19_25_.html",
                 "expected_participant": "Eastern_Car_Service_SMS",
                 "expected_alias": "Eastern Car Service SMS",
-                "description": "business name with spaces"
+                "description": "business name with spaces",
             },
             # Case 3: Name with special characters
             {
                 "filename": "Dr. Mary-Jane O'Connor - Text - 2025-08-13T12_08_52Z.html",
                 "expected_participant": "Dr._Mary-Jane_O'Connor",
                 "expected_alias": "Dr. Mary-Jane O'Connor",
-                "description": "name with special characters"
-            }
+                "description": "name with special characters",
+            },
         ]
-        
+
         for i, test_case in enumerate(test_cases):
             with self.subTest(i=i, case=test_case["description"]):
                 if " - Text -" in test_case["filename"]:
                     name_part = test_case["filename"].split(" - Text -")[0].strip()
-                    
+
                     # Test the name processing logic
                     if name_part and len(name_part) > 0:
-                        safe_name = name_part.replace(' ', '_').replace('/', '_').replace('\\', '_')
-                        
+                        safe_name = (
+                            name_part.replace(" ", "_")
+                            .replace("/", "_")
+                            .replace("\\", "_")
+                        )
+
                         # Should create meaningful participant identifiers
-                        self.assertEqual(safe_name, test_case["expected_participant"],
-                                       f"Should create meaningful participant for {test_case['description']}")
-                        self.assertEqual(name_part, test_case["expected_alias"],
-                                       f"Should create correct alias for {test_case['description']}")
-                        
+                        self.assertEqual(
+                            safe_name,
+                            test_case["expected_participant"],
+                            f"Should create meaningful participant for {test_case['description']}",
+                        )
+                        self.assertEqual(
+                            name_part,
+                            test_case["expected_alias"],
+                            f"Should create correct alias for {test_case['description']}",
+                        )
+
                         # Should not contain generic patterns
-                        self.assertNotIn("name_", safe_name,
-                                       f"Should not create generic hash for {test_case['description']}")
-                        self.assertNotIn("default_", safe_name,
-                                       f"Should not create default participant for {test_case['description']}")
-    
+                        self.assertNotIn(
+                            "name_",
+                            safe_name,
+                            f"Should not create generic hash for {test_case['description']}",
+                        )
+                        self.assertNotIn(
+                            "default_",
+                            safe_name,
+                            f"Should not create default participant for {test_case['description']}",
+                        )
+
     def test_mms_progress_counter_fix(self):
         """Test that MMS progress counter doesn't exceed 100% due to variable name collision."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Create mock MMS messages for testing
         mock_messages = []
         for i in range(5):
             mock_html = f'<div class="message"><cite><span>Contact {i}</span></cite><q>MMS message {i}</q></div>'
             mock_messages.append(BeautifulSoup(mock_html, "html.parser").find("div"))
-        
+
         # Test that we can enumerate messages without variable name collision
         # This simulates the fixed logic in write_mms_messages
         participants = ["Contact1", "Contact2"]
         participant_aliases = ["Alias1", "Alias2"]
-        
+
         for message_idx, message in enumerate(mock_messages):
             # This should work without variable name collision
             final_aliases = []
             for participant_idx, phone in enumerate(participants):
-                if participant_idx < len(participant_aliases) and participant_aliases[participant_idx]:
+                if (
+                    participant_idx < len(participant_aliases)
+                    and participant_aliases[participant_idx]
+                ):
                     final_aliases.append(participant_aliases[participant_idx])
                 else:
                     final_aliases.append(f"Phone{participant_idx}")
-            
+
             # Progress calculation should be correct
             progress_percentage = ((message_idx + 1) / len(mock_messages)) * 100
-            
+
             # Should never exceed 100%
-            self.assertLessEqual(progress_percentage, 100.0,
-                               f"Progress should not exceed 100% at message {message_idx + 1}")
-            
+            self.assertLessEqual(
+                progress_percentage,
+                100.0,
+                f"Progress should not exceed 100% at message {message_idx + 1}",
+            )
+
             # Should be accurate
             expected_percentage = ((message_idx + 1) / 5) * 100
-            self.assertEqual(progress_percentage, expected_percentage,
-                           f"Progress should be accurate at message {message_idx + 1}")
-    
+            self.assertEqual(
+                progress_percentage,
+                expected_percentage,
+                f"Progress should be accurate at message {message_idx + 1}",
+            )
+
     def test_service_code_filename_support(self):
         """Test that service codes and short codes are filtered out by default but can be enabled."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various service code patterns that should be processed
         service_codes = [
             # Common verification code senders
             "262966",  # Common verification service
-            "87892",   # Verification service
-            "47873",   # Marketing service
-            "44444",   # Common service code
-            "22395",   # Alert service
-            "78015",   # Notification service
+            "87892",  # Verification service
+            "47873",  # Marketing service
+            "44444",  # Common service code
+            "22395",  # Alert service
+            "78015",  # Notification service
             "386732",  # Business alert
             "692639",  # Promotional code
             "274624",  # Bank alert
-            "30368",   # Emergency notification
-            "12345",   # Generic service
-            "99999",   # Service code
+            "30368",  # Emergency notification
+            "12345",  # Generic service
+            "99999",  # Service code
         ]
-        
+
         # Test default behavior (service codes filtered out)
         for code in service_codes:
             filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
             with self.subTest(code=code):
                 # Should be skipped by default (filtered out)
                 should_skip = sms.should_skip_file(filename)
-                self.assertTrue(should_skip, 
-                               f"Service code {code} should be filtered out by default")
-        
+                self.assertTrue(
+                    should_skip,
+                    f"Service code {code} should be filtered out by default",
+                )
+
         # Test with service codes enabled
         sms.INCLUDE_SERVICE_CODES = True
         for code in service_codes:
@@ -3124,57 +3530,60 @@ class TestSMSIntegration(unittest.TestCase):
             with self.subTest(code=code):
                 # Should NOT be skipped when enabled
                 should_skip = sms.should_skip_file(filename)
-                self.assertFalse(should_skip, 
-                               f"Service code {code} should be processed when enabled")
-                
+                self.assertFalse(
+                    should_skip, f"Service code {code} should be processed when enabled"
+                )
+
                 # Should be able to extract the code as a fallback number
                 fallback_number = sms.extract_fallback_number_cached(filename)
-                self.assertGreater(fallback_number, 0, 
-                                 f"Should extract number from service code {code}")
-        
+                self.assertGreater(
+                    fallback_number,
+                    0,
+                    f"Should extract number from service code {code}",
+                )
+
         # Reset to default
         sms.INCLUDE_SERVICE_CODES = False
-    
+
     def test_corrupted_filename_handling(self):
         """Test that truly corrupted filenames are still properly skipped."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test filenames that should still be skipped
         corrupted_filenames = [
             # Empty or whitespace-only patterns
             " - Text - 2025-01-01T12_00_00Z.html",
             "- Text - 2025-01-01T12_00_00Z.html",
             "  - Text - 2025-01-01T12_00_00Z.html",
-            
             # Invalid characters that suggest file corruption
-            'test<file.html',
-            'test>file.html', 
-            'test:file.html',
+            "test<file.html",
+            "test>file.html",
+            "test:file.html",
             'test"file.html',
-            'test|file.html',
-            'test?file.html',
-            'test*file.html',
-            
+            "test|file.html",
+            "test?file.html",
+            "test*file.html",
             # Completely empty or invalid patterns
             "",
             "   ",
             "-",
             ".",
-            "_"
+            "_",
         ]
-        
+
         for filename in corrupted_filenames:
             with self.subTest(filename=filename):
                 should_skip = sms.should_skip_file(filename)
-                self.assertTrue(should_skip, 
-                              f"Corrupted filename should be skipped: '{filename}'")
+                self.assertTrue(
+                    should_skip, f"Corrupted filename should be skipped: '{filename}'"
+                )
 
     def test_legitimate_google_voice_export_patterns(self):
         """Test that legitimate Google Voice export patterns with file parts are properly handled."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test legitimate Google Voice export patterns with file parts
         legitimate_files = [
             "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
@@ -3185,143 +3594,197 @@ class TestSMSIntegration(unittest.TestCase):
             "Carol Davis - Placed - 2025-08-13T12_08_52Z-1-3.html",
             "David Wilson - Missed - 2025-08-13T12_08_52Z-4-2.html",
         ]
-        
+
         for filename in legitimate_files:
             with self.subTest(filename=filename):
                 # These should be detected as legitimate Google Voice exports
-                self.assertTrue(sms.is_legitimate_google_voice_export(filename), 
-                              f"Should detect {filename} as legitimate Google Voice export")
+                self.assertTrue(
+                    sms.is_legitimate_google_voice_export(filename),
+                    f"Should detect {filename} as legitimate Google Voice export",
+                )
                 # These should NOT be flagged as corrupted
-                self.assertFalse(sms.is_corrupted_filename(filename), 
-                               f"Should not flag {filename} as corrupted")
+                self.assertFalse(
+                    sms.is_corrupted_filename(filename),
+                    f"Should not flag {filename} as corrupted",
+                )
                 # These should NOT be skipped
                 should_skip = sms.should_skip_file(filename)
-                self.assertFalse(should_skip, 
-                               f"Should not skip legitimate filename: {filename}")
-        
+                self.assertFalse(
+                    should_skip, f"Should not skip legitimate filename: {filename}"
+                )
+
         # Test edge cases
-        self.assertTrue(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-6-1"))
-        self.assertTrue(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-6-1.html"))
-        self.assertFalse(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z.html"))
-        self.assertFalse(sms.is_legitimate_google_voice_export("Test - Text - 2024-07-29T16_10_03Z-extra-stuff.html"))
-        
+        self.assertTrue(
+            sms.is_legitimate_google_voice_export(
+                "Test - Text - 2024-07-29T16_10_03Z-6-1"
+            )
+        )
+        self.assertTrue(
+            sms.is_legitimate_google_voice_export(
+                "Test - Text - 2024-07-29T16_10_03Z-6-1.html"
+            )
+        )
+        self.assertFalse(
+            sms.is_legitimate_google_voice_export(
+                "Test - Text - 2024-07-29T16_10_03Z.html"
+            )
+        )
+        self.assertFalse(
+            sms.is_legitimate_google_voice_export(
+                "Test - Text - 2024-07-29T16_10_03Z-extra-stuff.html"
+            )
+        )
+
         # Test that cleaning preserves legitimate patterns
         test_cases = [
             {
                 "original": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
-                "expected": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"
+                "expected": "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1",
             },
             {
                 "original": "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html",
-                "expected": "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html"
-            }
+                "expected": "John Doe - Text - 2025-08-13T12_08_52Z-1-2.html",
+            },
         ]
-        
+
         for test_case in test_cases:
             with self.subTest(original=test_case["original"]):
                 cleaned = sms.clean_corrupted_filename(test_case["original"])
-                self.assertEqual(cleaned, test_case["expected"], 
-                               f"Should preserve legitimate pattern: {test_case['original']}")
+                self.assertEqual(
+                    cleaned,
+                    test_case["expected"],
+                    f"Should preserve legitimate pattern: {test_case['original']}",
+                )
 
     def test_legitimate_google_voice_export_with_file_parts_processing(self):
         """Test that legitimate Google Voice export files with file parts are processed correctly."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test files with legitimate file part patterns
         test_cases = [
             "Test User - Text - 2024-01-15T10_30_00Z-6-1.html",
-            "Another User - Voicemail - 2024-02-20T14_45_30Z-8-2.html", 
-            "Third User - Placed - 2024-03-25T09_15_45Z-7-5.html"
+            "Another User - Voicemail - 2024-02-20T14_45_30Z-8-2.html",
+            "Third User - Placed - 2024-03-25T09_15_45Z-7-5.html",
         ]
-        
+
         for filename in test_cases:
             with self.subTest(filename=filename):
                 # These should NOT be considered corrupted
-                self.assertFalse(sms.is_corrupted_filename(filename), 
-                               f"Filename '{filename}' should not be considered corrupted")
-                
+                self.assertFalse(
+                    sms.is_corrupted_filename(filename),
+                    f"Filename '{filename}' should not be considered corrupted",
+                )
+
                 # These should NOT be skipped
-                self.assertFalse(sms.should_skip_file(filename), 
-                               f"Filename '{filename}' should not be skipped")
-                
+                self.assertFalse(
+                    sms.should_skip_file(filename),
+                    f"Filename '{filename}' should not be skipped",
+                )
+
                 # These should be legitimate Google Voice exports
-                self.assertTrue(sms.is_legitimate_google_voice_export(filename), 
-                              f"Filename '{filename}' should be legitimate Google Voice export")
-                
+                self.assertTrue(
+                    sms.is_legitimate_google_voice_export(filename),
+                    f"Filename '{filename}' should be legitimate Google Voice export",
+                )
+
                 # Cleaning should preserve legitimate file parts (if cleaning is needed)
                 # For legitimate files, cleaning might return the original or a cleaned version
                 cleaned = sms.clean_corrupted_filename(filename)
                 # Check that the cleaned version still contains the legitimate pattern
-                self.assertTrue(any(part in cleaned for part in ["-6-1", "-8-2", "-7-5"]), 
-                              f"Cleaned filename should preserve legitimate file parts: {cleaned}")
-    
+                self.assertTrue(
+                    any(part in cleaned for part in ["-6-1", "-8-2", "-7-5"]),
+                    f"Cleaned filename should preserve legitimate file parts: {cleaned}",
+                )
+
     def test_hash_based_fallback_phone_numbers(self):
         """Test that files without phone numbers generate hash-based fallback numbers."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test files that don't contain phone numbers
         test_cases = [
             "Susan Nowak Tang - Text - 2023-02-04T14_01_06Z.html",
             "Charles Tang - Text - 2024-01-06T21_42_59Z.html",
-            "Aniella Tang - Text - 2021-04-10T00_40_26Z.html"
+            "Aniella Tang - Text - 2021-04-10T00_40_26Z.html",
         ]
-        
+
         for filename in test_cases:
             with self.subTest(filename=filename):
                 # Extract fallback number
                 fallback_number = sms.extract_fallback_number_cached(filename)
-                
+
                 # Should return a valid number (not 0)
-                self.assertNotEqual(fallback_number, 0, 
-                                  f"Fallback number for '{filename}' should not be 0")
-                
+                self.assertNotEqual(
+                    fallback_number,
+                    0,
+                    f"Fallback number for '{filename}' should not be 0",
+                )
+
                 # Should be a reasonable length (8 digits for hash-based)
                 fallback_str = str(fallback_number)
-                self.assertEqual(len(fallback_str), 8, 
-                               f"Hash-based fallback should be 8 digits, got {len(fallback_str)}")
-                
+                self.assertEqual(
+                    len(fallback_str),
+                    8,
+                    f"Hash-based fallback should be 8 digits, got {len(fallback_str)}",
+                )
+
                 # Should be valid for phone number validation
-                self.assertTrue(sms.is_valid_phone_number(fallback_number), 
-                              f"Fallback number {fallback_number} should be valid")
-    
+                self.assertTrue(
+                    sms.is_valid_phone_number(fallback_number),
+                    f"Fallback number {fallback_number} should be valid",
+                )
+
     def test_enhanced_phone_number_extraction_strategies(self):
         """Test all phone number extraction strategies including hash-based fallbacks."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various filename patterns
         test_cases = [
             # Strategy 1: Numeric service codes
             ("262966 - Text - 2024-01-15T10_30_00Z.html", "numeric service code"),
             # Strategy 2: Phone numbers in filename
-            ("+15551234567 - Text - 2024-02-20T14_45_30Z.html", "phone number in filename"),
+            (
+                "+15551234567 - Text - 2024-02-20T14_45_30Z.html",
+                "phone number in filename",
+            ),
             # Strategy 3: International format
-            ("+44 20 7946 0958 - Text - 2024-03-25T09_15_45Z.html", "international phone number"),
+            (
+                "+44 20 7946 0958 - Text - 2024-03-25T09_15_45Z.html",
+                "international phone number",
+            ),
             # Strategy 4: Any sequence of digits
             ("User123 - Text - 2024-04-10T16_20_15Z.html", "digits in filename"),
             # Strategy 5: Hash-based fallback
-            ("Susan Nowak Tang - Text - 2023-02-04T14_01_06Z.html", "hash-based fallback")
+            (
+                "Susan Nowak Tang - Text - 2023-02-04T14_01_06Z.html",
+                "hash-based fallback",
+            ),
         ]
-        
+
         for filename, description in test_cases:
             with self.subTest(description=description):
                 fallback_number = sms.extract_fallback_number_cached(filename)
-                
+
                 # Should return a valid number
-                self.assertNotEqual(fallback_number, 0, 
-                                  f"Strategy '{description}' should return valid number")
-                
+                self.assertNotEqual(
+                    fallback_number,
+                    0,
+                    f"Strategy '{description}' should return valid number",
+                )
+
                 # Should pass phone number validation
-                self.assertTrue(sms.is_valid_phone_number(fallback_number), 
-                              f"Number {fallback_number} from '{description}' should be valid")
-    
+                self.assertTrue(
+                    sms.is_valid_phone_number(fallback_number),
+                    f"Number {fallback_number} from '{description}' should be valid",
+                )
+
     def test_phone_number_validation_with_hash_based_numbers(self):
         """Test that phone number validation accepts hash-based fallback numbers."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various number types
         test_cases = [
             # Valid phone numbers
@@ -3335,61 +3798,108 @@ class TestSMSIntegration(unittest.TestCase):
             ("123", False, "too short"),
             ("1234567890123456", False, "too long"),
             ("0", False, "zero"),
-            ("", False, "empty string")
+            ("", False, "empty string"),
         ]
-        
+
         for phone_number, expected_valid, description in test_cases:
             with self.subTest(description=description):
                 is_valid = sms.is_valid_phone_number(phone_number)
-                self.assertEqual(is_valid, expected_valid, 
-                               f"Phone number '{phone_number}' ({description}) should be {expected_valid}")
-    
+                self.assertEqual(
+                    is_valid,
+                    expected_valid,
+                    f"Phone number '{phone_number}' ({description}) should be {expected_valid}",
+                )
+
     def test_legitimate_google_voice_export_edge_cases(self):
         """Test edge cases for legitimate Google Voice export detection."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test various patterns
         test_cases = [
             # Legitimate patterns (should return True)
-            ("User - Text - 2024-01-15T10_30_00Z-6-1.html", True, "legitimate with single digits"),
-            ("User - Voicemail - 2024-02-20T14_45_30Z-8-2.html", True, "legitimate with single digits"),
-            ("User - Placed - 2024-03-25T09_15_45Z-7-5.html", True, "legitimate with single digits"),
+            (
+                "User - Text - 2024-01-15T10_30_00Z-6-1.html",
+                True,
+                "legitimate with single digits",
+            ),
+            (
+                "User - Voicemail - 2024-02-20T14_45_30Z-8-2.html",
+                True,
+                "legitimate with single digits",
+            ),
+            (
+                "User - Placed - 2024-03-25T09_15_45Z-7-5.html",
+                True,
+                "legitimate with single digits",
+            ),
             # Not legitimate patterns (should return False)
-            ("User - Text - 2024-01-15T10_30_00Z-123-456.html", False, "multi-digit file parts"),
-            ("User - Text - 2024-01-15T10_30_00Z-12-34.html", False, "multi-digit file parts"),
+            (
+                "User - Text - 2024-01-15T10_30_00Z-123-456.html",
+                False,
+                "multi-digit file parts",
+            ),
+            (
+                "User - Text - 2024-01-15T10_30_00Z-12-34.html",
+                False,
+                "multi-digit file parts",
+            ),
             ("User - Text - 2024-01-15T10_30_00Z.html", False, "no file parts"),
-            ("User - Text - 2024-01-15T10_30_00Z", False, "no file parts, no extension")
+            (
+                "User - Text - 2024-01-15T10_30_00Z",
+                False,
+                "no file parts, no extension",
+            ),
         ]
-        
+
         for filename, expected_legitimate, description in test_cases:
             with self.subTest(description=description):
                 is_legitimate = sms.is_legitimate_google_voice_export(filename)
-                self.assertEqual(is_legitimate, expected_legitimate, 
-                               f"Filename '{filename}' ({description}) should be {expected_legitimate}")
-    
+                self.assertEqual(
+                    is_legitimate,
+                    expected_legitimate,
+                    f"Filename '{filename}' ({description}) should be {expected_legitimate}",
+                )
+
     def test_corrupted_filename_cleaning_preserves_legitimate_parts(self):
         """Test that corrupted filename cleaning preserves legitimate file parts."""
         test_dir = Path(self.test_dir)
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-        
+
         # Test that legitimate file parts are preserved during cleaning
         test_cases = [
-            ("User - Text - 2024-01-15T10_30_00Z-6-1.html", "-6-1", "legitimate single digits"),
-            ("User - Voicemail - 2024-02-20T14_45_30Z-8-2.html", "-8-2", "legitimate single digits"),
-            ("User - Placed - 2024-03-25T09_15_45Z-7-5.html", "-7-5", "legitimate single digits")
+            (
+                "User - Text - 2024-01-15T10_30_00Z-6-1.html",
+                "-6-1",
+                "legitimate single digits",
+            ),
+            (
+                "User - Voicemail - 2024-02-20T14_45_30Z-8-2.html",
+                "-8-2",
+                "legitimate single digits",
+            ),
+            (
+                "User - Placed - 2024-03-25T09_15_45Z-7-5.html",
+                "-7-5",
+                "legitimate single digits",
+            ),
         ]
-        
+
         for filename, expected_parts, description in test_cases:
             with self.subTest(description=description):
                 # These should be legitimate Google Voice exports
-                self.assertTrue(sms.is_legitimate_google_voice_export(filename), 
-                              f"Filename '{filename}' should be legitimate: {description}")
-                
+                self.assertTrue(
+                    sms.is_legitimate_google_voice_export(filename),
+                    f"Filename '{filename}' should be legitimate: {description}",
+                )
+
                 # Cleaning should preserve legitimate file parts
                 cleaned = sms.clean_corrupted_filename(filename)
-                self.assertIn(expected_parts, cleaned, 
-                             f"Cleaned filename should preserve {expected_parts} for {description}")
+                self.assertIn(
+                    expected_parts,
+                    cleaned,
+                    f"Cleaned filename should preserve {expected_parts} for {description}",
+                )
 
 
 def create_test_suite(test_type="basic", test_limit=100):
