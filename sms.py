@@ -1455,7 +1455,13 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
                 if should_report_progress(
                     current_progress, total_files, last_reported_progress
                 ):
-                    percentage = (current_progress / total_files) * 100
+                    # Defensive check: ensure total_files is valid for division
+                    if not total_files or total_files <= 0:
+                        percentage = 0.0
+                        logger.warning(f"Invalid total_files value ({total_files}) for progress calculation")
+                    else:
+                        percentage = (current_progress / total_files) * 100
+                    
                     logger.info(
                         f"Attachment scan progress: {current_progress}/{total_files} files examined ({percentage:.1f}%) - "
                         f"Attachments found: {attachment_count}"
@@ -1607,9 +1613,14 @@ def src_to_filename_mapping_with_progress(
     att_filenames.sort(key=custom_filename_sort)
 
     # Calculate progress reporting thresholds
-    progress_interval = max(
-        1, min(100, total_src_elements // 10)
-    )  # Every 10% or 100 elements, whichever is smaller
+    # Defensive check: ensure total_src_elements is valid for division
+    if not total_src_elements or total_src_elements <= 0:
+        progress_interval = 1  # Default to reporting every element
+        logger.warning(f"Invalid total_src_elements value ({total_src_elements}) for progress interval calculation")
+    else:
+        progress_interval = max(
+            1, min(100, total_src_elements // 10)
+        )  # Every 10% or 100 elements, whichever is smaller
     last_reported_progress = 0
     mapped_count = 0
 
@@ -1638,7 +1649,13 @@ def src_to_filename_mapping_with_progress(
             or current_progress - last_reported_progress >= 100
         ):
 
-            percentage = (current_progress / total_src_elements) * 100
+            # Defensive check: ensure total_src_elements is valid for division
+            if not total_src_elements or total_src_elements <= 0:
+                percentage = 0.0
+                logger.warning(f"Invalid total_src_elements value ({total_src_elements}) for progress calculation")
+            else:
+                percentage = (current_progress / total_src_elements) * 100
+            
             logger.info(
                 f"Mapping progress: {current_progress}/{total_src_elements} src elements processed ({percentage:.1f}%) - "
                 f"Successfully mapped: {mapped_count}"
@@ -2231,9 +2248,14 @@ def write_sms_messages(
             logger.info(f"Medium file detected ({total_messages} messages) - processing in progress")
 
         # Calculate progress reporting thresholds
-        progress_interval = max(
-            1, min(50, total_messages // 10)
-        )  # Every 10% or 50 messages, whichever is smaller
+        # Defensive check: ensure total_messages is valid for division
+        if not total_messages or total_messages <= 0:
+            progress_interval = 1  # Default to reporting every message
+            logger.warning(f"Invalid total_messages value ({total_messages}) for progress interval calculation in {file}")
+        else:
+            progress_interval = max(
+                1, min(50, total_messages // 10)
+            )  # Every 10% or 50 messages, whichever is smaller
         last_reported_progress = 0
         processed_count = 0
         skipped_count = 0
@@ -2351,7 +2373,13 @@ def write_sms_messages(
                     or current_progress - last_reported_progress >= 50
                 ):
 
-                    percentage = (current_progress / total_messages) * 100
+                    # Defensive check: ensure total_messages is valid for division
+                    if not total_messages or total_messages <= 0:
+                        percentage = 0.0
+                        logger.warning(f"Invalid total_messages value ({total_messages}) for progress calculation in {file}")
+                    else:
+                        percentage = (current_progress / total_messages) * 100
+                    
                     logger.info(
                         f"SMS processing progress in {file}: {current_progress}/{total_messages} messages processed ({percentage:.1f}%) - "
                         f"Processed: {processed_count}, Skipped: {skipped_count}"
@@ -2908,9 +2936,14 @@ def write_mms_messages(
         logger.info(f"Processing {total_messages} MMS messages from {file}")
 
         # Calculate progress reporting thresholds
-        progress_interval = max(
-            1, min(50, total_messages // 10)
-        )  # Every 10% or 50 messages, whichever is smaller
+        # Defensive check: ensure total_messages is valid for division
+        if not total_messages or total_messages <= 0:
+            progress_interval = 1  # Default to reporting every message
+            logger.warning(f"Invalid total_messages value ({total_messages}) for progress interval calculation in {file}")
+        else:
+            progress_interval = max(
+                1, min(50, total_messages // 10)
+            )  # Every 10% or 50 messages, whichever is smaller
         last_reported_progress = 0
         processed_count = 0
         skipped_count = 0
@@ -3311,7 +3344,13 @@ def write_mms_messages(
                     or current_progress - last_reported_progress >= 50
                 ):
 
-                    percentage = (current_progress / total_messages) * 100
+                    # Defensive check: ensure total_messages is valid for division
+                    if not total_messages or total_messages <= 0:
+                        percentage = 0.0
+                        logger.warning(f"Invalid total_messages value ({total_messages}) for progress calculation in {file}")
+                    else:
+                        percentage = (current_progress / total_messages) * 100
+                    
                     logger.info(
                         f"MMS processing progress in {file}: {current_progress}/{total_messages} messages processed ({percentage:.1f}%) - "
                         f"Processed: {processed_count}, Skipped: {skipped_count}"
@@ -4714,6 +4753,11 @@ def should_report_progress(
     """Determine if progress should be reported."""
     if current <= last_reported:
         return False
+    
+    # Defensive check: ensure total is valid for division
+    if not total or total <= 0:
+        # If total is invalid, only report based on interval
+        return current - last_reported >= min_interval
 
     # Report if enough items processed or at percentage milestones
     return (
@@ -4726,7 +4770,13 @@ def format_progress_message(
     current: int, total: int, operation: str, additional_info: str = ""
 ) -> str:
     """Format a progress message."""
-    percentage = (current / total) * 100
+    # Defensive check: ensure total is valid for division
+    if not total or total <= 0:
+        percentage = 0.0
+        logger.warning(f"Invalid total value ({total}) for progress calculation in {operation}")
+    else:
+        percentage = (current / total) * 100
+    
     message = f"{operation} progress: {current}/{total} ({percentage:.1f}%)"
     return f"{message} - {additional_info}" if additional_info else message
 
@@ -5030,8 +5080,17 @@ def process_html_files_batch(
         batch_files = html_files[i:i + batch_size]
         batch_start = time.time()
 
+        # Defensive check: ensure batch_size is valid for division
+        if not batch_size or batch_size <= 0:
+            batch_number = i + 1
+            total_batches = total_files
+            logger.warning(f"Invalid batch_size value ({batch_size}) for batch calculation")
+        else:
+            batch_number = i//batch_size + 1
+            total_batches = (total_files + batch_size - 1)//batch_size
+        
         logger.info(
-            f"Processing batch {i//batch_size + 1}/{(total_files + batch_size - 1)//batch_size} "
+            f"Processing batch {batch_number}/{total_batches} "
             f"({len(batch_files)} files)"
         )
 
@@ -5060,9 +5119,16 @@ def process_html_files_batch(
 
         # Log batch performance
         batch_time = time.time() - batch_start
+        # Defensive check: ensure batch_time is valid for division
+        if not batch_time or batch_time <= 0:
+            files_per_second = 0.0
+            logger.warning(f"Invalid batch_time value ({batch_time}) for performance calculation")
+        else:
+            files_per_second = len(batch_files)/batch_time
+        
         logger.info(
             f"Batch completed in {batch_time:.2f}s "
-            f"({len(batch_files)/batch_time:.2f} files/sec)"
+            f"({files_per_second:.2f} files/sec)"
         )
 
     return stats
