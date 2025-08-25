@@ -193,17 +193,20 @@ def validate_function_call(
                         param_value, (str, int)
                     ):
                         raise TypeError(
-                            f"Parameter '{param_name}' must be str or int, got {type(param_value).__name__}"
+                            f"Parameter '{param_name}' must be str or int, "
+                            f"got {type(param_value).__name__}"
                         )
                     elif expected_type != Any and not isinstance(
                         param_value, expected_type
                     ):
                         raise TypeError(
-                            f"Parameter '{param_name}' must be {expected_type.__name__}, got {type(param_value).__name__}"
+                            f"Parameter '{param_name}' must be {expected_type.__name__}, "
+                            f"got {type(param_value).__name__}"
                         )
 
         logger.debug(
-            f"✅ Function call validated: {func.__name__}({len(args)} args, {len(kwargs)} kwargs) {caller_info}"
+            f"✅ Function call validated: {func.__name__}({len(args)} args, "
+            f"{len(kwargs)} kwargs) {caller_info}"
         )
 
     except TypeError as e:
@@ -214,7 +217,8 @@ def validate_function_call(
         raise
     except Exception as e:
         logger.error(
-            f"Unexpected error in parameter validation for {func.__name__}: {e}"
+            f"Unexpected error in parameter validation for {func.__name__}: "
+            f"{e}"
         )
         raise
 
@@ -238,7 +242,9 @@ def strict_call(func: Callable, *args, **kwargs) -> Any:
     caller_frame = inspect.currentframe().f_back
     caller_info = ""
     if caller_frame:
-        caller_info = f"{caller_frame.f_code.co_name}:{caller_frame.f_lineno}"
+        caller_info = (
+            f"{caller_frame.f_code.co_name}:{caller_frame.f_lineno}"
+        )
 
     validate_function_call(func, args, kwargs, caller_info)
     return func(*args, **kwargs)
@@ -5560,7 +5566,8 @@ def check_and_increase_file_limits():
         # Get current limits
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
         logger.info(
-            f"Current file descriptor limits - Soft: {soft}, Hard: {hard}"
+            f"Current file descriptor limits - Soft: {soft}, "
+            f"Hard: {hard}"
         )
 
         # Try to increase soft limit to hard limit
@@ -5569,7 +5576,8 @@ def check_and_increase_file_limits():
                 resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
                 new_soft, new_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
                 logger.info(
-                    f"Successfully increased file descriptor limit to: {new_soft}"
+                    f"Successfully increased file descriptor limit to: "
+                    f"{new_soft}"
                 )
             except Exception as e:
                 logger.warning(
@@ -5578,27 +5586,34 @@ def check_and_increase_file_limits():
         # Check if we have enough file descriptors for processing
         if soft < 1000:
             logger.warning(
-                f"File descriptor limit ({soft}) may be too low for large datasets"
+                f"File descriptor limit ({soft}) may be too low for "
+                f"large datasets"
             )
             logger.warning("Consider increasing with: ulimit -n 4096")
             logger.warning(
-                "This may cause 'Too many open files' errors during processing"
+                "This may cause 'Too many open files' errors during "
+                "processing"
             )
         elif soft < 4096:
             logger.info(
-                f"File descriptor limit ({soft}) is adequate for most datasets"
+                f"File descriptor limit ({soft}) is adequate for "
+                f"most datasets"
             )
         else:
             logger.info(
-                f"File descriptor limit ({soft}) is excellent for large datasets"
+                f"File descriptor limit ({soft}) is excellent for "
+                f"large datasets"
             )
 
     except ImportError:
         logger.warning(
-            "resource module not available, cannot check file descriptor limits"
+            "resource module not available, cannot check file "
+            "descriptor limits"
         )
     except Exception as e:
-        logger.warning(f"Error checking file descriptor limits: {e}")
+        logger.warning(
+            f"Error checking file descriptor limits: {e}"
+        )
 
 
 def safe_file_operation(
@@ -5621,9 +5636,13 @@ def safe_file_operation(
             with open(file_path, "a", encoding=encoding) as f:
                 return f.write(kwargs.get("content", ""))
         else:
-            raise ValueError(f"Unsupported operation: {operation}")
+            raise ValueError(
+                f"Unsupported operation: {operation}"
+            )
     except Exception as e:
-        logger.error(f"File operation failed on {file_path}: {e}")
+        logger.error(
+            f"File operation failed on {file_path}: {e}"
+        )
         raise
 
 
@@ -7336,13 +7355,25 @@ Examples:
   python sms.py /path/to/gvoice/data --output-format xml
 
           # Filtering options
-        python sms.py /path/to/gvoice/data --include-service-codes  # Include service codes (default: filtered out)
-        python sms.py /path/to/gvoice/data --older-than 2023-01-01  # Filter out messages older than 2023
-        python sms.py /path/to/gvoice/data --newer-than 2024-12-31  # Filter out messages newer than 2024
-        python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00"  # Filter with time precision
-        python sms.py /path/to/gvoice/data --filter-no-alias  # Only process numbers with aliases/names
-        python sms.py /path/to/gvoice/data --exclude-no-alias  # Alternative to --filter-no-alias
-        python sms.py /path/to/gvoice/data --filter-non-phone  # Filter out toll-free and non-US numbers
+        python sms.py /path/to/gvoice/data --include-service-codes # # Include service
+                                                                    # codes (default:
+                                                                    # filtered out)
+        python sms.py /path/to/gvoice/data --older-than 2023-01-01 # # Filter out
+                                                                    # messages older
+                                                                    # than 2023
+        python sms.py /path/to/gvoice/data --newer-than 2024-12-31 # # Filter out
+                                                                    # messages newer
+                                                                    # than 2024
+        python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00" # # Filter
+                                                                               # with
+                                                                               # time
+                                                                               # precision
+        python sms.py /path/to/gvoice/data --filter-no-alias # # Only process numbers
+                                                              # with aliases/names
+        python sms.py /path/to/gvoice/data --exclude-no-alias # # Alternative to
+                                                               # --filter-no-alias
+        python sms.py /path/to/gvoice/data --filter-non-phone # # Filter out toll-free
+                                                               # and non-US numbers
 
   # Default behavior: Service codes (verification codes, alerts) are filtered out for cleaner output
   # Use --include-service-codes to include all service codes and short codes
@@ -7864,7 +7895,8 @@ Output:
             )
         else:
             logger.info(
-                f"🧪 TEST MODE ENABLED BY DEFAULT - Processing limited to {TEST_LIMIT} entries for safety"
+                f"🧪 TEST MODE ENABLED BY DEFAULT - Processing limited to "
+                f"{TEST_LIMIT} entries for safety"
             )
             logger.info(
                 "Use --full-run to process all entries or --test-limit N for custom limits"
