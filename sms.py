@@ -286,6 +286,12 @@ CUSTOM_SORT_PATTERN = re.compile(r"(.*?)(?:\((\d+)\))?(\.\w+)?$")
 PHONE_NUMBER_PATTERN = re.compile(r"(\+\d{1,3}\s*\d{1,14})")
 TEL_HREF_PATTERN = re.compile(r"tel:([+\d\s\-\(\)]+)")
 
+# Additional pre-compiled regex patterns for performance optimization
+TIMESTAMP_PATTERN = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z')
+FILE_PARTS_PATTERN = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z(-[0-9]-[0-9])')
+CORRUPTED_TIMESTAMP_PATTERN = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+')
+LEGITIMATE_FILE_PARTS_PATTERN = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-\d+-\d+')
+
 # Additional pre-compiled patterns for better performance
 TEXT_TAG_PATTERN = re.compile(r"<text>([^<]*)</text>")
 CONTENT_BETWEEN_TAGS_PATTERN = re.compile(r">([^<]+)<")
@@ -2684,13 +2690,13 @@ def clean_corrupted_filename(filename: str) -> str:
                 
                 # Look for the valid timestamp pattern and preserve legitimate Google Voice export patterns
                 # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
-                valid_timestamp_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z', timestamp_part)
+                valid_timestamp_match = TIMESTAMP_PATTERN.search(timestamp_part)
                 if valid_timestamp_match:
                     clean_timestamp = valid_timestamp_match.group(0)
                     
                     # Check if this is a legitimate Google Voice export with file parts (e.g., "-6-1")
                     # Only preserve single-digit patterns like "-6-1", not multi-digit like "-123-456"
-                    file_parts_match = re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z(-[0-9]-[0-9])', timestamp_part)
+                    file_parts_match = FILE_PARTS_PATTERN.search(timestamp_part)
                     if file_parts_match:
                         # Preserve the legitimate file parts (single digits only)
                         file_parts = file_parts_match.group(1)
@@ -2734,11 +2740,11 @@ def is_corrupted_filename(filename: str) -> bool:
             # Check for extra dashes in timestamp part (but allow legitimate file parts)
             if after_pattern.count("-") > 2:
                 # Allow legitimate patterns like "2024-07-29T16_10_03Z-6-1"
-                if not re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-\d+-\d+', after_pattern):
+                if not LEGITIMATE_FILE_PARTS_PATTERN.search(after_pattern):
                     return True
             
             # Check for corrupted timestamp with extra parts
-            if re.search(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z.*[0-9-]+', after_pattern):
+            if CORRUPTED_TIMESTAMP_PATTERN.search(after_pattern):
                 # If it doesn't match legitimate patterns, it's corrupted
                 return True
             
@@ -6164,6 +6170,7 @@ def extract_call_details(filename: str) -> Dict[str, str]:
 
     except Exception as e:
         logger.error(f"Failed to extract call details from {filename}: {e}")
+        # Return default values as fallback, but log the error for debugging
         return {
             "call_type": "Unknown",
             "duration": "",
@@ -6210,6 +6217,7 @@ def parse_iso_duration(duration_str: str) -> str:
 
     except Exception as e:
         logger.error(f"Failed to parse duration '{duration_str}': {e}")
+        # Return original string as fallback, but log the error for debugging
         return duration_str
 
 

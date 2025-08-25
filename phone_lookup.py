@@ -7,6 +7,7 @@ during SMS/MMS conversion.
 
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Dict, Optional
 from bs4 import BeautifulSoup
@@ -31,6 +32,10 @@ class PhoneLookupManager:
         self.lookup_file = lookup_file
         self.enable_prompts = enable_prompts
         self.phone_aliases = {}  # Maps phone numbers to aliases
+        
+        # Thread safety: Add lock for file operations
+        self._file_lock = threading.Lock()
+        
         self.load_aliases()
         
         # Register cleanup handler to save aliases on exit
@@ -39,60 +44,62 @@ class PhoneLookupManager:
 
     def load_aliases(self):
         """Load existing phone number aliases from file."""
-        try:
-            if self.lookup_file.exists():
-                with open(self.lookup_file, "r", encoding="utf8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#"):
-                            try:
-                                phone, alias = line.split("|", 1)
-                                phone = phone.strip()
-                                alias = alias.strip()
-                                
-                                # Check for exclusion patterns
-                                if alias.startswith("EXCLUDE:"):
-                                    # This number should be excluded from processing
-                                    self.phone_aliases[phone] = f"EXCLUDE:{alias[8:]}"
-                                    logger.debug(f"Loaded exclusion for {phone}: {alias}")
-                                else:
-                                    # Normal alias
-                                    self.phone_aliases[phone] = alias
+        with self._file_lock:
+            try:
+                if self.lookup_file.exists():
+                    with open(self.lookup_file, "r", encoding="utf8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                try:
+                                    phone, alias = line.split("|", 1)
+                                    phone = phone.strip()
+                                    alias = alias.strip()
                                     
-                            except ValueError:
-                                # Skip malformed lines
-                                continue
-                logger.info(
-                    f"Loaded {len(self.phone_aliases)} phone number aliases from {self.lookup_file}"
-                )
-                logger.debug(f"Loaded aliases: {self.phone_aliases}")
-            else:
-                # Create the file with a header
-                self.lookup_file.parent.mkdir(parents=True, exist_ok=True)
+                                    # Check for exclusion patterns
+                                    if alias.startswith("EXCLUDE:"):
+                                        # This number should be excluded from processing
+                                        self.phone_aliases[phone] = f"EXCLUDE:{alias[8:]}"
+                                        logger.debug(f"Loaded exclusion for {phone}: {alias}")
+                                    else:
+                                        # Normal alias
+                                        self.phone_aliases[phone] = alias
+                                        
+                                except ValueError:
+                                    # Skip malformed lines
+                                    continue
+                    logger.info(
+                        f"Loaded {len(self.phone_aliases)} phone number aliases from {self.lookup_file}"
+                    )
+                    logger.debug(f"Loaded aliases: {self.phone_aliases}")
+                else:
+                    # Create the file with a header
+                    self.lookup_file.parent.mkdir(parents=True, exist_ok=True)
+                    with open(self.lookup_file, "w", encoding="utf8") as f:
+                        f.write("# Phone number lookup file\n")
+                        f.write("# Format: phone_number|alias\n")
+                        f.write("# Lines starting with # are comments\n")
+                        f.write("# To exclude a number, use: phone_number|EXCLUDE:reason\n")
+                        f.write("# Example: +1234567890|EXCLUDE:spam\n")
+                    logger.info(f"Created new phone lookup file: {self.lookup_file}")
+            except Exception as e:
+                logger.error(f"Failed to load phone aliases: {e}")
+
+    def save_aliases(self):
+        """Save phone number aliases to file."""
+        with self._file_lock:
+            try:
                 with open(self.lookup_file, "w", encoding="utf8") as f:
                     f.write("# Phone number lookup file\n")
                     f.write("# Format: phone_number|alias\n")
                     f.write("# Lines starting with # are comments\n")
-                    f.write("# To exclude a number, use: phone_number|EXCLUDE:reason\n")
-                    f.write("# Example: +1234567890|EXCLUDE:spam\n")
-                logger.info(f"Created new phone lookup file: {self.lookup_file}")
-        except Exception as e:
-            logger.error(f"Failed to load phone aliases: {e}")
-
-    def save_aliases(self):
-        """Save phone number aliases to file."""
-        try:
-            with open(self.lookup_file, "w", encoding="utf8") as f:
-                f.write("# Phone number lookup file\n")
-                f.write("# Format: phone_number|alias\n")
-                f.write("# Lines starting with # are comments\n")
-                for phone, alias in sorted(self.phone_aliases.items()):
-                    f.write(f"{phone}|{alias}\n")
-            logger.info(
-                f"Saved {len(self.phone_aliases)} phone number aliases to {self.lookup_file}"
-            )
-        except Exception as e:
-            logger.error(f"Failed to save phone aliases: {e}")
+                    for phone, alias in sorted(self.phone_aliases.items()):
+                        f.write(f"{phone}|{alias}\n")
+                logger.info(
+                    f"Saved {len(self.phone_aliases)} phone number aliases to {self.lookup_file}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to save phone aliases: {e}")
         
     def save_aliases_batched(self, batch_every: int = 100):
         """Save aliases only every N new entries to reduce disk IO."""
