@@ -100,9 +100,7 @@ MIN_PROGRESS_INTERVAL = 100
 
 # Performance monitoring configuration
 ENABLE_PERFORMANCE_MONITORING = True
-PERFORMANCE_LOG_INTERVAL = (
-    1000  # milliseconds or operation count, depending on usage
-)
+PERFORMANCE_LOG_INTERVAL = 1000  # milliseconds or operation count, depending on usage
 
 # Cache size configuration for large datasets (50,000+ SMS, 10,000+ attachments)
 # These sizes are optimized for processing large volumes of data efficiently
@@ -122,13 +120,9 @@ TEST_LIMIT = 100
 
 # Performance configuration - Optimized for large datasets by default
 ENABLE_BATCH_PROCESSING = True
-LARGE_DATASET_THRESHOLD = (
-    5000  # Files (increased for better large dataset handling)
-)
+LARGE_DATASET_THRESHOLD = 5000  # Files (increased for better large dataset handling)
 BATCH_SIZE_OPTIMAL = 1000  # Files per batch (increased for better efficiency)
-BUFFER_SIZE_OPTIMAL = (
-    32768  # Bytes (32KB - increased for better I/O performance)
-)
+BUFFER_SIZE_OPTIMAL = 32768  # Bytes (32KB - increased for better I/O performance)
 
 # Advanced performance configuration for large datasets (50,000+ files) -
 # High performance defaults
@@ -138,9 +132,7 @@ MAX_WORKERS = min(
 )  # Increased to 16 workers max for better parallelization
 # Files per chunk for parallel processing (optimized for large datasets)
 CHUNK_SIZE_OPTIMAL = 1000
-MEMORY_EFFICIENT_THRESHOLD = (
-    10000  # Increased threshold for memory-efficient mode
-)
+MEMORY_EFFICIENT_THRESHOLD = 10000  # Increased threshold for memory-efficient mode
 ENABLE_STREAMING_PARSING = True  # Use streaming for very large files
 STREAMING_CHUNK_SIZE = (
     2 * 1024 * 1024
@@ -217,8 +209,7 @@ def validate_function_call(
         raise
     except Exception as e:
         logger.error(
-            f"Unexpected error in parameter validation for {func.__name__}: "
-            f"{e}"
+            f"Unexpected error in parameter validation for {func.__name__}: " f"{e}"
         )
         raise
 
@@ -242,9 +233,7 @@ def strict_call(func: Callable, *args, **kwargs) -> Any:
     caller_frame = inspect.currentframe().f_back
     caller_info = ""
     if caller_frame:
-        caller_info = (
-            f"{caller_frame.f_code.co_name}:{caller_frame.f_lineno}"
-        )
+        caller_info = f"{caller_frame.f_code.co_name}:{caller_frame.f_lineno}"
 
     validate_function_call(func, args, kwargs, caller_info)
     return func(*args, **kwargs)
@@ -444,9 +433,7 @@ class StringBuilder:
             # Look for vCard entries with the phone number
             # Pattern: <a class="tel" href="tel:+1234567890"><span
             # class="fn">Name</span></a>
-            tel_links = soup.select(
-                STRING_POOL.ADDITIONAL_SELECTORS["tel_links"]
-            )
+            tel_links = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
             for link in tel_links:
                 href = link.get("href", "")
                 if href.startswith("tel:"):
@@ -463,18 +450,13 @@ class StringBuilder:
                         # This handles cases like: <a class="tel"
                         # href="tel:+1234567890">Name</a>
                         link_text = link.get_text(strip=True)
-                        if (
-                            link_text
-                            and link_text.lower() not in generic_phrases
-                        ):
+                        if link_text and link_text.lower() not in generic_phrases:
                             return self.sanitize_alias(link_text)
 
             # Look for other patterns where phone numbers and names are associated
             # Pattern: <cite class="sender vcard"><a class="tel"
             # href="tel:+1234567890">Name</a></cite>
-            cite_elements = soup.find_all(
-                "cite", class_=lambda x: x and "sender" in x
-            )
+            cite_elements = soup.find_all("cite", class_=lambda x: x and "sender" in x)
             for cite in cite_elements:
                 tel_link = cite.find("a", class_="tel", href=True)
                 if tel_link:
@@ -488,9 +470,7 @@ class StringBuilder:
 
             # Look for general name elements near phone numbers
             # Pattern: <span class="fn">Name</span> or similar
-            fn_elements = soup.select(
-                STRING_POOL.ADDITIONAL_SELECTORS["fn_elements"]
-            )
+            fn_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["fn_elements"])
             for fn in fn_elements:
                 name = fn.get_text(strip=True)
                 if name and name.lower() not in generic_phrases:
@@ -511,14 +491,10 @@ class StringBuilder:
             return None
 
         except Exception as e:
-            logger.debug(
-                f"Failed to extract alias from HTML for {phone_number}: {e}"
-            )
+            logger.debug(f"Failed to extract alias from HTML for {phone_number}: {e}")
             return None
 
-    def get_alias(
-        self, phone_number: str, soup: Optional[BeautifulSoup] = None
-    ) -> str:
+    def get_alias(self, phone_number: str, soup: Optional[BeautifulSoup] = None) -> str:
         """Get alias for a phone number, prompting user if not found and prompts are enabled."""
         if phone_number in self.phone_aliases:
             return self.phone_aliases[phone_number]
@@ -526,9 +502,7 @@ class StringBuilder:
         if not self.enable_prompts:
             # Try to automatically extract alias from HTML if provided
             if soup:
-                extracted_alias = self.extract_alias_from_html(
-                    soup, phone_number
-                )
+                extracted_alias = self.extract_alias_from_html(soup, phone_number)
                 if extracted_alias:
                     # Store the automatically extracted alias
                     self.phone_aliases[phone_number] = extracted_alias
@@ -582,9 +556,7 @@ class StringBuilder:
         sanitized_alias = self.sanitize_alias(alias)
         self.phone_aliases[phone_number] = sanitized_alias
         self.save_aliases_batched()
-        logger.info(
-            f"Added alias '{sanitized_alias}' for phone number {phone_number}"
-        )
+        logger.info(f"Added alias '{sanitized_alias}' for phone number {phone_number}")
 
 
 @dataclass
@@ -719,7 +691,7 @@ def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
     # efficiency
     chunk_size = max(100, len(filename_list) // MAX_WORKERS)
     chunks = list(
-        filename_list[i: i + chunk_size]
+        filename_list[i : i + chunk_size]
         for i in range(0, len(filename_list), chunk_size)
     )
 
@@ -766,9 +738,7 @@ def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
     logger.info(f"Total attachments in directory: {total_files}")
 
 
-def copy_chunk_parallel(
-    filenames: List[str], attachments_dir: Path
-) -> Dict[str, int]:
+def copy_chunk_parallel(filenames: List[str], attachments_dir: Path) -> Dict[str, int]:
     """Copy a chunk of attachments for parallel processing."""
     chunk_result = {"copied": 0, "skipped": 0, "errors": 0}
 
@@ -820,22 +790,15 @@ def main():
         logger.info("Performance Configuration:")
         logger.info(f"  Parallel processing: {ENABLE_PARALLEL_PROCESSING}")
         logger.info(f"  Max workers: {MAX_WORKERS}")
-        logger.info(
-            f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}"
-        )
+        logger.info(f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
         logger.info(f"  Streaming parsing: {ENABLE_STREAMING_PARSING}")
-        logger.info(
-            f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB"
-        )
+        logger.info(f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB")
 
         # Validate configuration
         validate_configuration()
 
         # Validate date range if both filters are set
-        if (
-            DATE_FILTER_NEWER_THAN is not None
-            and DATE_FILTER_OLDER_THAN is not None
-        ):
+        if DATE_FILTER_NEWER_THAN is not None and DATE_FILTER_OLDER_THAN is not None:
             # Quick check: scan a few files to see if any fall within the date
             # range
             logger.info("📅 Scanning files to validate date range coverage...")
@@ -865,11 +828,7 @@ def main():
                         file_date = dateutil.parser.parse(timestamp_str)
 
                         # Check if file falls within our valid range
-                        if (
-                            DATE_FILTER_OLDER_THAN
-                            < file_date
-                            < DATE_FILTER_NEWER_THAN
-                        ):
+                        if DATE_FILTER_OLDER_THAN < file_date < DATE_FILTER_NEWER_THAN:
                             files_in_range += 1
                 except Exception:
                     # Skip files we can't parse
@@ -882,9 +841,7 @@ def main():
                 logger.warning(
                     f"   Date range: {DATE_FILTER_OLDER_THAN} to {DATE_FILTER_NEWER_THAN}"
                 )
-                logger.warning(
-                    "   This may indicate no messages will be processed"
-                )
+                logger.warning("   This may indicate no messages will be processed")
                 logger.warning(
                     "   Consider adjusting your date filters or use --full-run to process all files"
                 )
@@ -894,9 +851,7 @@ def main():
                     logger.error(
                         "❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode"
                     )
-                    logger.error(
-                        "   Use --full-run to override this safety check"
-                    )
+                    logger.error("   Use --full-run to override this safety check")
                     sys.exit(1)
 
         # Build attachment mapping
@@ -964,8 +919,7 @@ def main():
         # Throughput metrics
         if "num_sms" in stats and stats["num_sms"] > 0:
             sms_per_second = stats["num_sms"] / elapsed_time
-            logger.info(
-                f"Throughput: {sms_per_second:.1f} SMS messages/second")
+            logger.info(f"Throughput: {sms_per_second:.1f} SMS messages/second")
 
         if len(src_filename_map) > 0:
             attachments_per_second = (
@@ -978,9 +932,7 @@ def main():
                 )
                 / elapsed_time
             )
-            logger.info(
-                f"Throughput: {attachments_per_second:.1f} attachments/second"
-            )
+            logger.info(f"Throughput: {attachments_per_second:.1f} attachments/second")
 
         logger.info("=" * 60)
         logger.info("Conversion completed successfully!")
@@ -988,8 +940,7 @@ def main():
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        logger.error(
-            f"Conversion failed after {elapsed_time:.2f} seconds: {e}")
+        logger.error(f"Conversion failed after {elapsed_time:.2f} seconds: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         logger.error(f"Exception details: {str(e)}")
         import traceback
@@ -1008,18 +959,12 @@ def format_elapsed_time(seconds: int) -> str:
     elif delta.seconds >= 3600:
         hours = delta.seconds // 3600
         minutes = (delta.seconds % 3600) // 60
-        return (
-            f"{hours} hours, {minutes} minutes"
-            if minutes > 0
-            else f"{hours} hours"
-        )
+        return f"{hours} hours, {minutes} minutes" if minutes > 0 else f"{hours} hours"
     elif delta.seconds >= 60:
         minutes = delta.seconds // 60
         secs = delta.seconds % 60
         return (
-            f"{minutes} minutes, {secs} seconds"
-            if secs > 0
-            else f"{minutes} minutes"
+            f"{minutes} minutes, {secs} seconds" if secs > 0 else f"{minutes} minutes"
         )
     else:
         return f"{delta.seconds} seconds"
@@ -1043,14 +988,10 @@ def display_results(stats: Dict[str, int], elapsed_time: float):
     logger.info(f"Total voicemails processed: {stats['num_voicemails']}")
     logger.info(f"Total processing time: {elapsed_time:.2f} seconds")
 
-    total_messages = (
-        stats["num_sms"] + stats["num_calls"] + stats["num_voicemails"]
-    )
+    total_messages = stats["num_sms"] + stats["num_calls"] + stats["num_voicemails"]
     if total_messages > 0:
         messages_per_second = total_messages / elapsed_time
-        logger.info(
-            f"Processing rate: {messages_per_second:.2f} messages/second"
-        )
+        logger.info(f"Processing rate: {messages_per_second:.2f} messages/second")
 
     logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
     logger.info("=" * 60)
@@ -1079,9 +1020,7 @@ def remove_problematic_files() -> None:
         logger.error(f"Failed to remove problematic files: {e}")
 
 
-def remove_files_by_pattern(
-    pattern: str, reason: str, regex_pattern: str = ""
-) -> None:
+def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") -> None:
     """
     Remove files matching a pattern with optional regex filtering.
 
@@ -1103,9 +1042,7 @@ def remove_files_by_pattern(
             import re
 
             regex = re.compile(regex_pattern)
-            files_to_remove = [
-                f for f in files_to_remove if regex.match(Path(f).name)
-            ]
+            files_to_remove = [f for f in files_to_remove if regex.match(Path(f).name)]
 
         for file_path in files_to_remove:
             try:
@@ -1188,9 +1125,7 @@ def extract_src_cached(html_directory: str) -> List[str]:
                 # CRITICAL: File processing failures are errors that need
                 # attention
                 logger.error(f"Failed to process {html_file}: {e}")
-                logger.debug(
-                    "Continuing with next file to maintain processing flow"
-                )
+                logger.debug("Continuing with next file to maintain processing flow")
                 continue
 
     except Exception as e:
@@ -1286,9 +1221,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                 if should_report_progress(
                     current_progress, total_files, last_reported_progress
                 ):
-                    additional_info = (
-                        f"Total src elements found: {len(src_list)}"
-                    )
+                    additional_info = f"Total src elements found: {len(src_list)}"
                     progress_msg = format_progress_message(
                         current_progress,
                         total_files,
@@ -1302,9 +1235,7 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                 # CRITICAL: File processing failures are errors that need
                 # attention
                 logger.error(f"Failed to process {html_file}: {e}")
-                logger.debug(
-                    "Continuing with next file to maintain processing flow"
-                )
+                logger.debug("Continuing with next file to maintain processing flow")
                 continue
 
         # Log final performance metrics
@@ -1347,22 +1278,17 @@ def is_valid_image_src(src: str) -> bool:
             " - Missed - ",
         ]
     ):
-        logger.debug(
-            f"Filtering out HTML filename as invalid image src: {src}")
+        logger.debug(f"Filtering out HTML filename as invalid image src: {src}")
         return False
 
     # Skip src that contains timestamp patterns (likely HTML filenames)
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", src):
-        logger.debug(
-            f"Filtering out timestamp pattern as invalid image src: {src}"
-        )
+        logger.debug(f"Filtering out timestamp pattern as invalid image src: {src}")
         return False
 
     # Skip src that contains phone number patterns (likely HTML filenames)
     if re.search(r"\+\d+", src):
-        logger.debug(
-            f"Filtering out phone number pattern as invalid image src: {src}"
-        )
+        logger.debug(f"Filtering out phone number pattern as invalid image src: {src}")
         return False
 
     # Valid image src should be a filename with image extension or data URL
@@ -1411,16 +1337,12 @@ def is_valid_vcard_href(href: str) -> bool:
             " - Missed - ",
         ]
     ):
-        logger.debug(
-            f"Filtering out HTML filename as invalid vCard href: {href}"
-        )
+        logger.debug(f"Filtering out HTML filename as invalid vCard href: {href}")
         return False
 
     # Skip href that contains timestamp patterns (likely HTML filenames)
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", href):
-        logger.debug(
-            f"Filtering out timestamp pattern as invalid vCard href: {href}"
-        )
+        logger.debug(f"Filtering out timestamp pattern as invalid vCard href: {href}")
         return False
 
     # Valid vCard href should be a filename with .vcf extension or data URL
@@ -1576,9 +1498,7 @@ def list_att_filenames_cached(directory: str) -> List[str]:
             if path.suffix.lower() in SUPPORTED_EXTENSIONS
         ]
     except Exception as e:
-        logger.error(
-            f"Failed to list attachment filenames from {directory}: {e}"
-        )
+        logger.error(f"Failed to list attachment filenames from {directory}: {e}")
         return []
 
 
@@ -1692,7 +1612,8 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
 
                     logger.info(
                         f"Attachment scan progress: {current_progress}/{total_files} files examined ({percentage:.1f}%) - "
-                        f"Attachments found: {attachment_count}")
+                        f"Attachments found: {attachment_count}"
+                    )
                     last_reported_progress = current_progress
 
         # Log final performance metrics
@@ -1703,9 +1624,7 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
         return attachment_filenames
 
     except Exception as e:
-        logger.error(
-            f"Failed to list attachment filenames from {directory}: {e}"
-        )
+        logger.error(f"Failed to list attachment filenames from {directory}: {e}")
         return []
 
 
@@ -1865,10 +1784,7 @@ def src_to_filename_mapping_with_progress(
             if not filename.strip():
                 continue
             normalized_filename = normalize_filename(filename.strip())
-            if (
-                normalized_filename in src
-                and filename.strip() not in used_filenames
-            ):
+            if normalized_filename in src and filename.strip() not in used_filenames:
                 assigned_filename = filename.strip()
                 used_filenames.add(filename.strip())
                 mapped_count += 1
@@ -1895,7 +1811,8 @@ def src_to_filename_mapping_with_progress(
 
             logger.info(
                 f"Mapping progress: {current_progress}/{total_src_elements} src elements processed ({percentage:.1f}%) - "
-                f"Successfully mapped: {mapped_count}")
+                f"Successfully mapped: {mapped_count}"
+            )
             last_reported_progress = current_progress
 
     logger.info(
@@ -1941,9 +1858,7 @@ def is_sms_mms_file(filename: str) -> bool:
     filename_lower = filename.lower()
 
     # Files that definitely contain SMS/MMS
-    if any(
-        keyword in filename_lower for keyword in ["text", "group conversation"]
-    ):
+    if any(keyword in filename_lower for keyword in ["text", "group conversation"]):
         return True
 
     # Files that definitely don't contain SMS/MMS
@@ -1994,9 +1909,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
     total_files = len(html_files_list)
 
     if total_files == 0:
-        logger.error(
-            f"No HTML files found in Calls directory: {calls_directory}"
-        )
+        logger.error(f"No HTML files found in Calls directory: {calls_directory}")
         return stats
 
     # Process all files, not just SMS/MMS files
@@ -2294,9 +2207,7 @@ def process_sms_mms_file(
 
 
 @lru_cache(maxsize=15000)
-def count_attachments_in_file_cached(
-    html_file_str: str, extensions_str: str
-) -> int:
+def count_attachments_in_file_cached(html_file_str: str, extensions_str: str) -> int:
     """
     Cached attachment counting for performance optimization.
 
@@ -2373,9 +2284,7 @@ def write_sms_messages(
 
         # Check if file should be skipped based on filename patterns
         if should_skip_file(file):
-            logger.info(
-                f"Skipping file with invalid phone number pattern: {file}"
-            )
+            logger.info(f"Skipping file with invalid phone number pattern: {file}")
             return
 
         # Get the primary phone number for this conversation
@@ -2395,9 +2304,7 @@ def write_sms_messages(
                     (
                         participants,
                         _aliases,
-                    ) = get_participant_phone_numbers_and_aliases(
-                        page_participants_raw
-                    )
+                    ) = get_participant_phone_numbers_and_aliases(page_participants_raw)
                     # Prefer a participant that is not own_number
                     for p in participants:
                         if not own_number or p != own_number:
@@ -2424,15 +2331,10 @@ def write_sms_messages(
                                         formatted = format_number(
                                             phonenumbers.parse(candidate, None)
                                         )
-                                        if (
-                                            not own_number
-                                            or formatted != own_number
-                                        ):
+                                        if not own_number or formatted != own_number:
                                             phone_number = formatted
-                                            participant_raw = (
-                                                create_dummy_participant(
-                                                    phone_number
-                                                )
+                                            participant_raw = create_dummy_participant(
+                                                phone_number
                                             )
                                             break
                                     except Exception:
@@ -2448,15 +2350,12 @@ def write_sms_messages(
                         phone_number = format_number(
                             phonenumbers.parse(phone_match.group(1), None)
                         )
-                        participant_raw = create_dummy_participant(
-                            phone_number)
+                        participant_raw = create_dummy_participant(phone_number)
                         logger.debug(
                             f"Extracted phone number from filename: {phone_number}"
                         )
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to extract phone number from filename: {e}"
-                    )
+                    logger.debug(f"Failed to extract phone number from filename: {e}")
 
             # Fallback 4: Look for any phone numbers in the entire HTML content
             if not is_valid_phone_number(phone_number):
@@ -2471,18 +2370,11 @@ def write_sms_messages(
                                 if match:
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(
-                                                match.group(1), None
-                                            )
+                                            phonenumbers.parse(match.group(1), None)
                                         )
-                                        if (
-                                            not own_number
-                                            or phone_number != own_number
-                                        ):
-                                            participant_raw = (
-                                                create_dummy_participant(
-                                                    phone_number
-                                                )
+                                        if not own_number or phone_number != own_number:
+                                            participant_raw = create_dummy_participant(
+                                                phone_number
                                             )
                                             logger.debug(
                                                 f"Extracted phone number from soup: {phone_number}"
@@ -2498,18 +2390,12 @@ def write_sms_messages(
                         html_files = list(PROCESSING_DIRECTORY.rglob("*.html"))
                         for html_file in html_files:
                             if html_file.name == file:
-                                with open(
-                                    html_file, "r", encoding="utf-8"
-                                ) as f:
-                                    soup_content = BeautifulSoup(
-                                        f.read(), HTML_PARSER
-                                    )
+                                with open(html_file, "r", encoding="utf-8") as f:
+                                    soup_content = BeautifulSoup(f.read(), HTML_PARSER)
 
                                 # Look for any tel: links in the entire
                                 # document
-                                tel_links = soup_content.find_all(
-                                    "a", href=True
-                                )
+                                tel_links = soup_content.find_all("a", href=True)
                                 for link in tel_links:
                                     href = link.get("href", "")
                                     if href.startswith("tel:"):
@@ -2523,11 +2409,13 @@ def write_sms_messages(
                                                 )
                                                 if (
                                                     not own_number
-                                                    or phone_number
-                                                    != own_number
+                                                    or phone_number != own_number
                                                 ):
-                                                    participant_raw = create_dummy_participant(
-                                                        phone_number)
+                                                    participant_raw = (
+                                                        create_dummy_participant(
+                                                            phone_number
+                                                        )
+                                                    )
                                                     logger.debug(
                                                         f"Extracted phone number from HTML content: {phone_number}"
                                                     )
@@ -2539,9 +2427,7 @@ def write_sms_messages(
                                                 continue
                                 break
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to scan HTML content for phone numbers: {e}"
-                    )
+                    logger.debug(f"Failed to scan HTML content for phone numbers: {e}")
 
                     # Fallback 5: Use a default conversation ID for unknown
                     # numbers
@@ -2549,12 +2435,8 @@ def write_sms_messages(
             logger.error(
                 f"Could not determine valid phone number for {file}, using fallback conversation ID"
             )
-            logger.debug(
-                "Fallback conversation ID will be created from filename hash"
-            )
-            logger.debug(
-                f"Phone number that failed validation: '{phone_number}'"
-            )
+            logger.debug("Fallback conversation ID will be created from filename hash")
+            logger.debug(f"Phone number that failed validation: '{phone_number}'")
             # Create a unique conversation ID based on filename
             phone_number = f"unknown_{hash(file) % 1000000}"
             participant_raw = create_dummy_participant(phone_number)
@@ -2564,9 +2446,7 @@ def write_sms_messages(
             logger.error(
                 f"Could not determine valid phone number for {file}, skipping SMS processing"
             )
-            logger.debug(
-                f"Final phone number that failed validation: '{phone_number}'"
-            )
+            logger.debug(f"Final phone number that failed validation: '{phone_number}'")
             logger.debug(f"File type: {get_file_type(file)}")
             logger.debug(f"Fallback number used: {fallback_number}")
             return
@@ -2608,9 +2488,7 @@ def write_sms_messages(
         for i, message in enumerate(messages_raw):
             try:
                 # Check if message contains images or vCards (treat as MMS)
-                if message.find_all("img") or message.find_all(
-                    "a", class_="vcard"
-                ):
+                if message.find_all("img") or message.find_all("a", class_="vcard"):
                     # Process as MMS instead of SMS. Prefer page-level participants
                     # to capture full group membership; fall back to
                     # per-message cite.
@@ -2657,10 +2535,8 @@ def write_sms_messages(
 
                     # Also check if the number is explicitly excluded
                     if phone_lookup_manager.is_excluded(str(phone_number)):
-                        exclusion_reason = (
-                            phone_lookup_manager.get_exclusion_reason(
-                                str(phone_number)
-                            )
+                        exclusion_reason = phone_lookup_manager.get_exclusion_reason(
+                            str(phone_number)
                         )
                         logger.debug(
                             f"Skipping message from {phone_number} - explicitly excluded: {exclusion_reason}"
@@ -2688,14 +2564,9 @@ def write_sms_messages(
                     name_part = file.split(" - Text -")[0]
                     # Use the name part as alias if it looks like a person's
                     # name
-                    if (
-                        len(name_part.strip()) > 2
-                        and not name_part.strip().isdigit()
-                    ):
+                    if len(name_part.strip()) > 2 and not name_part.strip().isdigit():
                         alias = name_part.strip()
-                        logger.debug(
-                            f"Using filename-based alias for SMS: {alias}"
-                        )
+                        logger.debug(f"Using filename-based alias for SMS: {alias}")
 
                 # Prepare SMS message data
                 sms_values = {
@@ -2719,9 +2590,7 @@ def write_sms_messages(
                         message_text = "[Empty message]"
                     attachments = []
                     # Determine sender display for SMS
-                    sender_display = (
-                        "Me" if sms_values.get("type") == 2 else alias
-                    )
+                    sender_display = "Me" if sms_values.get("type") == 2 else alias
                     conversation_manager.write_message_with_content(
                         conversation_id,
                         message_text,
@@ -2757,7 +2626,8 @@ def write_sms_messages(
 
                     logger.info(
                         f"SMS processing progress in {file}: {current_progress}/{total_messages} messages processed ({percentage:.1f}%) - "
-                        f"Processed: {processed_count}, Skipped: {skipped_count}")
+                        f"Processed: {processed_count}, Skipped: {skipped_count}"
+                    )
                     last_reported_progress = current_progress
 
             except Exception as e:
@@ -2823,9 +2693,7 @@ def extract_fallback_number_cached(filename: str) -> int:
     if " - Text - " in filename or " - Voicemail - " in filename:
         # Create a consistent hash-based number for the same name
         name_part = filename.split(" - ")[0]
-        hash_value = (
-            abs(hash(name_part)) % 100000000
-        )  # 8-digit number, ensure positive
+        hash_value = abs(hash(name_part)) % 100000000  # 8-digit number, ensure positive
         # Ensure it's at least 8 digits by padding with zeros if needed
         if hash_value < 10000000:  # Less than 8 digits
             hash_value += 10000000  # Add 10 million to ensure 8 digits
@@ -2870,7 +2738,9 @@ def is_legitimate_google_voice_export(filename: str) -> bool:
             # Check for legitimate pattern: YYYY-MM-DDTHH_MM_SSZ-N-M
             # Where N and M are typically single digits (0-9) representing file parts/versions
             # Pre-compiled regex patterns for better performance
-            timestamp_pattern = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]"
+            timestamp_pattern = (
+                r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]"
+            )
 
             # Check with and without .html extension
             if re.search(timestamp_pattern + r"\.html$", after_pattern):
@@ -2919,9 +2789,7 @@ def should_skip_file(filename: str) -> bool:
 
     # Check for empty or malformed name parts
     if filename.startswith(" - ") or filename.startswith("- "):
-        logger.debug(
-            f"Skipping filename with empty/malformed name part: {filename}"
-        )
+        logger.debug(f"Skipping filename with empty/malformed name part: {filename}")
         return True
 
     # Check if filename follows the expected Google Voice pattern
@@ -2937,9 +2805,7 @@ def should_skip_file(filename: str) -> bool:
             after_pattern = filename.split(pattern)[1]
 
             # Check if the timestamp part is corrupted (has extra dashes/parts)
-            if (
-                after_pattern.count("-") > 2
-            ):  # More than expected dashes in timestamp
+            if after_pattern.count("-") > 2:  # More than expected dashes in timestamp
                 # But allow legitimate Google Voice export patterns
                 if is_legitimate_google_voice_export(filename):
                     logger.debug(
@@ -2961,9 +2827,7 @@ def should_skip_file(filename: str) -> bool:
                 # Check if this is a legitimate Google Voice export without
                 # .html extension
                 if is_legitimate_google_voice_export(filename):
-                    timestamp_part = (
-                        after_pattern  # No extension, but legitimate
-                    )
+                    timestamp_part = after_pattern  # No extension, but legitimate
                     logger.debug(
                         f"Allowing legitimate Google Voice export without .html: {filename}"
                     )
@@ -3058,16 +2922,14 @@ def clean_corrupted_filename(filename: str) -> str:
 
                 # Look for the valid timestamp pattern and preserve legitimate Google Voice export patterns
                 # Valid pattern: YYYY-MM-DDTHH_MM_SSZ
-                valid_timestamp_match = TIMESTAMP_PATTERN.search(
-                    timestamp_part)
+                valid_timestamp_match = TIMESTAMP_PATTERN.search(timestamp_part)
                 if valid_timestamp_match:
                     clean_timestamp = valid_timestamp_match.group(0)
 
                     # Check if this is a legitimate Google Voice export with file parts (e.g., "-6-1")
                     # Only preserve single-digit patterns like "-6-1", not
                     # multi-digit like "-123-456"
-                    file_parts_match = FILE_PARTS_PATTERN.search(
-                        timestamp_part)
+                    file_parts_match = FILE_PARTS_PATTERN.search(timestamp_part)
                     if file_parts_match:
                         # Preserve the legitimate file parts (single digits
                         # only)
@@ -3171,9 +3033,7 @@ def should_skip_message_by_date(message_timestamp: int) -> bool:
         logger.error(
             f"Failed to parse message timestamp {message_timestamp} for date filtering: {e}"
         )
-        logger.debug(
-            "Message will not be filtered by date - treating as valid"
-        )
+        logger.debug("Message will not be filtered by date - treating as valid")
         return False  # Don't skip if we can't parse the timestamp
 
 
@@ -3192,9 +3052,7 @@ def extract_fallback_number(file: str) -> int:
 
 
 @lru_cache(maxsize=50000)
-def format_sms_xml_cached(
-    alias: str, time: int, type_val: int, message: str
-) -> str:
+def format_sms_xml_cached(alias: str, time: int, type_val: int, message: str) -> str:
     """
     Cached SMS XML formatting for performance optimization.
 
@@ -3289,14 +3147,11 @@ def search_fallback_numbers(
                                 number_text = match.group(1) if match else ""
                                 if (
                                     number_text
-                                    and len(number_text)
-                                    >= MIN_PHONE_NUMBER_LENGTH
+                                    and len(number_text) >= MIN_PHONE_NUMBER_LENGTH
                                 ):
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(
-                                                number_text, None
-                                            )
+                                            phonenumbers.parse(number_text, None)
                                         )
                                         return phone_number
                                     except phonenumbers.phonenumberutil.NumberParseException:
@@ -3327,27 +3182,18 @@ def search_files_for_phone_number(
 
                     if search_type == "message":
                         messages_raw = soup.find_all(class_="message")
-                        phone_number, _ = get_first_phone_number(
-                            messages_raw, 0
-                        )
+                        phone_number, _ = get_first_phone_number(messages_raw, 0)
                         if phone_number != 0:
                             return phone_number
 
                     elif search_type == "contributor vcard":
-                        contrib_vcards = soup.find_all(
-                            class_="contributor vcard"
-                        )
+                        contrib_vcards = soup.find_all(class_="contributor vcard")
                         for contrib_vcard in contrib_vcards:
-                            if (
-                                contrib_vcard.a
-                                and "href" in contrib_vcard.a.attrs
-                            ):
+                            if contrib_vcard.a and "href" in contrib_vcard.a.attrs:
                                 href = contrib_vcard.a["href"]
                                 # Use pre-compiled regex for better performance
                                 match = TEL_HREF_PATTERN.search(href)
-                                phone_number_ff = (
-                                    match.group(1) if match else ""
-                                )
+                                phone_number_ff = match.group(1) if match else ""
                             if phone_number_ff:
                                 phone_number, _ = get_first_phone_number(
                                     [], phone_number_ff
@@ -3356,9 +3202,7 @@ def search_files_for_phone_number(
                                 return phone_number
 
             except Exception as e:
-                logger.error(
-                    f"Failed to search fallback file {fallback_file}: {e}"
-                )
+                logger.error(f"Failed to search fallback file {fallback_file}: {e}")
                 continue
 
     except Exception as e:
@@ -3444,16 +3288,9 @@ def write_mms_messages(
                                     parsed_number = phonenumbers.parse(
                                         phone_number, None
                                     )
-                                    formatted_number = format_number(
-                                        parsed_number
-                                    )
-                                    if (
-                                        formatted_number
-                                        not in fallback_participants
-                                    ):
-                                        fallback_participants.append(
-                                            formatted_number
-                                        )
+                                    formatted_number = format_number(parsed_number)
+                                    if formatted_number not in fallback_participants:
+                                        fallback_participants.append(formatted_number)
                                         # Try to get alias from the cite
                                         # element
                                         html_alias = ""
@@ -3461,9 +3298,7 @@ def write_mms_messages(
                                             ["span", "abbr"], class_="fn"
                                         )
                                         if fn_element:
-                                            html_alias = fn_element.get_text(
-                                                strip=True
-                                            )
+                                            html_alias = fn_element.get_text(strip=True)
                                         elif anchor_text != phone_number:
                                             html_alias = anchor_text
 
@@ -3475,7 +3310,10 @@ def write_mms_messages(
                                             in phone_lookup_manager.phone_aliases
                                         ):
                                             fallback_aliases.append(
-                                                phone_lookup_manager.phone_aliases[formatted_number])
+                                                phone_lookup_manager.phone_aliases[
+                                                    formatted_number
+                                                ]
+                                            )
                                         else:
                                             fallback_aliases.append(
                                                 html_alias
@@ -3483,18 +3321,11 @@ def write_mms_messages(
                                                 else formatted_number
                                             )
                                 except phonenumbers.phonenumberutil.NumberParseException:
-                                    if (
-                                        phone_number
-                                        not in fallback_participants
-                                    ):
-                                        fallback_participants.append(
-                                            phone_number
-                                        )
+                                    if phone_number not in fallback_participants:
+                                        fallback_participants.append(phone_number)
                                         fallback_aliases.append(phone_number)
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to extract participant from message: {e}"
-                    )
+                    logger.debug(f"Failed to extract participant from message: {e}")
                     continue
 
             if fallback_participants:
@@ -3526,18 +3357,12 @@ def write_mms_messages(
                                 if match:
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(
-                                                match.group(1), None
-                                            )
+                                            phonenumbers.parse(match.group(1), None)
                                         )
                                         if phone_number not in all_participants:
-                                            all_participants.append(
-                                                phone_number
-                                            )
+                                            all_participants.append(phone_number)
                                             # Try to get alias from link text
-                                            link_text = link.get_text(
-                                                strip=True
-                                            )
+                                            link_text = link.get_text(strip=True)
                                             alias = (
                                                 link_text
                                                 if link_text
@@ -3551,9 +3376,7 @@ def write_mms_messages(
                                         )
                                         continue
                     except Exception as e:
-                        logger.debug(
-                            f"Failed to extract tel links from soup: {e}"
-                        )
+                        logger.debug(f"Failed to extract tel links from soup: {e}")
 
                 # Strategy 2: Look for any phone numbers in text content (only
                 # if soup is available)
@@ -3576,9 +3399,7 @@ def write_mms_messages(
                                 )
                                 continue
                     except Exception as e:
-                        logger.debug(
-                            f"Failed to extract text content from soup: {e}"
-                        )
+                        logger.debug(f"Failed to extract text content from soup: {e}")
 
                 # Strategy 3: Use filename as fallback if it contains a phone
                 # number
@@ -3656,9 +3477,7 @@ def write_mms_messages(
                                 matches = re.findall(pattern, name_part)
                                 for match in matches:
                                     try:
-                                        if (
-                                            len(match) == 2
-                                        ):  # Name +phone format
+                                        if len(match) == 2:  # Name +phone format
                                             name, phone = match
                                             phone_number = format_number(
                                                 phonenumbers.parse(phone, None)
@@ -3674,13 +3493,8 @@ def write_mms_messages(
                                         else:
                                             continue
 
-                                        if (
-                                            phone_number
-                                            not in filename_participants
-                                        ):
-                                            filename_participants.append(
-                                                phone_number
-                                            )
+                                        if phone_number not in filename_participants:
+                                            filename_participants.append(phone_number)
                                             filename_aliases.append(
                                                 name.strip()
                                                 if name.strip()
@@ -3770,9 +3584,7 @@ def write_mms_messages(
 
                         if phone_lookup_manager.is_excluded(str(phone)):
                             exclusion_reason = (
-                                phone_lookup_manager.get_exclusion_reason(
-                                    str(phone)
-                                )
+                                phone_lookup_manager.get_exclusion_reason(str(phone))
                             )
                             logger.debug(
                                 f"Skipping MMS from {phone} - explicitly excluded: {exclusion_reason}"
@@ -3789,9 +3601,7 @@ def write_mms_messages(
                 if FILTER_NON_PHONE_NUMBERS:
                     should_skip = False
                     for phone in participants:
-                        if not is_valid_phone_number(
-                            str(phone), filter_non_phone=True
-                        ):
+                        if not is_valid_phone_number(str(phone), filter_non_phone=True):
                             logger.debug(
                                 f"Skipping MMS from {phone} - toll-free or non-US number filtered out"
                             )
@@ -3814,9 +3624,7 @@ def write_mms_messages(
                         participant_idx < len(participant_aliases)
                         and participant_aliases[participant_idx]
                     ):
-                        final_aliases.append(
-                            participant_aliases[participant_idx]
-                        )
+                        final_aliases.append(participant_aliases[participant_idx])
                     else:
                         # Fall back to phone lookup
                         alias = phone_lookup_manager.get_alias(phone, None)
@@ -3832,9 +3640,7 @@ def write_mms_messages(
                     participants_text=",".join(final_aliases),
                     message_time=get_time_unix(message, file),
                     m_type=MMS_TYPE_SENT if sent_by_me else MMS_TYPE_RECEIVED,
-                    msg_box=MESSAGE_BOX_SENT
-                    if sent_by_me
-                    else MMS_TYPE_RECEIVED,
+                    msg_box=MESSAGE_BOX_SENT if sent_by_me else MMS_TYPE_RECEIVED,
                     text_part=TEXT_PART_TEMPLATE.format(text=message_content)
                     if message_content
                     else "",
@@ -3875,9 +3681,7 @@ def write_mms_messages(
                                         f"<a href='attachments/{actual_filename}' target='_blank'>📷 Image</a>"
                                     )
                                 else:
-                                    attachments.append(
-                                        "📷 Image (file not found)"
-                                    )
+                                    attachments.append("📷 Image (file not found)")
                             else:
                                 attachments.append("📷 Image (unmapped)")
                         else:
@@ -3940,7 +3744,8 @@ def write_mms_messages(
 
                     logger.info(
                         f"MMS processing progress in {file}: {current_progress}/{total_messages} messages processed ({percentage:.1f}%) - "
-                        f"Processed: {processed_count}, Skipped: {skipped_count}")
+                        f"Processed: {processed_count}, Skipped: {skipped_count}"
+                    )
                     last_reported_progress = current_progress
 
             except Exception as e:
@@ -3986,9 +3791,7 @@ def process_attachments(
     extracted_url = None
 
     for attachment in attachments:
-        src = attachment.get(
-            "src" if attachment_type == "image" else "href", ""
-        )
+        src = attachment.get("src" if attachment_type == "image" else "href", "")
         if src in src_filename_map:
             filename = src_filename_map[src]
             if filename != "No unused match found":
@@ -4021,9 +3824,7 @@ def process_attachments(
     return parts, extracted_url
 
 
-def build_image_parts(
-    message: BeautifulSoup, src_filename_map: Dict[str, str]
-) -> str:
+def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) -> str:
     """
     Build XML parts for image attachments in an MMS message.
 
@@ -4055,15 +3856,11 @@ def build_image_parts(
                         # Use the attachments directory created in
                         # setup_processing_paths
                         attachments_dir = OUTPUT_DIRECTORY / "attachments"
-                        logger.debug(
-                            f"Using attachments directory: {attachments_dir}"
-                        )
+                        logger.debug(f"Using attachments directory: {attachments_dir}")
 
                         # Copy the image file to attachments directory
                         dest_file_path = attachments_dir / filename
-                        logger.debug(
-                            f"Copying {source_file_path} to {dest_file_path}"
-                        )
+                        logger.debug(f"Copying {source_file_path} to {dest_file_path}")
                         if not dest_file_path.exists():
                             import shutil
 
@@ -4076,38 +3873,33 @@ def build_image_parts(
                                 f"Image {filename} already exists in attachments directory"
                             )
 
-                        content_type = (
-                            f"image/{get_image_type(source_file_path)}"
-                        )
+                        content_type = f"image/{get_image_type(source_file_path)}"
                         image_parts += IMAGE_PART_TEMPLATE.format(
                             type=content_type,
                             name=filename,
                             data="attachments/" + filename,
                         )
                     except Exception as e:
-                        logger.error(
-                            f"Failed to process image {filename}: {e}")
+                        logger.error(f"Failed to process image {filename}: {e}")
 
                         # Try to recover from common failure types
                         try:
                             # Check if it's a file permission issue
-                            if "Permission denied" in str(
+                            if "Permission denied" in str(e) or "Access denied" in str(
                                 e
-                            ) or "Access denied" in str(e):
+                            ):
                                 logger.error(
                                     f"Permission denied for image {filename} - check file permissions"
                                 )
                             # Check if it's a file not found issue
-                            elif "No such file" in str(
+                            elif "No such file" in str(e) or "FileNotFoundError" in str(
                                 e
-                            ) or "FileNotFoundError" in str(e):
+                            ):
                                 logger.error(
                                     f"Image file {filename} not found in Calls directory"
                                 )
                             # Check if it's a disk space issue
-                            elif "No space left" in str(e) or "ENOSPC" in str(
-                                e
-                            ):
+                            elif "No space left" in str(e) or "ENOSPC" in str(e):
                                 logger.error(
                                     f"Insufficient disk space to copy image {filename}"
                                 )
@@ -4123,9 +3915,7 @@ def build_image_parts(
     return image_parts
 
 
-def build_vcard_parts(
-    message: BeautifulSoup, src_filename_map: Dict[str, str]
-) -> str:
+def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) -> str:
     """
     Build XML parts for vCard attachments in an MMS message.
 
@@ -4172,29 +3962,26 @@ def build_vcard_parts(
                             data="attachments/" + filename,
                         )
                     except Exception as e:
-                        logger.error(
-                            f"Failed to process vCard {filename}: {e}")
+                        logger.error(f"Failed to process vCard {filename}: {e}")
 
                         # Try to recover from common failure types
                         try:
                             # Check if it's a file permission issue
-                            if "Permission denied" in str(
+                            if "Permission denied" in str(e) or "Access denied" in str(
                                 e
-                            ) or "Access denied" in str(e):
+                            ):
                                 logger.error(
                                     f"Permission denied for vCard {filename} - check file permissions"
                                 )
                             # Check if it's a file not found issue
-                            elif "No such file" in str(
+                            elif "No such file" in str(e) or "FileNotFoundError" in str(
                                 e
-                            ) or "FileNotFoundError" in str(e):
+                            ):
                                 logger.error(
                                     f"vCard file {filename} not found in Calls directory"
                                 )
                             # Check if it's a disk space issue
-                            elif "No space left" in str(e) or "ENOSPC" in str(
-                                e
-                            ):
+                            elif "No space left" in str(e) or "ENOSPC" in str(e):
                                 logger.error(
                                     f"Insufficient disk space to copy vCard {filename}"
                                 )
@@ -4224,13 +4011,9 @@ def process_single_attachment(
 
     # Find matching file
     supported_types = (
-        SUPPORTED_IMAGE_TYPES
-        if attachment_type == "image"
-        else SUPPORTED_VCARD_TYPES
+        SUPPORTED_IMAGE_TYPES if attachment_type == "image" else SUPPORTED_VCARD_TYPES
     )
-    file_path = find_attachment_file(
-        src, file, src_filename_map, supported_types
-    )
+    file_path = find_attachment_file(src, file, src_filename_map, supported_types)
     if not file_path:
         return None, ""
 
@@ -4333,7 +4116,7 @@ def find_attachment_file(
     else:
         # Fallback: construct filename from HTML filename and src
         html_prefix = file.split("-", 1)[0]
-        constructed_filename = html_prefix + src[src.find("-"):]
+        constructed_filename = html_prefix + src[src.find("-") :]
         filename_pattern = f"**/{constructed_filename}.*"
 
     # Find and filter paths
@@ -4403,8 +4186,7 @@ def extract_location_url(vcard_path: Path) -> str:
             for line in f:
                 if line.startswith("FN:") and "Current Location" in line:
                     current_location_found = True
-                if current_location_found and line.startswith(
-                        "URL;type=pref:"):
+                if current_location_found and line.startswith("URL;type=pref:"):
                     url = line.split(":", 1)[1].strip()
                     return escape_xml(url.replace("\\", ""))
         return ""
@@ -4574,9 +4356,7 @@ def get_message_type(message: BeautifulSoup) -> int:
         if not author_raw:
             # No cite element found, try alternative methods
             # Look for any indication this is a sent message
-            if message.find("span", class_="sender") or message.find(
-                class_="sent"
-            ):
+            if message.find("span", class_="sender") or message.find(class_="sent"):
                 return 2  # Sent message
             else:
                 return 1  # Default to received
@@ -4670,13 +4450,9 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
 
                 if number_text:
                     try:
-                        return format_number(
-                            phonenumbers.parse(number_text, None)
-                        )
+                        return format_number(phonenumbers.parse(number_text, None))
                     except phonenumbers.phonenumberutil.NumberParseException as e:
-                        logger.error(
-                            f"Failed to parse phone number {number_text}: {e}"
-                        )
+                        logger.error(f"Failed to parse phone number {number_text}: {e}")
                         # Continue to fallback methods instead of failing
 
         # Fallback 1: Look for any tel: links in the message
@@ -4688,17 +4464,13 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
                 number_text = match.group(1) if match else ""
                 if number_text:
                     try:
-                        return format_number(
-                            phonenumbers.parse(number_text, None)
-                        )
+                        return format_number(phonenumbers.parse(number_text, None))
                     except phonenumbers.phonenumberutil.NumberParseException:
                         continue
 
         # Fallback 2: If only one participant, use that
         if len(participants) == 1:
-            logger.debug(
-                f"Using single participant as sender: {participants[0]}"
-            )
+            logger.debug(f"Using single participant as sender: {participants[0]}")
             return participants[0]
 
         # Fallback 3: Look for sender indicators in the message content
@@ -4732,9 +4504,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
         logger.error(
             f"Could not determine exact MMS sender, using first participant: {participants[0]}"
         )
-        logger.debug(
-            "This may affect sender attribution in group conversations"
-        )
+        logger.debug("This may affect sender attribution in group conversations")
         return participants[0]
 
     except Exception as e:
@@ -4789,10 +4559,7 @@ def get_first_phone_number(
                     # Use pre-compiled regex for better performance
                     match = TEL_HREF_PATTERN.search(href)
                     number_text = match.group(1) if match else ""
-                    if (
-                        number_text
-                        and len(number_text) >= MIN_PHONE_NUMBER_LENGTH
-                    ):
+                    if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
                         try:
                             phone_number = format_number(
                                 phonenumbers.parse(number_text, None)
@@ -4817,10 +4584,7 @@ def get_first_phone_number(
                     if href.startswith("tel:"):
                         match = TEL_HREF_PATTERN.search(href)
                         number_text = match.group(1) if match else ""
-                        if (
-                            number_text
-                            and len(number_text) >= MIN_PHONE_NUMBER_LENGTH
-                        ):
+                        if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
                             try:
                                 phone_number = format_number(
                                     phonenumbers.parse(number_text, None)
@@ -4852,13 +4616,9 @@ def get_first_phone_number(
                         phone_number = format_number(
                             phonenumbers.parse(number_text, None)
                         )
-                        return phone_number, create_dummy_participant(
-                            phone_number
-                        )
+                        return phone_number, create_dummy_participant(phone_number)
                     except phonenumbers.phonenumberutil.NumberParseException as e:
-                        logger.debug(
-                            f"Failed to parse phone number {number_text}: {e}"
-                        )
+                        logger.debug(f"Failed to parse phone number {number_text}: {e}")
                         continue
             except Exception as e:
                 logger.debug(f"Failed to process message text: {e}")
@@ -4873,9 +4633,7 @@ def get_first_phone_number(
                     )
                     return phone_number, create_dummy_participant(phone_number)
             except Exception as e:
-                logger.debug(
-                    f"Failed to use fallback number {fallback_number}: {e}"
-                )
+                logger.debug(f"Failed to use fallback number {fallback_number}: {e}")
 
         # If all strategies fail, log detailed information for debugging
         logger.debug(f"No phone number found in {len(messages)} messages")
@@ -4938,9 +4696,7 @@ def get_participant_phone_numbers_and_aliases(
                         if hasattr(item, "find_all"):
                             # First, check if this is a group conversation with
                             # a participants div
-                            participants_div = item.find(
-                                "div", class_="participants"
-                            )
+                            participants_div = item.find("div", class_="participants")
                             if (
                                 participants_div
                                 and "Group conversation with:"
@@ -4955,9 +4711,7 @@ def get_participant_phone_numbers_and_aliases(
                                     (
                                         phone,
                                         html_alias,
-                                    ) = extract_phone_and_alias_from_cite(
-                                        cite_element
-                                    )
+                                    ) = extract_phone_and_alias_from_cite(cite_element)
                                     if phone:
                                         participants.append(phone)
                                         aliases.append(html_alias)
@@ -4966,14 +4720,13 @@ def get_participant_phone_numbers_and_aliases(
                                 # Use a set to avoid duplicates
                                 seen_phones = set()
                                 cite_elements = item.find_all(
-                                    "cite", class_=lambda x: x and "sender" in x)
+                                    "cite", class_=lambda x: x and "sender" in x
+                                )
                                 for cite_element in cite_elements:
                                     (
                                         phone,
                                         html_alias,
-                                    ) = extract_phone_and_alias_from_cite(
-                                        cite_element
-                                    )
+                                    ) = extract_phone_and_alias_from_cite(cite_element)
                                     if phone and phone not in seen_phones:
                                         participants.append(phone)
                                         aliases.append(html_alias)
@@ -5000,9 +4753,7 @@ def get_participant_phone_numbers_and_aliases(
                                 (
                                     phone,
                                     html_alias,
-                                ) = extract_phone_and_alias_from_cite(
-                                    cite_element
-                                )
+                                ) = extract_phone_and_alias_from_cite(cite_element)
                                 if phone:
                                     participants.append(phone)
                                     aliases.append(html_alias)
@@ -5017,9 +4768,7 @@ def get_participant_phone_numbers_and_aliases(
                                 (
                                     phone,
                                     html_alias,
-                                ) = extract_phone_and_alias_from_cite(
-                                    cite_element
-                                )
+                                ) = extract_phone_and_alias_from_cite(cite_element)
                                 if phone and phone not in seen_phones:
                                     participants.append(phone)
                                     aliases.append(html_alias)
@@ -5097,9 +4846,7 @@ def extract_phone_and_alias_from_cite(
                     PHONE_LOOKUP_MANAGER
                     and formatted_number in PHONE_LOOKUP_MANAGER.phone_aliases
                 ):
-                    final_alias = PHONE_LOOKUP_MANAGER.phone_aliases[
-                        formatted_number
-                    ]
+                    final_alias = PHONE_LOOKUP_MANAGER.phone_aliases[formatted_number]
             except Exception:
                 pass
 
@@ -5129,9 +4876,7 @@ def get_participant_phone_numbers(participants_raw: List) -> List[str]:
         ConversionError: If participant extraction fails
     """
     # Use the new function and return just the phone numbers
-    participants, _ = get_participant_phone_numbers_and_aliases(
-        participants_raw
-    )
+    participants, _ = get_participant_phone_numbers_and_aliases(participants_raw)
     return participants
 
 
@@ -5215,16 +4960,13 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
 
                 if timestamp_part:
                     if timestamp_part.endswith(".html"):
-                        timestamp_part = timestamp_part[
-                            :-5
-                        ]  # Remove .html extension
+                        timestamp_part = timestamp_part[:-5]  # Remove .html extension
 
                     # Convert underscore to colon for proper ISO parsing
                     timestamp_part = timestamp_part.replace("_", ":")
 
                     # Try to parse the timestamp from filename
-                    time_obj = dateutil.parser.parse(
-                        timestamp_part, fuzzy=True)
+                    time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
                     timestamp_ms = int(
                         time.mktime(time_obj.timetuple()) * 1000
                         + time_obj.microsecond // 1000
@@ -5250,8 +4992,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
             time_obj = parse_timestamp_cached(ymdhms)
             # Convert to Unix milliseconds (including microseconds)
             return int(
-                time.mktime(time_obj.timetuple()) * 1000
-                + time_obj.microsecond // 1000
+                time.mktime(time_obj.timetuple()) * 1000 + time_obj.microsecond // 1000
             )
 
         # Strategy 3: Look for time elements with datetime attribute (HTML5
@@ -5266,9 +5007,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                     + time_obj.microsecond // 1000
                 )
             except Exception as e:
-                logger.debug(
-                    f"Failed to parse timestamp from time datetime: {e}"
-                )
+                logger.debug(f"Failed to parse timestamp from time datetime: {e}")
 
         # Strategy 4: Look for any abbr element with title attribute (COMMON IN
         # HTML)
@@ -5295,9 +5034,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                     + time_obj.microsecond // 1000
                 )
             except Exception as e:
-                logger.debug(
-                    f"Failed to parse timestamp from datetime attribute: {e}"
-                )
+                logger.debug(f"Failed to parse timestamp from datetime attribute: {e}")
 
         # Strategy 6: Look for CSS classes that commonly contain timestamps
         for class_name in STRING_POOL.TIMESTAMP_CLASSES:
@@ -5354,8 +5091,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
 
         # Quick check for common timestamp indicators before expensive regex
         if any(
-            indicator in text_content
-            for indicator in STRING_POOL.TIMESTAMP_INDICATORS
+            indicator in text_content for indicator in STRING_POOL.TIMESTAMP_INDICATORS
         ):
             # Look for ISO-like timestamp patterns (most common first)
             timestamp_patterns = [
@@ -5404,9 +5140,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                         + time_obj.microsecond // 1000
                     )
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse flexible timestamp from text: {e}"
-                    )
+                    logger.debug(f"Failed to parse flexible timestamp from text: {e}")
                     continue
 
         # Strategy 11: Look for any element with text that might be a timestamp (SLOWEST)
@@ -5450,9 +5184,7 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                         timestamp_part = timestamp_part.replace("_", ":")
 
                         # Try to parse the timestamp from filename
-                        time_obj = dateutil.parser.parse(
-                            timestamp_part, fuzzy=True
-                        )
+                        time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
                         timestamp_ms = int(
                             time.mktime(time_obj.timetuple()) * 1000
                             + time_obj.microsecond // 1000
@@ -5466,14 +5198,11 @@ def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
                 logger.debug(f"Filename timestamp extraction also failed: {e}")
 
         # FINAL FALLBACK: Use current time instead of failing completely
-        logger.error(
-            f"Using current time as fallback timestamp for {filename}")
+        logger.error(f"Using current time as fallback timestamp for {filename}")
         return int(time.time() * 1000)
 
     except Exception as e:
-        logger.error(
-            f"Failed to extract message timestamp from {filename}: {e}"
-        )
+        logger.error(f"Failed to extract message timestamp from {filename}: {e}")
         return int(
             time.time() * DEFAULT_FALLBACK_TIME
         )  # Return current time as fallback
@@ -5561,14 +5290,12 @@ def check_and_increase_file_limits():
     """Check and attempt to increase system file descriptor limits."""
     try:
         import resource
+
         # os import removed - not used in this function
 
         # Get current limits
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        logger.info(
-            f"Current file descriptor limits - Soft: {soft}, "
-            f"Hard: {hard}"
-        )
+        logger.info(f"Current file descriptor limits - Soft: {soft}, " f"Hard: {hard}")
 
         # Try to increase soft limit to hard limit
         if soft < hard:
@@ -5576,44 +5303,35 @@ def check_and_increase_file_limits():
                 resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
                 new_soft, new_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
                 logger.info(
-                    f"Successfully increased file descriptor limit to: "
-                    f"{new_soft}"
+                    f"Successfully increased file descriptor limit to: " f"{new_soft}"
                 )
             except Exception as e:
-                logger.warning(
-                    f"Could not increase file descriptor limit: {e}")
+                logger.warning(f"Could not increase file descriptor limit: {e}")
 
         # Check if we have enough file descriptors for processing
         if soft < 1000:
             logger.warning(
-                f"File descriptor limit ({soft}) may be too low for "
-                f"large datasets"
+                f"File descriptor limit ({soft}) may be too low for " f"large datasets"
             )
             logger.warning("Consider increasing with: ulimit -n 4096")
             logger.warning(
-                "This may cause 'Too many open files' errors during "
-                "processing"
+                "This may cause 'Too many open files' errors during " "processing"
             )
         elif soft < 4096:
             logger.info(
-                f"File descriptor limit ({soft}) is adequate for "
-                f"most datasets"
+                f"File descriptor limit ({soft}) is adequate for " f"most datasets"
             )
         else:
             logger.info(
-                f"File descriptor limit ({soft}) is excellent for "
-                f"large datasets"
+                f"File descriptor limit ({soft}) is excellent for " f"large datasets"
             )
 
     except ImportError:
         logger.warning(
-            "resource module not available, cannot check file "
-            "descriptor limits"
+            "resource module not available, cannot check file " "descriptor limits"
         )
     except Exception as e:
-        logger.warning(
-            f"Error checking file descriptor limits: {e}"
-        )
+        logger.warning(f"Error checking file descriptor limits: {e}")
 
 
 def safe_file_operation(
@@ -5636,13 +5354,9 @@ def safe_file_operation(
             with open(file_path, "a", encoding=encoding) as f:
                 return f.write(kwargs.get("content", ""))
         else:
-            raise ValueError(
-                f"Unsupported operation: {operation}"
-            )
+            raise ValueError(f"Unsupported operation: {operation}")
     except Exception as e:
-        logger.error(
-            f"File operation failed on {file_path}: {e}"
-        )
+        logger.error(f"File operation failed on {file_path}: {e}")
         raise
 
 
@@ -5682,24 +5396,16 @@ def setup_processing_paths(
             f"processing_dir must be a Path, got {type(processing_dir).__name__}"
         )
     if not isinstance(buffer_size, int) or buffer_size <= 0:
-        raise ValueError(
-            f"buffer_size must be a positive integer, got {buffer_size}"
-        )
+        raise ValueError(f"buffer_size must be a positive integer, got {buffer_size}")
     if not isinstance(batch_size, int) or batch_size <= 0:
-        raise ValueError(
-            f"batch_size must be a positive integer, got {batch_size}"
-        )
+        raise ValueError(f"batch_size must be a positive integer, got {batch_size}")
     if not isinstance(cache_size, int) or cache_size <= 0:
-        raise ValueError(
-            f"cache_size must be a positive integer, got {cache_size}"
-        )
+        raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
     if not isinstance(output_format, str) or output_format not in [
         "xml",
         "html",
     ]:
-        raise ValueError(
-            f"output_format must be 'xml' or 'html', got {output_format}"
-        )
+        raise ValueError(f"output_format must be 'xml' or 'html', got {output_format}")
 
     global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
 
@@ -5778,9 +5484,7 @@ def validate_processing_directory(processing_dir: Path) -> bool:
     # Check for HTML files
     html_files = list(processing_path.rglob("*.html"))
     if not html_files:
-        logger.error(
-            f"No HTML files found in processing directory: {processing_path}"
-        )
+        logger.error(f"No HTML files found in processing directory: {processing_path}")
         logger.error(
             "This may indicate the directory is empty or contains no Google Voice data"
         )
@@ -5816,20 +5520,16 @@ def validate_entire_configuration() -> bool:
 
         # Validate managers have correct types
         if not hasattr(CONVERSATION_MANAGER, "output_format"):
-            logger.error(
-                "CONVERSATION_MANAGER missing output_format attribute")
+            logger.error("CONVERSATION_MANAGER missing output_format attribute")
             return False
 
         if not hasattr(PHONE_LOOKUP_MANAGER, "phone_aliases"):
-            logger.error(
-                "PHONE_LOOKUP_MANAGER missing phone_aliases attribute")
+            logger.error("PHONE_LOOKUP_MANAGER missing phone_aliases attribute")
             return False
 
         # Validate output format
         if CONVERSATION_MANAGER.output_format not in ["xml", "html"]:
-            logger.error(
-                f"Invalid output format: {CONVERSATION_MANAGER.output_format}"
-            )
+            logger.error(f"Invalid output format: {CONVERSATION_MANAGER.output_format}")
             return False
 
         logger.info("✅ Configuration validation passed")
@@ -5871,9 +5571,7 @@ def create_sample_config():
         with open(config_file, "w") as f:
             f.write(config_content)
         logger.info(f"Sample configuration file created: {config_file}")
-        logger.info(
-            "Review this file to understand the expected directory structure"
-        )
+        logger.info("Review this file to understand the expected directory structure")
     except Exception as e:
         logger.error(f"Failed to create sample configuration: {e}")
 
@@ -5898,14 +5596,12 @@ def process_html_files_batch(
 
     # Use parallel processing for large datasets
     if ENABLE_PARALLEL_PROCESSING and total_files > MEMORY_EFFICIENT_THRESHOLD:
-        return process_html_files_parallel(
-            html_files, src_filename_map, batch_size
-        )
+        return process_html_files_parallel(html_files, src_filename_map, batch_size)
 
     # Sequential batch processing for smaller datasets - use generator for
     # memory efficiency
     for i in range(0, total_files, batch_size):
-        batch_files = html_files[i: i + batch_size]
+        batch_files = html_files[i : i + batch_size]
         batch_start = time.time()
 
         # Defensive check: ensure batch_size is valid for division
@@ -5955,9 +5651,7 @@ def process_html_files_batch(
                 # CRITICAL: File processing failures are errors that need
                 # attention
                 logger.error(f"Failed to process {html_file}: {e}")
-                logger.debug(
-                    "Continuing with next file to maintain processing flow"
-                )
+                logger.debug("Continuing with next file to maintain processing flow")
                 continue
 
         # Log batch performance
@@ -5993,7 +5687,7 @@ def process_html_files_parallel(
     # Split files into chunks for parallel processing - use generator for
     # memory efficiency
     chunks = list(
-        html_files[i: i + CHUNK_SIZE_OPTIMAL]
+        html_files[i : i + CHUNK_SIZE_OPTIMAL]
         for i in range(0, total_files, CHUNK_SIZE_OPTIMAL)
     )
 
@@ -6011,9 +5705,7 @@ def process_html_files_parallel(
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk processing tasks
         future_to_chunk = {
-            executor.submit(
-                process_chunk_parallel, chunk, src_filename_map
-            ): chunk
+            executor.submit(process_chunk_parallel, chunk, src_filename_map): chunk
             for chunk in chunks
         }
 
@@ -6142,9 +5834,7 @@ def process_voicemail_file(
         voicemail_info = extract_voicemail_info(html_file.name, soup)
         if voicemail_info:
             # Write voicemail entry to conversation
-            write_voicemail_entry(
-                str(html_file), voicemail_info, own_number, soup
-            )
+            write_voicemail_entry(str(html_file), voicemail_info, own_number, soup)
             return {
                 "num_sms": 0,
                 "num_img": 0,
@@ -6230,9 +5920,7 @@ def extract_call_info(
                         f"Extracted phone number from filename: {phone_number}"
                     )
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse phone number from filename: {e}"
-                    )
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
 
             # Try to extract from any tel: links in the entire document
             if not phone_number:
@@ -6282,8 +5970,7 @@ def extract_call_info(
         if phone_number:
             # DATE FILTERING: Skip calls outside the specified date range
             if timestamp and should_skip_message_by_date(timestamp):
-                logger.debug(
-                    f"Skipping call due to date filtering: {filename}")
+                logger.debug(f"Skipping call due to date filtering: {filename}")
                 return None
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
@@ -6296,10 +5983,8 @@ def extract_call_info(
                     return None
 
                 if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
-                    exclusion_reason = (
-                        PHONE_LOOKUP_MANAGER.get_exclusion_reason(
-                            str(phone_number)
-                        )
+                    exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(
+                        str(phone_number)
                     )
                     logger.debug(
                         f"Skipping call from {phone_number} - explicitly excluded: {exclusion_reason}"
@@ -6309,9 +5994,7 @@ def extract_call_info(
             # NON-PHONE FILTERING: Skip toll-free and non-US numbers if
             # filtering is enabled
             if FILTER_NON_PHONE_NUMBERS:
-                if not is_valid_phone_number(
-                    str(phone_number), filter_non_phone=True
-                ):
+                if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
                     logger.debug(
                         f"Skipping call from {phone_number} - toll-free or non-US number filtered out"
                     )
@@ -6377,9 +6060,7 @@ def extract_voicemail_info(
         )  # Reuse call phone extraction
 
         # Extract timestamp from HTML content
-        timestamp = extract_timestamp_from_call(
-            soup
-        )  # Reuse call timestamp extraction
+        timestamp = extract_timestamp_from_call(soup)  # Reuse call timestamp extraction
         # Note: Keep timestamp as None if extraction fails - will be handled in
         # write functions
 
@@ -6387,9 +6068,7 @@ def extract_voicemail_info(
         transcription = extract_voicemail_transcription(soup)
 
         # Extract duration if available
-        duration = extract_duration_from_call(
-            soup
-        )  # Reuse call duration extraction
+        duration = extract_duration_from_call(soup)  # Reuse call duration extraction
 
         # Enhanced fallback: if phone number extraction fails, try alternative
         # methods
@@ -6409,9 +6088,7 @@ def extract_voicemail_info(
                         f"Extracted phone number from filename: {phone_number}"
                     )
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse phone number from filename: {e}"
-                    )
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
 
             # Try to extract from any tel: links in the entire document
             if not phone_number:
@@ -6438,9 +6115,7 @@ def extract_voicemail_info(
         if phone_number:
             # DATE FILTERING: Skip voicemails outside the specified date range
             if timestamp and should_skip_message_by_date(timestamp):
-                logger.debug(
-                    f"Skipping voicemail due to date filtering: {filename}"
-                )
+                logger.debug(f"Skipping voicemail due to date filtering: {filename}")
                 return None
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
@@ -6453,10 +6128,8 @@ def extract_voicemail_info(
                     return None
 
                 if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
-                    exclusion_reason = (
-                        PHONE_LOOKUP_MANAGER.get_exclusion_reason(
-                            str(phone_number)
-                        )
+                    exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(
+                        str(phone_number)
                     )
                     logger.debug(
                         f"Skipping voicemail from {phone_number} - explicitly excluded: {exclusion_reason}"
@@ -6466,9 +6139,7 @@ def extract_voicemail_info(
             # NON-PHONE FILTERING: Skip toll-free and non-US numbers if
             # filtering is enabled
             if FILTER_NON_PHONE_NUMBERS:
-                if not is_valid_phone_number(
-                    str(phone_number), filter_non_phone=True
-                ):
+                if not is_valid_phone_number(str(phone_number), filter_non_phone=True):
                     logger.debug(
                         f"Skipping voicemail from {phone_number} - toll-free or non-US number filtered out"
                     )
@@ -6483,14 +6154,11 @@ def extract_voicemail_info(
             }
 
         # If we still don't have a phone number, log detailed debugging info
-        logger.debug(
-            f"Could not extract phone number for voicemail {filename}")
+        logger.debug(f"Could not extract phone number for voicemail {filename}")
         logger.debug(f"HTML content preview: {str(soup)[:500]}...")
 
         # ENHANCED: Provide more context about why extraction might have failed
-        if filename and (
-            " - Voicemail -" in filename or " - Text -" in filename
-        ):
+        if filename and (" - Voicemail -" in filename or " - Text -" in filename):
             name_part = filename.split(" - ")[0] if " - " in filename else ""
             if not name_part.strip() or name_part.strip() in ["-", ".", "_"]:
                 logger.error(
@@ -6528,9 +6196,7 @@ def extract_voicemail_info(
                         "filename": filename,
                     }
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse phone number from HTML content: {e}"
-                    )
+                    logger.debug(f"Failed to parse phone number from HTML content: {e}")
 
         # FINAL FALLBACK: Create a placeholder entry to prevent complete
         # failure
@@ -6618,9 +6284,7 @@ def is_valid_phone_extraction(phone_candidate: str) -> bool:
     return True
 
 
-def extract_phone_from_call(
-    soup: BeautifulSoup, filename: str = None
-) -> Optional[str]:
+def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Optional[str]:
     """Extract phone number from call/voicemail HTML."""
     try:
         # Look for phone number in various places
@@ -6636,8 +6300,7 @@ def extract_phone_from_call(
         # Try to find phone number in text content (but be more selective)
         # Use a more restrictive pattern to avoid matching log messages or
         # other text
-        phone_pattern = re.compile(
-            r"(\+\d{1,3}\s?\d{3,4}\s?\d{3,4}\s?\d{3,4})")
+        phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{3,4}\s?\d{3,4}\s?\d{3,4})")
 
         # Only look in specific elements that are likely to contain phone numbers
         # Avoid extracting from the entire document which might contain log
@@ -6670,8 +6333,7 @@ def extract_phone_from_call(
             ["span", "div"],
             class_=lambda x: x
             and any(
-                word in str(x).lower()
-                for word in ["sender", "participant", "contact"]
+                word in str(x).lower() for word in ["sender", "participant", "contact"]
             ),
         )
         for element in participant_elements:
@@ -6720,9 +6382,7 @@ def extract_phone_from_call(
                     )
                     return phone_number
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to parse phone number from filename: {e}"
-                    )
+                    logger.debug(f"Failed to parse phone number from filename: {e}")
 
             # ENHANCED: Extract name from filename and create hash-based phone number
             # This handles cases like "Transwood - Received - ..." without
@@ -6733,9 +6393,7 @@ def extract_phone_from_call(
                     if name_part and not name_part.isdigit():
                         # Create a consistent hash-based phone number for the
                         # same name
-                        hash_value = (
-                            hash(name_part) % 100000000
-                        )  # 8-digit number
+                        hash_value = hash(name_part) % 100000000  # 8-digit number
                         logger.debug(
                             f"Generated hash-based phone number for {name_part}: {hash_value}"
                         )
@@ -6775,9 +6433,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
                     continue
 
         # Try to find abbr elements with datetime (fallback)
-        time_elements = soup.select(
-            STRING_POOL.ADDITIONAL_SELECTORS["dt_elements"]
-        )
+        time_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["dt_elements"])
         for element in time_elements:
             datetime_attr = element.get("title", "")
             if datetime_attr:
@@ -6796,9 +6452,7 @@ def extract_timestamp_from_call(soup: BeautifulSoup) -> Optional[int]:
                     continue
 
         # Try to find other time elements - use cached selector
-        time_elements = soup.select(
-            STRING_POOL.ADDITIONAL_SELECTORS["time_elements"]
-        )
+        time_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["time_elements"])
         for element in time_elements:
             datetime_attr = element.get("datetime", "")
             if datetime_attr:
@@ -6895,9 +6549,7 @@ def extract_voicemail_transcription(soup: BeautifulSoup) -> Optional[str]:
         # Look for any substantial text content
         text_content = soup.get_text()
         # Split by lines and find the longest meaningful text
-        lines = [
-            line.strip() for line in text_content.split("\n") if line.strip()
-        ]
+        lines = [line.strip() for line in text_content.split("\n") if line.strip()]
         meaningful_lines = [
             line for line in lines if len(line) > 10 and not line.isdigit()
         ]
@@ -6948,9 +6600,7 @@ def write_call_entry(
                 try:
                     file_path = Path(filename)
                     if not file_path.is_absolute():
-                        file_path = (
-                            PROCESSING_DIRECTORY / "Calls" / file_path.name
-                        )
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
                     with open(file_path, "r", encoding="utf-8") as f:
                         soup2 = BeautifulSoup(f.read(), "html.parser")
                     call_ts = extract_timestamp_from_call(soup2)
@@ -6962,9 +6612,7 @@ def write_call_entry(
                 try:
                     file_path = Path(filename)
                     if not file_path.is_absolute():
-                        file_path = (
-                            PROCESSING_DIRECTORY / "Calls" / file_path.name
-                        )
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
                     call_ts = int(file_path.stat().st_mtime * 1000)
                 except Exception:
                     # If all else fails, use current time
@@ -6996,9 +6644,7 @@ def write_call_entry(
             )
         else:
             # For XML output, use the XML format
-            CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, call_ts
-            )
+            CONVERSATION_MANAGER.write_message(conversation_id, sms_text, call_ts)
 
         # Update conversation statistics
         CONVERSATION_MANAGER.update_stats(conversation_id, {"num_calls": 1})
@@ -7245,9 +6891,7 @@ def write_voicemail_entry(
                 try:
                     file_path = Path(filename)
                     if not file_path.is_absolute():
-                        file_path = (
-                            PROCESSING_DIRECTORY / "Calls" / file_path.name
-                        )
+                        file_path = PROCESSING_DIRECTORY / "Calls" / file_path.name
                     with open(file_path, "r", encoding="utf-8") as f:
                         soup2 = BeautifulSoup(f.read(), "html.parser")
                     vm_ts = extract_timestamp_from_call(soup2)
@@ -7287,13 +6931,10 @@ def write_voicemail_entry(
             )
         else:
             # For XML output, use the XML format
-            CONVERSATION_MANAGER.write_message(
-                conversation_id, sms_text, vm_ts)
+            CONVERSATION_MANAGER.write_message(conversation_id, sms_text, vm_ts)
 
         # Update conversation statistics
-        CONVERSATION_MANAGER.update_stats(
-            conversation_id, {"num_voicemails": 1}
-        )
+        CONVERSATION_MANAGER.update_stats(conversation_id, {"num_voicemails": 1})
 
         logger.info(f"Added voicemail entry: {message_text[:50]}...")
 
@@ -7683,13 +7324,11 @@ Output:
             logging.getLogger("concurrent.futures").setLevel(
                 logging.INFO
             )  # Reduce noise from parallel processing
-            logger.info(
-                "🐛 Debug mode enabled - detailed logging for all modules"
-            )
+            logger.info("🐛 Debug mode enabled - detailed logging for all modules")
 
         # Set up processing paths with strict parameter validation
         # Default to False (no prompts), True only if --phone-prompts is used
-        enable_phone_prompts = (args.phone_prompts)
+        enable_phone_prompts = args.phone_prompts
 
         # Use strict_call to validate parameters
         strict_call(
@@ -7732,18 +7371,14 @@ Output:
             logger.info(f"Parallel workers set to: {MAX_WORKERS}")
 
         if args.chunk_size != CHUNK_SIZE_OPTIMAL:
-            CHUNK_SIZE_OPTIMAL = max(
-                50, min(args.chunk_size, 2000)
-            )  # Limit to 50-2000
+            CHUNK_SIZE_OPTIMAL = max(50, min(args.chunk_size, 2000))  # Limit to 50-2000
             logger.info(f"Chunk size set to: {CHUNK_SIZE_OPTIMAL}")
 
         if args.memory_threshold != MEMORY_EFFICIENT_THRESHOLD:
             MEMORY_EFFICIENT_THRESHOLD = max(
                 100, min(args.memory_threshold, 100000)
             )  # Limit to 100-100k
-            logger.info(
-                f"Memory threshold set to: {MEMORY_EFFICIENT_THRESHOLD:,}"
-            )
+            logger.info(f"Memory threshold set to: {MEMORY_EFFICIENT_THRESHOLD:,}")
 
         if args.no_streaming:
             ENABLE_STREAMING_PARSING = False
@@ -7778,9 +7413,7 @@ Output:
             globals()["strict_call"] = lambda func, *args, **kwargs: func(
                 *args, **kwargs
             )
-            logger.info(
-                "🔓 Strict mode disabled - function calls will not be validated"
-            )
+            logger.info("🔓 Strict mode disabled - function calls will not be validated")
 
         # Configure filtering options
         # Set service code filtering
@@ -7795,9 +7428,7 @@ Output:
             )
 
         # Set phone number filtering
-        FILTER_NUMBERS_WITHOUT_ALIASES = (
-            args.filter_no_alias or args.exclude_no_alias
-        )
+        FILTER_NUMBERS_WITHOUT_ALIASES = args.filter_no_alias or args.exclude_no_alias
         if FILTER_NUMBERS_WITHOUT_ALIASES:
             logger.info(
                 "🔒 PHONE FILTERING ENABLED - Only processing numbers with aliases/names"
@@ -7844,10 +7475,7 @@ Output:
                 sys.exit(1)
 
         # Validate date filter logic when both filters are provided
-        if (
-            DATE_FILTER_NEWER_THAN is not None
-            and DATE_FILTER_OLDER_THAN is not None
-        ):
+        if DATE_FILTER_NEWER_THAN is not None and DATE_FILTER_OLDER_THAN is not None:
             # Calculate the valid date range that WILL be included
             valid_start = DATE_FILTER_OLDER_THAN
             valid_end = DATE_FILTER_NEWER_THAN
@@ -7862,9 +7490,7 @@ Output:
                 logger.error(
                     "   This creates a negative time range - no messages can fall within these bounds"
                 )
-                logger.error(
-                    "   Valid ranges require: older_than < newer_than"
-                )
+                logger.error("   Valid ranges require: older_than < newer_than")
                 sys.exit(1)
 
             # Calculate the time span that will be included
@@ -7912,9 +7538,7 @@ Output:
         # Validate entire configuration if strict mode is enabled
         if args.strict_mode:
             if not validate_entire_configuration():
-                logger.error(
-                    "Configuration validation failed. Please check the setup."
-                )
+                logger.error("Configuration validation failed. Please check the setup.")
                 sys.exit(1)
 
         # Run the main conversion

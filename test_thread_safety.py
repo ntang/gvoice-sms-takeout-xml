@@ -94,6 +94,7 @@ class TestThreadSafety(unittest.TestCase):
 
         # Test parallel copying
         from attachment_manager import copy_attachments_parallel
+
         copy_attachments_parallel(test_files, self.temp_dir)
 
         # Verify no crashes or data corruption occurred

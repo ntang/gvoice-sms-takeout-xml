@@ -532,9 +532,7 @@ class TestSMSBasic(unittest.TestCase):
         start_time = time.time()
         for i in range(1000):
             # pooled variable removed - not used
-            sms.get_pooled_string(
-                f"test_string_{i % 100}"
-            )  # Reuse some strings
+            sms.get_pooled_string(f"test_string_{i % 100}")  # Reuse some strings
         pooling_time = time.time() - start_time
 
         # String pooling should be fast
