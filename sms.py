@@ -5038,7 +5038,7 @@ def process_html_files_batch(
         for html_file in batch_files:
             try:
                 file_stats = process_single_html_file(
-                    html_file, src_filename_map, own_number
+                    html_file, src_filename_map, own_number, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
                 )
 
                 # Update statistics
@@ -5134,7 +5134,7 @@ def process_chunk_parallel(
 
     for html_file in html_files:
         try:
-            file_stats = process_single_html_file(html_file, src_filename_map, None)
+            file_stats = process_single_html_file(html_file, src_filename_map, None, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER)
 
             # Update chunk statistics
             for key in chunk_stats:
