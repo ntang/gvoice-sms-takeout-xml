@@ -301,7 +301,8 @@ class TestThreadSafety(unittest.TestCase):
 
             for future in as_completed(futures):
                 try:
-                    result = future.result()
+                    # result variable removed - not used
+                    future.result()
                     completed += 1
                 except Exception:
                     errors += 1

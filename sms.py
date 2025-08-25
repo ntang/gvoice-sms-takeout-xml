@@ -3023,7 +3023,7 @@ def clean_corrupted_filename(filename: str) -> str:
     Returns:
         str: Cleaned filename or original if cleaning failed
     """
-    import re
+    # re import removed - not used in this function
 
     # Check if this is a corrupted filename that can be cleaned
     for pattern in [
@@ -3098,7 +3098,7 @@ def is_corrupted_filename(filename: str) -> bool:
     Returns:
         bool: True if filename appears corrupted, False otherwise
     """
-    import re
+    # re import removed - not used in this function
 
     # Check for empty or malformed name parts
     if filename.startswith(" - ") or filename.startswith("- "):
@@ -5561,7 +5561,7 @@ def check_and_increase_file_limits():
     """Check and attempt to increase system file descriptor limits."""
     try:
         import resource
-        import os
+        # os import removed - not used in this function
 
         # Get current limits
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -7825,7 +7825,7 @@ Output:
                 logger.info(
                     f"📅 DATE FILTER: Excluding messages older than {DATE_FILTER_OLDER_THAN}"
                 )
-            except Exception as e:
+            except Exception:
                 logger.error(
                     f"Invalid --older-than date format: {args.older_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
                 )
@@ -7837,7 +7837,7 @@ Output:
                 logger.info(
                     f"📅 DATE FILTER: Excluding messages newer than {DATE_FILTER_NEWER_THAN}"
                 )
-            except Exception as e:
+            except Exception:
                 logger.error(
                     f"Invalid --newer-than date format: {args.newer_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
                 )

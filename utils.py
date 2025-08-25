@@ -8,7 +8,7 @@ import logging
 import re
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union, Tuple
 from datetime import datetime
 import phonenumbers
 
@@ -174,28 +174,7 @@ def normalize_phone_number(phone_number: str) -> str:
         return phone_number
 
 
-def extract_phone_numbers_from_text(text: str) -> List[str]:
-    """Extract phone numbers from text using regex patterns."""
-    # Pattern for various phone number formats
-    patterns = [
-        r"\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})",  # US format
-        r"\+?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,4}",  # International
-        r"tel:([+\d\s\-\(\)]+)",  # tel: links
-    ]
-
-    phone_numbers = []
-    for pattern in patterns:
-        matches = re.findall(pattern, text)
-        for match in matches:
-            if isinstance(match, tuple):
-                # Join tuple matches
-                phone = "".join(match)
-            else:
-                phone = match
-            if phone and len(phone) >= 7:  # Minimum length for a phone number
-                phone_numbers.append(phone)
-
-    return list(set(phone_numbers))  # Remove duplicates
+# Duplicate function removed
 
 
 def sanitize_filename(filename: str) -> str:

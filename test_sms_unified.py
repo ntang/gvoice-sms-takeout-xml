@@ -15,7 +15,7 @@ Examples:
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock, mock_open
+from unittest.mock import Mock, patch
 import tempfile
 import shutil
 import os
@@ -28,12 +28,10 @@ import phonenumbers
 from bs4 import BeautifulSoup
 import logging
 import dateutil.parser
+import sms
 
 # Add the current directory to the path so we can import sms
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Import the module under test
-import sms
 
 
 class TestSMSBasic(unittest.TestCase):
@@ -515,7 +513,7 @@ class TestSMSBasic(unittest.TestCase):
             )  # Increased content
             builder.append_line()
         result = builder.build()
-        builder_time = time.time() - start_time
+        # builder_time variable removed - not used
 
         # Test traditional string concatenation
         start_time = time.time()
@@ -524,7 +522,7 @@ class TestSMSBasic(unittest.TestCase):
             traditional_result += f"Line {i}: "
             traditional_result += "This is a test message with some content. " * 10
             traditional_result += "\n"
-        traditional_time = time.time() - start_time
+        # traditional_time variable removed - not used
 
         # For large operations, StringBuilder should be more efficient
         # Traditional concatenation can be faster for small operations due to overhead
@@ -533,7 +531,8 @@ class TestSMSBasic(unittest.TestCase):
         # Test string pooling performance
         start_time = time.time()
         for i in range(1000):
-            pooled = sms.get_pooled_string(
+            # pooled variable removed - not used
+            sms.get_pooled_string(
                 f"test_string_{i % 100}"
             )  # Reuse some strings
         pooling_time = time.time() - start_time
@@ -881,12 +880,12 @@ class TestSMSIntegration(unittest.TestCase):
                 <a class="tel" href="tel:+13478736042">
                     <span class="fn">Aniella Tang</span>
                 </a>
-            </cite>, 
+            </cite>,
             <cite class="sender vcard">
                 <a class="tel" href="tel:+13479098263">
                     <span class="fn">Inessa Tang</span>
                 </a>
-            </cite>, 
+            </cite>,
             <cite class="sender vcard">
                 <a class="tel" href="tel:+16462728914">
                     <span class="fn">Susan Nowak Tang</span>
@@ -2410,9 +2409,7 @@ class TestSMSIntegration(unittest.TestCase):
         test_filename = "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html"
 
         # Create a test message
-        test_html = '<div class="message"><q>Test SMS message</q></div>'
-        soup = BeautifulSoup(test_html, "html.parser")
-        message = soup.find("div", class_="message")
+        # test_html variable removed - not used
 
         # Mock the phone lookup manager to return None (no alias found)
         original_get_alias = sms.PHONE_LOOKUP_MANAGER.get_alias
@@ -2673,11 +2670,7 @@ class TestSMSIntegration(unittest.TestCase):
 
         # Test that MMS messages with name-based filenames get proper participants
         test_filename = "Charles Tang - Text - 2025-08-13T12_08_52Z.html"
-        test_messages = [
-            BeautifulSoup(
-                '<div class="message"><q>Test MMS message</q></div>', "html.parser"
-            )
-        ]
+        # test_messages variable removed - not used
 
         # This should create a proper participant instead of generic name_hash
         try:

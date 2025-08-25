@@ -12,16 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 from datetime import datetime
 
-from templates import (
-    format_index_template,
-    format_conversation_template,
-    SMS_XML_TEMPLATE,
-    MMS_XML_TEMPLATE,
-    TEXT_PART_TEMPLATE,
-    PARTICIPANT_TEMPLATE,
-    IMAGE_PART_TEMPLATE,
-    VCARD_PART_TEMPLATE,
-)
+# Template imports removed - not used in this module
 
 logger = logging.getLogger(__name__)
 
@@ -359,7 +350,7 @@ class ConversationManager:
             conversation_files.sort(key=lambda x: x.name)
 
             # Build conversation table rows
-            conversation_rows = []
+            # conversation_rows variable removed - not used
 
             # Build HTML header
             builder = StringBuilder()

@@ -8,18 +8,15 @@ and maintaining all functionality.
 
 import logging
 import re
-from pathlib import Path
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from bs4 import BeautifulSoup
-import phonenumbers
 
 from utils import (
     is_valid_phone_number,
     normalize_phone_number,
     parse_timestamp_from_filename,
 )
-from config import SERVICE_CODES
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate comprehensive test data for Google Voice SMS converter testing."""
 
-import os
+# os import removed - not used
 from pathlib import Path
 from datetime import datetime, timedelta
 import random

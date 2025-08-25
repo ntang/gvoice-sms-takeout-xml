@@ -7,14 +7,13 @@ This module handles the processing of SMS/MMS HTML files from Google Voice Takeo
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 
 from utils import (
     is_valid_phone_number,
     normalize_phone_number,
-    parse_timestamp_from_filename,
 )
 from conversation_manager import ConversationManager
 
@@ -253,7 +252,7 @@ class SMSProcessor:
             for link in vcard_links:
                 text = link.get_text(strip=True)
                 if text:
-                    attachments.append(f"vCard: {text}")
+                    attachments.append("vCard: " + text)
 
             # Look for other file attachments
             file_links = soup.find_all("a", href=re.compile(r"\.(pdf|doc|txt|zip)"))
@@ -261,10 +260,10 @@ class SMSProcessor:
                 text = link.get_text(strip=True)
                 href = link.get("href", "")
                 if text or href:
-                    attachments.append(f"File: {text or href}")
+                    attachments.append("File: " + str(text or href))
 
         except Exception as e:
-            logger.debug(f"Failed to extract attachments: {e}")
+            logger.debug("Failed to extract attachments: {}".format(e))
 
         return attachments
 
@@ -285,7 +284,7 @@ class SMSProcessor:
                 self._write_sms_html(conversation_id, sms_info, soup)
 
         except Exception as e:
-            logger.error(f"Failed to write SMS entry: {e}")
+            logger.error("Failed to write SMS entry: {}".format(e))
 
     def _write_sms_xml(self, conversation_id: str, sms_info: Dict):
         """Write SMS entry in XML format."""
@@ -293,9 +292,9 @@ class SMSProcessor:
             # Create XML content
             xml_content = f'<sms protocol="0" address="{sms_info["phone_number"]}" '
             xml_content += f'date="{sms_info["timestamp"]}" type="1" '
-            xml_content += f'subject="null" body="{sms_info["message_content"]}" '
-            xml_content += f'toa="null" sc_toa="null" service_center="null" '
-            xml_content += f'read="1" status="-1" locked="0" />\n'
+            xml_content += 'subject="null" body="' + sms_info["message_content"] + '" '
+            xml_content += 'toa="null" sc_toa="null" service_center="null" '
+            xml_content += 'read="1" status="-1" locked="0" />\n'
 
             # Write to conversation file
             self.conversation_manager.write_message(
@@ -303,7 +302,7 @@ class SMSProcessor:
             )
 
         except Exception as e:
-            logger.error(f"Failed to write SMS XML: {e}")
+            logger.error("Failed to write SMS XML: {}".format(e))
 
     def _write_sms_html(
         self, conversation_id: str, sms_info: Dict, soup: BeautifulSoup
@@ -323,7 +322,7 @@ class SMSProcessor:
             )
 
         except Exception as e:
-            logger.error(f"Failed to write SMS HTML: {e}")
+            logger.error("Failed to write SMS HTML: {}".format(e))
 
     def _extract_sender_info(self, soup: BeautifulSoup, phone_number: str) -> str:
         """Extract sender information from HTML."""
@@ -345,5 +344,5 @@ class SMSProcessor:
             return phone_number
 
         except Exception as e:
-            logger.debug(f"Failed to extract sender info: {e}")
+            logger.debug("Failed to extract sender info: {}".format(e))
             return phone_number

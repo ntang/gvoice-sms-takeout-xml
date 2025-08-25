@@ -9,11 +9,10 @@ information from various types of Google Voice export files.
 import sys
 from pathlib import Path
 from bs4 import BeautifulSoup
+from unified_extractor import UnifiedExtractor
 
 # Add the current directory to the path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent))
-
-from unified_extractor import UnifiedExtractor
 
 
 def create_test_html(content: str) -> BeautifulSoup:
@@ -46,7 +45,7 @@ def test_sms_extraction():
     )
 
     if result:
-        print(f"✅ SMS extraction successful:")
+        print("✅ SMS extraction successful:")
         print(f"   Phone: {result.get('phone_number')}")
         print(f"   Timestamp: {result.get('timestamp')}")
         print(f"   Content: {result.get('message_content')}")
@@ -82,7 +81,7 @@ def test_call_extraction():
     )
 
     if result:
-        print(f"✅ Call extraction successful:")
+        print("✅ Call extraction successful:")
         print(f"   Phone: {result.get('phone_number')}")
         print(f"   Timestamp: {result.get('timestamp')}")
         print(f"   Type: {result.get('type')}")
@@ -119,7 +118,7 @@ def test_voicemail_extraction():
     )
 
     if result:
-        print(f"✅ Voicemail extraction successful:")
+        print("✅ Voicemail successful:")
         print(f"   Phone: {result.get('phone_number')}")
         print(f"   Timestamp: {result.get('timestamp')}")
         print(f"   Duration: {result.get('duration')}")
@@ -182,7 +181,7 @@ def test_unified_extraction():
     )
 
     if result:
-        print(f"✅ Unified extraction successful:")
+        print("✅ Unified extraction successful:")
         print(f"   Type: {result.get('type')}")
         print(f"   Phone: {result.get('phone_number')}")
         print(f"   Content: {result.get('message_content')}")

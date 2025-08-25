@@ -14,7 +14,6 @@ from html_processor import (
     parse_html_file,
     get_file_type,
     should_skip_file,
-    extract_own_phone_number,
 )
 from conversation_manager import ConversationManager
 from phone_lookup import PhoneLookupManager

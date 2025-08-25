@@ -10,11 +10,11 @@ import os
 import shutil
 import threading
 from pathlib import Path
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 
-from html_processor import STRING_POOL, parse_html_file
+from html_processor import STRING_POOL
 
 logger = logging.getLogger(__name__)
 

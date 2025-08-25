@@ -16,7 +16,7 @@ Usage:
 
 import sys
 import subprocess
-import os
+# os import removed - not used
 from pathlib import Path
 
 
