@@ -900,28 +900,31 @@ def main():
 
         # Performance breakdown
         logger.info("Performance Breakdown:")
-        logger.info(
-            f"  Attachment mapping: {mapping_time:.2f}s ({(mapping_time/elapsed_time)*100:.1f}%)"
-        )
-        logger.info(
-            f"  Attachment copying: {copy_time:.2f}s ({(copy_time/elapsed_time)*100:.1f}%)"
-        )
-        logger.info(
-            f"  HTML processing: {processing_time:.2f}s ({(processing_time/elapsed_time)*100:.1f}%)"
-        )
-        logger.info(
-            f"  File finalization: {finalize_time:.2f}s ({(finalize_time/elapsed_time)*100:.1f}%)"
-        )
-        logger.info(
-            f"  Index generation: {index_time:.2f}s ({(index_time/elapsed_time)*100:.1f}%)"
-        )
+        if elapsed_time > 0:
+            logger.info(
+                f"  Attachment mapping: {mapping_time:.2f}s ({(mapping_time/elapsed_time)*100:.1f}%)"
+            )
+            logger.info(
+                f"  Attachment copying: {copy_time:.2f}s ({(copy_time/elapsed_time)*100:.1f}%)"
+            )
+            logger.info(
+                f"  HTML processing: {processing_time:.2f}s ({(processing_time/elapsed_time)*100:.1f}%)"
+            )
+            logger.info(
+                f"  File finalization: {finalize_time:.2f}s ({(finalize_time/elapsed_time)*100:.1f}%)"
+            )
+            logger.info(
+                f"  Index generation: {index_time:.2f}s ({(index_time/elapsed_time)*100:.1f}%)"
+            )
+        else:
+            logger.info("  Performance breakdown: Processing completed too quickly for accurate timing")
 
         # Throughput metrics
-        if "num_sms" in stats and stats["num_sms"] > 0:
+        if "num_sms" in stats and stats["num_sms"] > 0 and elapsed_time > 0:
             sms_per_second = stats["num_sms"] / elapsed_time
             logger.info(f"Throughput: {sms_per_second:.1f} SMS messages/second")
 
-        if len(src_filename_map) > 0:
+        if len(src_filename_map) > 0 and elapsed_time > 0:
             attachments_per_second = (
                 len(
                     [
@@ -989,9 +992,11 @@ def display_results(stats: Dict[str, int], elapsed_time: float):
     logger.info(f"Total processing time: {elapsed_time:.2f} seconds")
 
     total_messages = stats["num_sms"] + stats["num_calls"] + stats["num_voicemails"]
-    if total_messages > 0:
+    if total_messages > 0 and elapsed_time > 0:
         messages_per_second = total_messages / elapsed_time
         logger.info(f"Processing rate: {messages_per_second:.2f} messages/second")
+    elif total_messages > 0 and elapsed_time <= 0:
+        logger.info("Processing rate: Completed too quickly for accurate measurement")
 
     logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
     logger.info("=" * 60)
