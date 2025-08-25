@@ -1,7 +1,7 @@
 """Google Voice SMS Takeout XML Converter.
 
-This script converts Google Voice HTML export files into a standard SMS backup XML format
-that can be imported into various SMS backup applications.
+This script converts Google Voice HTML export files into a standard SMS backup XML 
+format that can be imported into various SMS backup applications.
 
 The script processes:
 - Individual SMS conversations
@@ -676,9 +676,7 @@ def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
         f"Total attachments in directory: {len(list(attachments_dir.glob('*')))}"
     )
 
-
-# Function removed - imported from attachment_manager
-
+    # Function removed - imported from attachment_manager
 
     # Convert set to list for indexing
     filename_list = list(filenames)
