@@ -93,7 +93,8 @@ class TestThreadSafety(unittest.TestCase):
             test_files.add(test_file.name)
 
         # Test parallel copying
-        sms.copy_attachments_parallel(test_files, self.temp_dir)
+        from attachment_manager import copy_attachments_parallel
+        copy_attachments_parallel(test_files, self.temp_dir)
 
         # Verify no crashes or data corruption occurred
         self.assertTrue(True, "Parallel attachment copying completed without crashes")
