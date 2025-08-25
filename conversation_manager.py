@@ -39,6 +39,13 @@ class StringBuilder:
         if text:
             self.parts.append(text)
             self.length += len(text)
+            
+            # Prevent excessive memory usage by limiting parts list size
+            if len(self.parts) > 1000:  # Arbitrary limit to prevent memory leaks
+                # Combine parts into larger chunks to reduce list size
+                combined = "".join(self.parts[:500])
+                self.parts = [combined] + self.parts[500:]
+                self.length = sum(len(part) for part in self.parts)
 
     def append_line(self, text: str = ""):
         """Append text with a newline."""
@@ -59,6 +66,17 @@ class StringBuilder:
 
     def __len__(self):
         return self.length
+    
+    def cleanup(self):
+        """Clean up memory by combining parts and reducing list size."""
+        if len(self.parts) > 100:
+            combined = "".join(self.parts)
+            self.parts = [combined]
+            self.length = len(combined)
+    
+    def __del__(self):
+        """Cleanup when object is destroyed."""
+        self.cleanup()
 
 
 class ConversationManager:

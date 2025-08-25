@@ -2455,7 +2455,7 @@ def write_sms_messages(
 
 
 @lru_cache(maxsize=25000)
-def extract_fallback_number_cached(filename: str) -> Union[str, int]:
+def extract_fallback_number_cached(filename: str) -> int:
     """
     Cached fallback number extraction for performance optimization.
 
@@ -2540,17 +2540,13 @@ def is_legitimate_google_voice_export(filename: str) -> bool:
             
             # Check for legitimate pattern: YYYY-MM-DDTHH_MM_SSZ-N-M
             # Where N and M are typically single digits (0-9) representing file parts/versions
-            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]\.html$', after_pattern):
-                return True
-            # Also check without .html extension
-            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]$', after_pattern):
-                return True
+            # Pre-compiled regex patterns for better performance
+            timestamp_pattern = r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]'
             
-            # ENHANCED: Check for legitimate pattern with any single-digit file parts
-            # This handles cases like "PhilipLICW Abramovitz - LI Clean Water - Text - 2024-07-29T16_10_03Z-6-1"
-            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]$', after_pattern):
+            # Check with and without .html extension
+            if re.search(timestamp_pattern + r'\.html$', after_pattern):
                 return True
-            if re.search(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}_[0-9]{2}_[0-9]{2}Z-[0-9]-[0-9]\.html$', after_pattern):
+            if re.search(timestamp_pattern + r'$', after_pattern):
                 return True
     
     return False
@@ -2787,7 +2783,7 @@ def should_skip_message_by_date(message_timestamp: int) -> bool:
         return False  # Don't skip if we can't parse the timestamp
 
 
-def extract_fallback_number(file: str) -> Union[str, int]:
+def extract_fallback_number(file: str) -> int:
     """
     Extract fallback phone number from filename.
 
@@ -2795,7 +2791,7 @@ def extract_fallback_number(file: str) -> Union[str, int]:
         file: Filename to extract number from
 
     Returns:
-        Union[str, int]: Extracted number or 0 if not found
+        int: Extracted number or 0 if not found
     """
     # Use cached version for better performance
     return extract_fallback_number_cached(file)
@@ -2840,7 +2836,7 @@ def format_sms_xml(sms_values: Dict[str, Union[str, int]]) -> str:
 
 
 @lru_cache(maxsize=25000)
-def search_fallback_numbers_cached(file: str, fallback_number: str) -> Union[str, int]:
+def search_fallback_numbers_cached(file: str, fallback_number: str) -> str:
     """
     Cached fallback number search for performance optimization.
 
@@ -2849,11 +2845,11 @@ def search_fallback_numbers_cached(file: str, fallback_number: str) -> Union[str
         fallback_number: Fallback number to search for
 
     Returns:
-        Union[str, int]: Found fallback number or 0
+        str: Found fallback number or empty string
     """
     # This function is a placeholder for future caching optimization
     # For now, we'll use the non-cached version
-    return fallback_number
+    return str(fallback_number) if fallback_number else ""
 
 
 def search_fallback_numbers(
@@ -3048,26 +3044,17 @@ def write_mms_messages(
                                             html_alias = anchor_text
 
                                         # Use existing alias if available, otherwise use HTML alias
-                                        try:
-                                            from sms import PHONE_LOOKUP_MANAGER
-
-                                            if (
-                                                PHONE_LOOKUP_MANAGER
-                                                and formatted_number
-                                                in PHONE_LOOKUP_MANAGER.phone_aliases
-                                            ):
-                                                fallback_aliases.append(
-                                                    PHONE_LOOKUP_MANAGER.phone_aliases[
-                                                        formatted_number
-                                                    ]
-                                                )
-                                            else:
-                                                fallback_aliases.append(
-                                                    html_alias
-                                                    if html_alias
-                                                    else formatted_number
-                                                )
-                                        except (ImportError, AttributeError):
+                                        if (
+                                            phone_lookup_manager
+                                            and formatted_number
+                                            in phone_lookup_manager.phone_aliases
+                                        ):
+                                            fallback_aliases.append(
+                                                phone_lookup_manager.phone_aliases[
+                                                    formatted_number
+                                                ]
+                                            )
+                                        else:
                                             fallback_aliases.append(
                                                 html_alias
                                                 if html_alias
