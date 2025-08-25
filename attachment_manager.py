@@ -8,6 +8,7 @@ This module handles the mapping, copying, and management of attachments
 import logging
 import os
 import shutil
+import threading
 from pathlib import Path
 from typing import Dict, List, Set, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -286,30 +287,35 @@ def build_attachment_mapping_with_progress(processing_directory: str = None) -> 
     return mapping
 
 
-def copy_mapped_attachments(src_filename_map: Dict[str, str], output_directory: str = None) -> None:
+def copy_mapped_attachments(src_filename_map: Dict[str, str], output_directory: str = None, source_directory: str = None) -> None:
     """
     Copy all mapped attachments to the output directory.
     
     Args:
         src_filename_map: Mapping of src elements to attachment filenames
         output_directory: Directory to copy attachments to
+        source_directory: Directory containing the source attachment files
     """
     if output_directory is None:
         output_directory = "conversations"
+    
+    if source_directory is None:
+        # Default to current directory if not specified
+        source_directory = "."
         
     output_path = Path(output_directory)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    logger.info(f"Copying {len(src_filename_map)} mapped attachments to {output_path}")
+    logger.info(f"Copying {len(src_filename_map)} mapped attachments from {source_directory} to {output_path}")
     
     copied_count = 0
     failed_count = 0
     
     for src, filename in src_filename_map.items():
         try:
-            # Look for the attachment file in the current directory and subdirectories
+            # Look for the attachment file in the source directory and subdirectories
             source_file = None
-            for root, dirs, files in os.walk("."):
+            for root, dirs, files in os.walk(source_directory):
                 if filename in files:
                     source_file = Path(root) / filename
                     break
@@ -359,27 +365,35 @@ def copy_attachments_parallel(filenames: Set[str], attachments_dir: Path, max_wo
             logger.error(f"Failed to copy attachment {filename}: {e}")
             return False
     
+    # Thread-safe statistics tracking
+    completed = 0
+    failed = 0
+    stats_lock = threading.Lock()
+    
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all copy tasks
         future_to_filename = {executor.submit(copy_single_attachment, filename): filename for filename in filenames}
         
         # Process completed tasks
-        completed = 0
-        failed = 0
         for future in as_completed(future_to_filename):
             filename = future_to_filename[future]
             try:
-                if future.result():
-                    completed += 1
-                else:
-                    failed += 1
+                result = future.result()
+                # Thread-safely update statistics
+                with stats_lock:
+                    if result:
+                        completed += 1
+                    else:
+                        failed += 1
                     
-                if (completed + failed) % 100 == 0:
-                    logger.info(f"Progress: {completed + failed}/{len(filenames)} attachments processed")
+                    # Log progress every 100 attachments
+                    if (completed + failed) % 100 == 0:
+                        logger.info(f"Progress: {completed + failed}/{len(filenames)} attachments processed")
                     
             except Exception as e:
                 logger.error(f"Exception occurred while copying {filename}: {e}")
-                failed += 1
+                with stats_lock:
+                    failed += 1
                 
     logger.info(f"Parallel attachment copying completed. Successfully copied {completed}, failed {failed}")
 

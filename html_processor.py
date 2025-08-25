@@ -31,14 +31,87 @@ class StringPool:
             "phone": "a[href^='tel:'], span[class*='phone'], div[class*='phone'], cite[class*='sender'], cite[class*='participant']",
             "sender": "cite[class*='sender'], span[class*='sender'], div[class*='sender']",
             "content": "div[class*='content'], span[class*='content'], p[class*='content'], q, blockquote",
+            "participants": "cite[class*='sender'], span[class*='sender'], div[class*='sender'], a[href^='tel:'], span[class*='phone'], div[class*='phone']",
+            "vcard": "a[class*='vcard'], span[class*='vcard'], div[class*='vcard']",
+            "fn": "span[class*='fn'], abbr[class*='fn'], div[class*='fn']",
+            "duration": "span[class*='duration'], abbr[class*='duration'], div[class*='duration']",
+            "dt": "abbr[class*='dt'], span[class*='dt'], time[datetime]"
         }
         
-        # Additional selectors for attachments and special elements
+        # Additional selectors for specific elements
         self.ADDITIONAL_SELECTORS = {
-            "img_src": "img[src], a[href*='att']",
-            "vcard_links": "a[href*='.vcf'], a[href*='.vcard']",
-            "timestamp_elements": "abbr[title], span[class*='dt'], time[datetime]",
-            "message_containers": "div[class*='message'], tr[class*='message'], .conversation div",
+            "tel_links": "a.tel[href], a[href*='tel:']",
+            "img_src": "img[src]",
+            "vcard_links": "a.vcard[href], a[href*='vcard']",
+            "fn_elements": "span.fn, abbr.fn, div.fn, .fn",
+            "dt_elements": "abbr.dt, .dt, time[datetime]",
+            "published_elements": "abbr.published, .published, time[datetime]",
+            "time_elements": "time[datetime], span[datetime], abbr[title]",
+            "duration_elements": "abbr.duration, .duration",
+            "transcription_elements": ".message, .transcription, .content"
+        }
+        
+        # Common patterns used in HTML content
+        self.PATTERNS = {
+            "tel_href": "tel:",
+            "group_marker": "Group conversation with:",
+            "voicemail_prefix": "🎙️",
+            "call_prefix": "📞"
+        }
+        
+        # File extensions for different types
+        self.FILE_EXTENSIONS = {
+            "html": ".html",
+            "xml": ".xml",
+            "jpg": ".jpg",
+            "jpeg": ".jpeg",
+            "png": ".png",
+            "gif": ".gif",
+            "vcf": ".vcf"
+        }
+        
+        # XML attributes and values
+        self.XML_ATTRS = {
+            "protocol": "0",
+            "address": "",
+            "type": "",
+            "subject": "null",
+            "body": "",
+            "toa": "null",
+            "sc_toa": "null",
+            "date": "",
+            "read": "1",
+            "status": "-1",
+            "locked": "0"
+        }
+        
+        # HTML classes and attributes
+        self.HTML_CLASSES = {
+            "dt": "dt",
+            "tel": "tel",
+            "sender": "sender",
+            "message": "message",
+            "timestamp": "timestamp",
+            "participants": "participants",
+            "vcard": "vcard",
+            "fn": "fn",
+            "duration": "duration"
+        }
+        
+        # Common timestamp indicators for early exit optimization
+        self.TIMESTAMP_INDICATORS = ["202", "201", "200", "199", "198", "197"]
+        
+        # Common timestamp classes and IDs for faster lookup
+        self.TIMESTAMP_CLASSES = ["timestamp", "date", "time", "when", "posted", "created"]
+        self.TIMESTAMP_IDS = ["timestamp", "date", "time", "when", "posted", "created"]
+        self.DATA_ATTRS = ["data-timestamp", "data-date", "data-time", "data-when"]
+        
+        # Common patterns for file type detection and processing
+        self.PATTERNS = {
+            "tel_href": "tel:",
+            "group_marker": "Group conversation with:",
+            "voicemail_prefix": "🎙️",
+            "call_prefix": "📞",
         }
         
         # Common patterns for file type detection
@@ -88,28 +161,28 @@ def parse_html_file(html_file: Path) -> BeautifulSoup:
 
 def get_file_type(filename: str) -> str:
     """
-    Determine the type of file based on its filename.
+    Determine the type of HTML file based on its filename.
     
     Args:
         filename: Name of the file to analyze
         
     Returns:
-        String indicating file type: 'sms', 'mms', 'call', 'voicemail', or 'unknown'
+        String indicating the file type: "sms_mms", "call", "voicemail", or "unknown"
     """
     filename_lower = filename.lower()
     
     # Check for specific patterns in filename
     if any(re.search(pattern, filename_lower) for pattern in [r'text', r'sms']):
-        return "sms"
+        return "sms_mms"  # Changed from "sms" to "sms_mms" to match file_processor.py expectations
     elif any(re.search(pattern, filename_lower) for pattern in [r'mms', r'multimedia']):
-        return "mms"
+        return "sms_mms"  # MMS files should also be processed as SMS/MMS
     elif any(re.search(pattern, filename_lower) for pattern in [r'placed', r'received', r'missed']):
         return "call"
     elif any(re.search(pattern, filename_lower) for pattern in [r'voicemail', r'voice']):
         return "voicemail"
     else:
-        # Default to SMS for unknown types
-        return "sms"
+        # Default to SMS/MMS for unknown types (most files are SMS/MMS)
+        return "sms_mms"
 
 
 def should_skip_file(filename: str) -> bool:

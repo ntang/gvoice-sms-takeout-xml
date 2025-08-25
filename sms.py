@@ -22,6 +22,7 @@ import os
 import re
 import sys
 import time
+import threading
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -95,6 +96,12 @@ DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
 DATE_FILTER_NEWER_THAN = None  # Filter out messages newer than this date
 FILTER_NUMBERS_WITHOUT_ALIASES = False  # Filter out numbers without aliases
 FILTER_NON_PHONE_NUMBERS = False  # Filter out non-phone numbers like shortcodes
+
+# Thread safety locks
+GLOBAL_STATS_LOCK = threading.Lock()
+CONVERSATION_MANAGER_LOCK = threading.Lock()
+PHONE_LOOKUP_MANAGER_LOCK = threading.Lock()
+FILE_OPERATIONS_LOCK = threading.Lock()
 
 # Progress logging configuration
 PROGRESS_INTERVAL_PERCENT = 25  # Report progress every 25%
@@ -543,6 +550,47 @@ class ConversionStats:
     own_number: Optional[str] = None
 
 
+class ThreadSafeStatsAggregator:
+    """Thread-safe statistics aggregator for parallel processing."""
+    
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._stats = {
+            "num_sms": 0,
+            "num_img": 0,
+            "num_vcf": 0,
+            "num_calls": 0,
+            "num_voicemails": 0,
+        }
+        self._own_number = None
+    
+    def add_stats(self, stats: Dict[str, int]) -> None:
+        """Thread-safely add statistics."""
+        with self._lock:
+            for key in self._stats:
+                if key in stats:
+                    self._stats[key] += stats.get(key, 0)
+            
+            # Set own_number from first successful chunk
+            if self._own_number is None and stats.get("own_number"):
+                self._own_number = stats.get("own_number")
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Thread-safely get current statistics."""
+        with self._lock:
+            result = self._stats.copy()
+            if self._own_number:
+                result["own_number"] = self._own_number
+            return result
+    
+    def reset(self) -> None:
+        """Thread-safely reset statistics."""
+        with self._lock:
+            for key in self._stats:
+                self._stats[key] = 0
+            self._own_number = None
+
+
 # XML templates for better maintainability
 
 
@@ -632,9 +680,11 @@ def copy_attachments_parallel(filenames: set, attachments_dir: Path) -> None:
         for i in range(0, len(filename_list), chunk_size)
     )
 
+    # Thread-safe statistics tracking
     copied_count = 0
     skipped_count = 0
     error_count = 0
+    stats_lock = threading.Lock()
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk copying tasks
@@ -647,9 +697,11 @@ def copy_attachments_parallel(filenames: set, attachments_dir: Path) -> None:
         for future in as_completed(future_to_chunk):
             try:
                 chunk_result = future.result()
-                copied_count += chunk_result["copied"]
-                skipped_count += chunk_result["skipped"]
-                error_count += chunk_result["errors"]
+                # Thread-safely aggregate statistics
+                with stats_lock:
+                    copied_count += chunk_result["copied"]
+                    skipped_count += chunk_result["skipped"]
+                    error_count += chunk_result["errors"]
 
                 # Log progress
                 logger.debug(
@@ -663,9 +715,12 @@ def copy_attachments_parallel(filenames: set, attachments_dir: Path) -> None:
     logger.info(
         f"Parallel attachment copying completed: {copied_count} copied, {skipped_count} skipped, {error_count} errors"
     )
-    logger.info(
-        f"Total attachments in directory: {len(list(attachments_dir.glob('*')))}"
-    )
+    
+    # Thread-safe file operation for directory listing
+    with FILE_OPERATIONS_LOCK:
+        total_files = len(list(attachments_dir.glob('*')))
+    
+    logger.info(f"Total attachments in directory: {total_files}")
 
 
 def copy_chunk_parallel(filenames: List[str], attachments_dir: Path) -> Dict[str, int]:
@@ -5096,8 +5151,14 @@ def process_html_files_batch(
 
         for html_file in batch_files:
             try:
+                # Thread-safe access to global managers
+                with CONVERSATION_MANAGER_LOCK:
+                    conversation_manager = CONVERSATION_MANAGER
+                with PHONE_LOOKUP_MANAGER_LOCK:
+                    phone_lookup_manager = PHONE_LOOKUP_MANAGER
+                
                 file_stats = process_single_html_file(
-                    html_file, src_filename_map, own_number, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
+                    html_file, src_filename_map, own_number, conversation_manager, phone_lookup_manager
                 )
 
                 # Update statistics
@@ -5149,7 +5210,7 @@ def process_html_files_parallel(
         for i in range(0, total_files, CHUNK_SIZE_OPTIMAL)
     )
 
-    # Process chunks in parallel
+    # Thread-safe statistics tracking
     stats = {
         "num_sms": 0,
         "num_img": 0,
@@ -5158,6 +5219,7 @@ def process_html_files_parallel(
         "num_voicemails": 0,
     }
     own_number = None
+    stats_lock = threading.Lock()
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk processing tasks
@@ -5171,13 +5233,14 @@ def process_html_files_parallel(
             try:
                 chunk_stats = future.result()
 
-                # Aggregate statistics
-                for key in stats:
-                    stats[key] += chunk_stats.get(key, 0)
+                # Thread-safely aggregate statistics
+                with stats_lock:
+                    for key in stats:
+                        stats[key] += chunk_stats.get(key, 0)
 
-                # Extract own number from first successful chunk
-                if own_number is None:
-                    own_number = chunk_stats.get("own_number")
+                    # Extract own number from first successful chunk
+                    if own_number is None:
+                        own_number = chunk_stats.get("own_number")
 
             except Exception as e:
                 logger.error(f"Failed to process chunk: {e}")
@@ -5200,7 +5263,13 @@ def process_chunk_parallel(
 
     for html_file in html_files:
         try:
-            file_stats = process_single_html_file(html_file, src_filename_map, None, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER)
+            # Thread-safe access to global managers
+            with CONVERSATION_MANAGER_LOCK:
+                conversation_manager = CONVERSATION_MANAGER
+            with PHONE_LOOKUP_MANAGER_LOCK:
+                phone_lookup_manager = PHONE_LOOKUP_MANAGER
+            
+            file_stats = process_single_html_file(html_file, src_filename_map, None, conversation_manager, phone_lookup_manager)
 
             # Update chunk statistics
             for key in chunk_stats:
