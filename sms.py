@@ -3799,23 +3799,36 @@ def process_attachments(
         src = attachment.get("src" if attachment_type == "image" else "href", "")
         if src in src_filename_map:
             filename = src_filename_map[src]
-            if filename != "No unused match found":
+            if filename and filename != "No unused match found":
                 file_path = Path(filename)
                 if file_path.exists():
                     try:
                         if attachment_type == "image":
-                            content_type = f"image/{get_image_type(file_path)}"
+                            image_type = get_image_type(file_path)
+                            if not image_type:
+                                image_type = "unknown"
+                            content_type = f"image/{image_type}"
                             data = encode_file_content(file_path)
                             if data:
-                                parts += IMAGE_PART_TEMPLATE.format(
-                                    type=content_type, name=filename, data=data
-                                )
+                                try:
+                                    parts += IMAGE_PART_TEMPLATE.format(
+                                        type=content_type, name=filename, data=data
+                                    )
+                                except (KeyError, ValueError) as template_error:
+                                    logger.error(f"Template formatting error for image {filename}: {template_error}")
+                                    # Fallback to a simple format if template fails
+                                    parts += f'    <part seq="0" ct="{content_type}" name="{filename}" data="{data}" />\n'
                         else:  # vcard
                             data = encode_file_content(file_path)
                             if data:
-                                parts += VCARD_PART_TEMPLATE.format(
-                                    type="text/vcard", name=filename, data=data
-                                )
+                                try:
+                                    parts += VCARD_PART_TEMPLATE.format(
+                                        type="text/vcard", name=filename, data=data
+                                    )
+                                except (KeyError, ValueError) as template_error:
+                                    logger.error(f"Template formatting error for vCard {filename}: {template_error}")
+                                    # Fallback to a simple format if template fails
+                                    parts += f'    <part seq="0" ct="text/vcard" name="{filename}" data="{data}" />\n'
 
                         # Extract URL for location pins
                         if not extracted_url:
@@ -3853,7 +3866,7 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
         if src in src_filename_map:
             filename = src_filename_map[src]
             logger.debug(f"Found mapping: {src} -> {filename}")
-            if filename != "No unused match found":
+            if filename and filename != "No unused match found":
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
                 if source_file_path.exists():
@@ -3878,12 +3891,20 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                                 f"Image {filename} already exists in attachments directory"
                             )
 
-                        content_type = f"image/{get_image_type(source_file_path)}"
-                        image_parts += IMAGE_PART_TEMPLATE.format(
-                            type=content_type,
-                            name=filename,
-                            data="attachments/" + filename,
-                        )
+                        image_type = get_image_type(source_file_path)
+                        if not image_type:
+                            image_type = "unknown"
+                        content_type = f"image/{image_type}"
+                        try:
+                            image_parts += IMAGE_PART_TEMPLATE.format(
+                                type=content_type,
+                                name=filename,
+                                data="attachments/" + filename,
+                            )
+                        except (KeyError, ValueError) as template_error:
+                            logger.error(f"Template formatting error for image {filename}: {template_error}")
+                            # Fallback to a simple format if template fails
+                            image_parts += f'    <part seq="0" ct="{content_type}" name="{filename}" data="attachments/{filename}" />\n'
                     except Exception as e:
                         logger.error(f"Failed to process image {filename}: {e}")
 
@@ -3942,7 +3963,7 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
         href = vcard.get("href", "")
         if href in src_filename_map:
             filename = src_filename_map[href]
-            if filename != "No unused match found":
+            if filename and filename != "No unused match found":
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
                 if source_file_path.exists():
@@ -3961,11 +3982,16 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
                                 f"Copied vCard {filename} to attachments directory"
                             )
 
-                        vcard_parts += VCARD_PART_TEMPLATE.format(
-                            type="text/vcard",
-                            name=filename,
-                            data="attachments/" + filename,
-                        )
+                        try:
+                            vcard_parts += VCARD_PART_TEMPLATE.format(
+                                type="text/vcard",
+                                name=filename,
+                                data="attachments/" + filename,
+                            )
+                        except (KeyError, ValueError) as template_error:
+                            logger.error(f"Template formatting error for vCard {filename}: {template_error}")
+                            # Fallback to a simple format if template fails
+                            vcard_parts += f'    <part seq="0" ct="text/x-vCard" name="{filename}" data="attachments/{filename}" />\n'
                     except Exception as e:
                         logger.error(f"Failed to process vCard {filename}: {e}")
 

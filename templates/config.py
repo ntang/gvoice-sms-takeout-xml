@@ -14,8 +14,8 @@ MMS_XML_TEMPLATE = """<mms address="{participants}" ct_t="application/vnd.wap.mu
 # MMS part templates
 TEXT_PART_TEMPLATE = '    <part ct="text/plain" seq="0" text="{text}"/> \n'
 PARTICIPANT_TEMPLATE = '    <addr address="{number}" charset="106" type="{code}"/> \n'
-IMAGE_PART_TEMPLATE = '    <part seq="0" ct="image/{type}" name="{name}" chset="null" cd="null" fn="null" cid="&lt;{name}&gt;" cl="{name}" ctt_s="null" ctt_t="null" text="null" data="attachments/{name}" />\n'
-VCARD_PART_TEMPLATE = '    <part seq="0" ct="text/x-vCard" name="{name}" chset="null" cd="null" fn="null" cid="&lt;{name}&gt;" cl="{name}" ctt_s="null" ctt_t="null" text="null" data="attachments/{name}" />\n'
+IMAGE_PART_TEMPLATE = '    <part seq="0" ct="{type}" name="{name}" chset="null" cd="null" fn="null" cid="&lt;{name}&gt;" cl="{name}" ctt_s="null" ctt_t="null" text="null" data="{data}" />\n'
+VCARD_PART_TEMPLATE = '    <part seq="0" ct="text/x-vCard" name="{name}" chset="null" cd="null" fn="null" cid="&lt;{name}&gt;" cl="{name}" ctt_s="null" ctt_t="null" text="null" data="{data}" />\n'
 
 # Call log XML template
 CALL_XML_TEMPLATE = """<call number="{alias}" duration="{duration}" date="{time}" type="{call_type}" presentation="1" readable_date="{readable_date}" readable_duration="{readable_duration}" />"""
