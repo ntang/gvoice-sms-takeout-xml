@@ -929,8 +929,8 @@ def main():
                 len(
                     [
                         f
-                        for f in src_filename_map.values()
-                        if f != "No unused match found"
+                        for f, (filename, _) in src_filename_map.items()
+                        if filename != "No unused match found"
                     ]
                 )
                 / elapsed_time
@@ -3679,7 +3679,7 @@ def write_mms_messages(
                         if img_src:
                             img_filename = img_src.get("src")
                             if img_filename in src_filename_map:
-                                actual_filename = src_filename_map[img_filename]
+                                actual_filename, _ = src_filename_map[img_filename]
                                 if actual_filename != "No unused match found":
                                     # Create clickable link to the image
                                     attachments.append(
@@ -3798,7 +3798,7 @@ def process_attachments(
     for attachment in attachments:
         src = attachment.get("src" if attachment_type == "image" else "href", "")
         if src in src_filename_map:
-            filename = src_filename_map[src]
+            filename, _ = src_filename_map[src]
             if filename and filename != "No unused match found":
                 file_path = Path(filename)
                 if file_path.exists():
@@ -3842,13 +3842,13 @@ def process_attachments(
     return parts, extracted_url
 
 
-def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) -> str:
+def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
     """
     Build XML parts for image attachments in an MMS message.
 
     Args:
         message: Message element from HTML
-        src_filename_map: Mapping of src elements to filenames
+        src_filename_map: Mapping of src elements to (filename, source_path) tuples
 
     Returns:
         str: XML string for image parts
@@ -3864,7 +3864,7 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
         src = img.get("src", "")
         logger.debug(f"Processing image with src: {src}")
         if src in src_filename_map:
-            filename = src_filename_map[src]
+            filename, _ = src_filename_map[src]
             logger.debug(f"Found mapping: {src} -> {filename}")
             if filename and filename != "No unused match found":
                 # Look for the file in the Calls subdirectory
@@ -3941,13 +3941,13 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
     return image_parts
 
 
-def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) -> str:
+def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
     """
     Build XML parts for vCard attachments in an MMS message.
 
     Args:
         message: Message element from HTML
-        src_filename_map: Mapping of src elements to filenames
+        src_filename_map: Mapping of src elements to (filename, source_path) tuples
 
     Returns:
         str: XML string for vCard parts
@@ -3962,7 +3962,7 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
     for vcard in vcards:
         href = vcard.get("href", "")
         if href in src_filename_map:
-            filename = src_filename_map[href]
+            filename, _ = src_filename_map[href]
             if filename and filename != "No unused match found":
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
@@ -4031,7 +4031,7 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, str]) 
 def process_single_attachment(
     attachment,
     file: str,
-    src_filename_map: Dict[str, str],
+    src_filename_map: Dict[str, Tuple[str, str]],
     attachment_type: str,
 ) -> Tuple[Optional[str], str]:
     """Process a single attachment and return XML part and extracted URL."""

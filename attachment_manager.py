@@ -10,7 +10,7 @@ import os
 import shutil
 import threading
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 
@@ -181,9 +181,33 @@ def normalize_filename(filename: str) -> str:
     return base_name
 
 
+def find_attachment_source_path(filename: str, processing_directory: str) -> str:
+    """
+    Find the source file path for a given attachment filename.
+    
+    Args:
+        filename: The attachment filename to find
+        processing_directory: Directory to search in
+        
+    Returns:
+        Full path to the source file, or None if not found
+    """
+    try:
+        # Look for the attachment file in the processing directory and subdirectories
+        for root, dirs, files in os.walk(processing_directory):
+            if filename in files:
+                source_file = Path(root) / filename
+                if source_file.exists():
+                    return str(source_file)
+        return None
+    except Exception as e:
+        logger.warning(f"Error finding source path for {filename}: {e}")
+        return None
+
+
 def build_attachment_mapping_with_progress(
     processing_directory: str = None,
-) -> Dict[str, str]:
+) -> Dict[str, Tuple[str, str]]:
     """
     Build mapping from src elements to attachment filenames with progress tracking.
 
@@ -191,7 +215,7 @@ def build_attachment_mapping_with_progress(
         processing_directory: Directory to search for HTML files and attachments
 
     Returns:
-        Dictionary mapping src elements to attachment filenames
+        Dictionary mapping src elements to (filename, source_path) tuples
     """
     if processing_directory is None:
         processing_directory = "."
@@ -264,7 +288,7 @@ def build_attachment_mapping_with_progress(
                     f"HTML '{html_base}' has {len(matching_attachments)} attachments: {matching_attachments[:3]}{'...' if len(matching_attachments) > 3 else ''}"
                 )
 
-    # Now create the src -> filename mapping using more efficient algorithms
+    # Now create the src -> (filename, source_path) mapping using more efficient algorithms
     # Pre-compute used attachments set for O(1) lookups
     used_attachments = set()
 
@@ -277,6 +301,7 @@ def build_attachment_mapping_with_progress(
 
         src_normalized = src.strip()
         assigned_filename = None
+        source_path = None
 
         if src_normalized in src_to_files:
             # Get the HTML files that contain this src reference
@@ -301,8 +326,13 @@ def build_attachment_mapping_with_progress(
                         break
 
         if assigned_filename:
-            mapping[src_normalized] = assigned_filename
-            mapping_items.append((src_normalized, assigned_filename))
+            # Find the actual source file path for this attachment
+            source_path = find_attachment_source_path(assigned_filename, processing_directory)
+            if source_path:
+                mapping[src_normalized] = (assigned_filename, source_path)
+                mapping_items.append((src_normalized, (assigned_filename, source_path)))
+            else:
+                logger.warning(f"Could not find source path for attachment: {assigned_filename}")
 
     logger.info(
         f"Completed attachment mapping. Created {len(mapping)} mappings from {len(src_elements)} src elements and {len(att_filenames)} attachment files"
@@ -312,7 +342,7 @@ def build_attachment_mapping_with_progress(
 
 
 def copy_mapped_attachments(
-    src_filename_map: Dict[str, str],
+    src_filename_map: Dict[str, Tuple[str, str]],
     output_directory: str = None,
     source_directory: str = None,
 ) -> None:
@@ -320,9 +350,9 @@ def copy_mapped_attachments(
     Copy all mapped attachments to the output directory.
 
     Args:
-        src_filename_map: Mapping of src elements to attachment filenames
+        src_filename_map: Mapping of src elements to (filename, source_path) tuples
         output_directory: Directory to copy attachments to
-        source_directory: Directory containing the source attachment files
+        source_directory: Directory containing the source attachment files (fallback)
     """
     if output_directory is None:
         output_directory = "conversations"
@@ -341,27 +371,44 @@ def copy_mapped_attachments(
     copied_count = 0
     failed_count = 0
 
-    for src, filename in src_filename_map.items():
+    for src, (filename, source_path) in src_filename_map.items():
         try:
-            # Look for the attachment file in the source directory and subdirectories
-            source_file = None
-            for root, dirs, files in os.walk(source_directory):
-                if filename in files:
-                    source_file = Path(root) / filename
-                    break
+            # Use the pre-computed source path for direct access
+            if source_path:
+                source_file = Path(source_path)
+                if source_file.exists():
+                    dest_file = output_path / filename
+                    shutil.copy2(source_file, dest_file)
+                    copied_count += 1
 
-            if source_file and source_file.exists():
-                dest_file = output_path / filename
-                shutil.copy2(source_file, dest_file)
-                copied_count += 1
-
-                if copied_count % 100 == 0:
-                    logger.info(
-                        f"Copied {copied_count}/{len(src_filename_map)} attachments"
-                    )
+                    if copied_count % 100 == 0:
+                        logger.info(
+                            f"Copied {copied_count}/{len(src_filename_map)} attachments"
+                        )
+                else:
+                    logger.warning(f"Source file no longer exists: {source_path}")
+                    failed_count += 1
             else:
-                logger.warning(f"Attachment file not found: {filename}")
-                failed_count += 1
+                # Fallback: search for the file if source path is not available
+                logger.warning(f"No source path available for {filename}, falling back to search")
+                source_file = None
+                for root, dirs, files in os.walk(source_directory):
+                    if filename in files:
+                        source_file = Path(root) / filename
+                        break
+
+                if source_file and source_file.exists():
+                    dest_file = output_path / filename
+                    shutil.copy2(source_file, dest_file)
+                    copied_count += 1
+
+                    if copied_count % 100 == 0:
+                        logger.info(
+                            f"Copied {copied_count}/{len(src_filename_map)} attachments (fallback)"
+                        )
+                else:
+                    logger.warning(f"Attachment file not found: {filename}")
+                    failed_count += 1
 
         except Exception as e:
             logger.error(f"Failed to copy attachment {filename}: {e}")
