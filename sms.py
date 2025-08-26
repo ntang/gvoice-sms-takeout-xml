@@ -3914,6 +3914,12 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     if not images:
         return image_parts
 
+    # Safety check: ensure OUTPUT_DIRECTORY is initialized
+    if OUTPUT_DIRECTORY is None:
+        logger.error("🚨 OUTPUT_DIRECTORY is None in build_image_parts - cannot process images")
+        logger.error("This indicates setup_processing_paths() has not been called yet")
+        return image_parts
+
     for img in images:
         src = img.get("src", "")
         logger.debug(f"Processing image with src: {src}")
@@ -4030,6 +4036,12 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     vcards = message.find_all("a", class_="vcard")
 
     if not vcards:
+        return vcard_parts
+
+    # Safety check: ensure OUTPUT_DIRECTORY is initialized
+    if OUTPUT_DIRECTORY is None:
+        logger.error("🚨 OUTPUT_DIRECTORY is None in build_vcard_parts - cannot process vCards")
+        logger.error("This indicates setup_processing_paths() has not been called yet")
         return vcard_parts
 
     for vcard in vcards:
