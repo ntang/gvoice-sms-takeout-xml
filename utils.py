@@ -457,8 +457,21 @@ def create_backup_file(file_path: Union[str, Path]) -> Optional[Path]:
 
         # Copy the file
         import shutil
-
-        shutil.copy2(file_path, backup_path)
+        
+        # Safety check: prevent copying to same location
+        if file_path.resolve() == backup_path.resolve():
+            logger.warning(f"Skipping backup - source and destination are the same: {file_path}")
+            return None
+        
+        # Try copy2 first, fallback to copy if cross-device error occurs
+        try:
+            shutil.copy2(file_path, backup_path)
+        except OSError as copy_error:
+            if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                logger.info(f"Cross-device link error for backup, using fallback copy method")
+                shutil.copy(file_path, backup_path)
+            else:
+                raise copy_error
 
         logger.info(f"Created backup: {backup_path}")
         return backup_path

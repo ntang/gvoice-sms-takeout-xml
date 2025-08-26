@@ -19,12 +19,13 @@ from html_processor import STRING_POOL
 logger = logging.getLogger(__name__)
 
 
-def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[str]]:
+def extract_src_with_source_files(html_directory: str = None, sample_files: List[str] = None) -> Dict[str, List[str]]:
     """
     Extract image src attributes and vCard href attributes from HTML files with their source file information.
 
     Args:
         html_directory: Directory to search for HTML files (defaults to current directory)
+        sample_files: Optional list of HTML files to limit processing to (for test mode)
 
     Returns:
         dict: Mapping from src/href values to list of HTML files that contain them
@@ -36,8 +37,13 @@ def extract_src_with_source_files(html_directory: str = None) -> Dict[str, List[
 
     try:
         # Get total count of HTML files for progress tracking
-        html_files = list(Path(html_directory).rglob("*.html"))
-        total_files = len(html_files)
+        if sample_files:
+            html_files = [Path(f) for f in sample_files if Path(f).exists()]
+            total_files = len(html_files)
+            logger.info(f"🧪 TEST MODE: Processing {total_files} sample HTML files")
+        else:
+            html_files = list(Path(html_directory).rglob("*.html"))
+            total_files = len(html_files)
 
         if html_files == 0:
             logger.error(f"No HTML files found in {html_directory}")
@@ -248,12 +254,14 @@ def find_attachment_source_path(filename: str, processing_directory: str) -> str
 
 def build_attachment_mapping_with_progress(
     processing_directory: str = None,
+    sample_files: List[str] = None,
 ) -> Dict[str, Tuple[str, str]]:
     """
     Build mapping from src elements to attachment filenames with progress tracking.
 
     Args:
         processing_directory: Directory to search for HTML files and attachments
+        sample_files: Optional list of HTML files to limit processing to (for test mode)
 
     Returns:
         Dictionary mapping src elements to (filename, source_path) tuples
@@ -265,7 +273,11 @@ def build_attachment_mapping_with_progress(
 
     # Step 1: Extract src elements from HTML files with source tracking
     logger.info("Starting src extraction from HTML files with source tracking")
-    src_to_files = extract_src_with_source_files(processing_directory)
+    if sample_files:
+        logger.info(f"🧪 TEST MODE: Limiting src extraction to {len(sample_files)} sample files")
+        src_to_files = extract_src_with_source_files(processing_directory, sample_files=sample_files)
+    else:
+        src_to_files = extract_src_with_source_files(processing_directory)
     src_elements = list(src_to_files.keys())
 
     # Step 2: Scan for attachment files and build file location index ONCE
@@ -424,7 +436,23 @@ def copy_mapped_attachments(
                 source_file = Path(source_path)
                 if source_file.exists():
                     dest_file = output_path / filename
-                    shutil.copy2(source_file, dest_file)
+                    
+                    # Safety check: prevent copying to same location
+                    if source_file.resolve() == dest_file.resolve():
+                        logger.info(f"Skipping {filename} - source and destination are the same")
+                        copied_count += 1
+                        continue
+                    
+                    # Try copy2 first, fallback to copy if cross-device error occurs
+                    try:
+                        shutil.copy2(source_file, dest_file)
+                    except OSError as copy_error:
+                        if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                            logger.info(f"Cross-device link error for {filename}, using fallback copy method")
+                            shutil.copy(source_file, dest_file)
+                        else:
+                            raise copy_error
+                    
                     copied_count += 1
 
                     if copied_count % 100 == 0:
@@ -445,7 +473,23 @@ def copy_mapped_attachments(
 
                 if source_file and source_file.exists():
                     dest_file = output_path / filename
-                    shutil.copy2(source_file, dest_file)
+                    
+                    # Safety check: prevent copying to same location
+                    if source_file.resolve() == dest_file.resolve():
+                        logger.info(f"Skipping {filename} - source and destination are the same (fallback)")
+                        copied_count += 1
+                        continue
+                    
+                    # Try copy2 first, fallback to copy if cross-device error occurs
+                    try:
+                        shutil.copy2(source_file, dest_file)
+                    except OSError as copy_error:
+                        if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                            logger.info(f"Cross-device link error for {filename}, using fallback copy method (fallback)")
+                            shutil.copy(source_file, dest_file)
+                        else:
+                            raise copy_error
+                    
                     copied_count += 1
 
                     if copied_count % 100 == 0:
@@ -487,7 +531,22 @@ def copy_attachments_parallel(
                 # Copy to conversations directory
                 dest_file = Path("conversations") / filename
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source_file, dest_file)
+                
+                # Safety check: prevent copying to same location
+                if source_file.resolve() == dest_file.resolve():
+                    logger.info(f"Skipping {filename} - source and destination are the same (parallel)")
+                    return True
+                
+                # Try copy2 first, fallback to copy if cross-device error occurs
+                try:
+                    shutil.copy2(source_file, dest_file)
+                except OSError as copy_error:
+                    if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                        logger.info(f"Cross-device link error for {filename}, using fallback copy method (parallel)")
+                        shutil.copy(source_file, dest_file)
+                    else:
+                        raise copy_error
+                
                 return True
             else:
                 logger.warning(f"Attachment file not found: {filename}")

@@ -348,6 +348,24 @@ class ConversationManager:
 
             # Sort files by name for consistent ordering
             conversation_files.sort(key=lambda x: x.name)
+            
+            # In test mode, limit the number of conversation files processed
+            # Check if we're in test mode by looking for a global variable or environment
+            test_mode = False
+            test_limit = 100
+            
+            # Try to get test mode from globals (set by sms.py)
+            import sys
+            if 'TEST_MODE' in globals():
+                test_mode = globals()['TEST_MODE']
+                test_limit = globals().get('TEST_LIMIT', 100)
+            elif hasattr(sys.modules.get('__main__', None), 'TEST_MODE'):
+                test_mode = sys.modules['__main__'].TEST_MODE
+                test_limit = sys.modules['__main__'].TEST_LIMIT
+            
+            if test_mode and len(conversation_files) > test_limit:
+                logger.info(f"🧪 TEST MODE: Limiting index generation to first {test_limit} conversation files out of {len(conversation_files)} total")
+                conversation_files = conversation_files[:test_limit]
 
             # Build conversation table rows
             # conversation_rows variable removed - not used

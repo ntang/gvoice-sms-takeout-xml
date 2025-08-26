@@ -661,8 +661,23 @@ def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
 
             # Copy the file with optimized buffer size
             import shutil
-
-            shutil.copy2(source_file, dest_file)
+            
+            # Safety check: prevent copying to same location
+            if source_file.resolve() == dest_file.resolve():
+                logger.debug(f"Skipping {filename} - source and destination are the same")
+                copied_count += 1
+                continue
+            
+            # Try copy2 first, fallback to copy if cross-device error occurs
+            try:
+                shutil.copy2(source_file, dest_file)
+            except OSError as copy_error:
+                if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                    logger.info(f"Cross-device link error for {filename}, using fallback copy method")
+                    shutil.copy(source_file, dest_file)
+                else:
+                    raise copy_error
+            
             copied_count += 1
 
             # Log progress every 100 files
@@ -760,8 +775,23 @@ def copy_chunk_parallel(filenames: List[str], attachments_dir: Path) -> Dict[str
 
             # Copy the file with optimized buffer size
             import shutil
-
-            shutil.copy2(source_file, dest_file)
+            
+            # Safety check: prevent copying to same location
+            if source_file.resolve() == dest_file.resolve():
+                logger.debug(f"Skipping {filename} - source and destination are the same (chunk)")
+                chunk_result["copied"] += 1
+                continue
+            
+            # Try copy2 first, fallback to copy if cross-device error occurs
+            try:
+                shutil.copy2(source_file, dest_file)
+            except OSError as copy_error:
+                if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                    logger.info(f"Cross-device link error for {filename}, using fallback copy method (chunk)")
+                    shutil.copy(source_file, dest_file)
+                else:
+                    raise copy_error
+            
             chunk_result["copied"] += 1
 
         except Exception as e:
@@ -857,9 +887,30 @@ def main():
         # Build attachment mapping
         logger.info("Building attachment mapping...")
         mapping_start = time.time()
-        src_filename_map = build_attachment_mapping_with_progress(
-            str(PROCESSING_DIRECTORY)
-        )
+        
+        # In test mode, limit attachment mapping to only process files that will be used
+        if TEST_MODE:
+            logger.info(f"🧪 TEST MODE: Limiting attachment mapping to support {TEST_LIMIT} HTML files")
+            # Get a sample of HTML files to determine which attachments are needed
+            sample_html_files = []
+            for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
+                for file in files:
+                    if file.endswith(".html"):
+                        sample_html_files.append(os.path.join(root, file))
+                        if len(sample_html_files) >= TEST_LIMIT:
+                            break
+                if len(sample_html_files) >= TEST_LIMIT:
+                    break
+            
+            # Only process attachments that are referenced by the sample HTML files
+            src_filename_map = build_attachment_mapping_with_progress(
+                str(PROCESSING_DIRECTORY), sample_files=sample_html_files
+            )
+        else:
+            src_filename_map = build_attachment_mapping_with_progress(
+                str(PROCESSING_DIRECTORY)
+            )
+        
         mapping_time = time.time() - mapping_start
         logger.info(
             f"Found {len(src_filename_map)} attachment mappings in {mapping_time:.2f}s"
@@ -3941,11 +3992,26 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                         logger.debug(f"Copying {source_file_path} to {dest_file_path}")
                         if not dest_file_path.exists():
                             import shutil
-
-                            shutil.copy2(source_file_path, dest_file_path)
-                            logger.debug(
-                                f"Copied image {filename} to attachments directory"
-                            )
+                            
+                            # Safety check: prevent copying to same location
+                            if source_file_path.resolve() == dest_file_path.resolve():
+                                logger.debug(f"Skipping {filename} - source and destination are the same")
+                            else:
+                                # Try copy2 first, fallback to copy if cross-device error occurs
+                                try:
+                                    shutil.copy2(source_file_path, dest_file_path)
+                                    logger.debug(
+                                        f"Copied image {filename} to attachments directory"
+                                    )
+                                except OSError as copy_error:
+                                    if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                                        logger.info(f"Cross-device link error for {filename}, using fallback copy method")
+                                        shutil.copy(source_file_path, dest_file_path)
+                                        logger.debug(
+                                            f"Copied image {filename} to attachments directory (fallback)"
+                                        )
+                                    else:
+                                        raise copy_error
                         else:
                             logger.debug(
                                 f"Image {filename} already exists in attachments directory"
@@ -4061,11 +4127,26 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                         dest_file_path = attachments_dir / filename
                         if not dest_file_path.exists():
                             import shutil
-
-                            shutil.copy2(source_file_path, dest_file_path)
-                            logger.debug(
-                                f"Copied vCard {filename} to attachments directory"
-                            )
+                            
+                            # Safety check: prevent copying to same location
+                            if source_file_path.resolve() == dest_file_path.resolve():
+                                logger.debug(f"Skipping {filename} - source and destination are the same")
+                            else:
+                                # Try copy2 first, fallback to copy if cross-device error occurs
+                                try:
+                                    shutil.copy2(source_file_path, dest_file_path)
+                                    logger.debug(
+                                        f"Copied vCard {filename} to attachments directory"
+                                    )
+                                except OSError as copy_error:
+                                    if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
+                                        logger.info(f"Cross-device link error for {filename}, using fallback copy method")
+                                        shutil.copy(source_file_path, dest_file_path)
+                                        logger.debug(
+                                            f"Copied vCard {filename} to attachments directory (fallback)"
+                                        )
+                                    else:
+                                        raise copy_error
 
                         try:
                             vcard_parts += VCARD_PART_TEMPLATE.format(
