@@ -229,14 +229,21 @@ def parse_timestamp_from_filename(filename: str) -> Optional[datetime]:
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human-readable format."""
-    if size_bytes < 1024:
-        return f"{size_bytes} B"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
-    elif size_bytes < 1024 * 1024 * 1024:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
-    else:
-        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+    if size_bytes is None or size_bytes < 0:
+        return "Unknown"
+    
+    try:
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024 * 1024 * 1024:
+            return f"{size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+    except (TypeError, ZeroDivisionError) as e:
+        logger.warning(f"Division error in file size formatting: {e}")
+        return "Unknown"
 
 
 def ensure_directory_exists(directory: Union[str, Path]) -> Path:
@@ -411,8 +418,8 @@ def get_memory_usage() -> dict:
         return {
             "rss": memory_info.rss,  # Resident Set Size
             "vms": memory_info.vms,  # Virtual Memory Size
-            "rss_mb": memory_info.rss / 1024 / 1024,
-            "vms_mb": memory_info.vms / 1024 / 1024,
+            "rss_mb": memory_info.rss / 1024 / 1024 if memory_info.rss is not None else 0,
+            "vms_mb": memory_info.vms / 1024 / 1024 if memory_info.vms is not None else 0,
         }
     except ImportError:
         return {

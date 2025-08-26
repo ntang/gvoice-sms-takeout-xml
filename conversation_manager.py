@@ -517,12 +517,22 @@ class ConversationManager:
                     file_size = stat.st_size
 
                     # Format file size
-                    if file_size < 1024:
+                    if file_size is None or file_size < 0:
+                        size_str = "Unknown"
+                    elif file_size < 1024:
                         size_str = f"{file_size} B"
                     elif file_size < 1024 * 1024:
-                        size_str = f"{file_size / 1024:.1f} KB"
+                        try:
+                            size_str = f"{file_size / 1024:.1f} KB"
+                        except (TypeError, ZeroDivisionError) as e:
+                            size_str = "Unknown"
+                            logger.warning(f"Division error in file size calculation: {e}")
                     else:
-                        size_str = f"{file_size / (1024 * 1024):.1f} MB"
+                        try:
+                            size_str = f"{file_size / (1024 * 1024):.1f} MB"
+                        except (TypeError, ZeroDivisionError) as e:
+                            size_str = "Unknown"
+                            logger.warning(f"Division error in file size calculation: {e}")
 
                     # Get conversation name (without extension)
                     conversation_name = file_path.stem
