@@ -181,6 +181,47 @@ def normalize_filename(filename: str) -> str:
     return base_name
 
 
+def build_file_location_index(filenames: List[str], processing_directory: str) -> Dict[str, str]:
+    """
+    Build a file location index for all attachment files.
+    This is the key optimization - we scan the directory tree ONCE.
+    
+    Args:
+        filenames: List of attachment filenames to index
+        processing_directory: Directory to search in
+        
+    Returns:
+        Dictionary mapping filename to full source path
+    """
+    logger.info(f"Building file location index for {len(filenames)} files...")
+    file_index = {}
+    
+    try:
+        # Convert filenames to set for O(1) lookup
+        filename_set = set(filenames)
+        
+        # Single directory tree walk to find all files
+        logger.info("Scanning directory tree for file locations...")
+        for root, dirs, files in os.walk(processing_directory):
+            # Find all matching files in this directory
+            for file in files:
+                if file in filename_set:
+                    source_file = Path(root) / file
+                    if source_file.exists():
+                        file_index[file] = str(source_file)
+                        
+                        # Log progress every 1000 files
+                        if len(file_index) % 1000 == 0:
+                            logger.info(f"Indexed {len(file_index)}/{len(filenames)} files...")
+        
+        logger.info(f"File location index completed: {len(file_index)}/{len(filenames)} files found")
+        return file_index
+        
+    except Exception as e:
+        logger.error(f"Error building file location index: {e}")
+        return {}
+
+
 def find_attachment_source_path(filename: str, processing_directory: str) -> str:
     """
     Find the source file path for a given attachment filename.
@@ -227,9 +268,14 @@ def build_attachment_mapping_with_progress(
     src_to_files = extract_src_with_source_files(processing_directory)
     src_elements = list(src_to_files.keys())
 
-    # Step 2: Scan for attachment files
-    logger.info("Starting attachment scan in processing directory")
+    # Step 2: Scan for attachment files and build file location index ONCE
+    logger.info("Starting attachment scan and file location indexing...")
     att_filenames = list_att_filenames_with_progress(processing_directory)
+    
+    # Build file location index once - this is the key optimization
+    logger.info("Building file location index...")
+    file_location_index = build_file_location_index(att_filenames, processing_directory)
+    logger.info(f"File location index built with {len(file_location_index)} entries")
 
     # Step 3: Create mapping
     logger.info(
@@ -326,8 +372,8 @@ def build_attachment_mapping_with_progress(
                         break
 
         if assigned_filename:
-            # Find the actual source file path for this attachment
-            source_path = find_attachment_source_path(assigned_filename, processing_directory)
+            # Use the pre-built file location index instead of searching
+            source_path = file_location_index.get(assigned_filename)
             if source_path:
                 mapping[src_normalized] = (assigned_filename, source_path)
                 mapping_items.append((src_normalized, (assigned_filename, source_path)))
