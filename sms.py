@@ -1985,7 +1985,23 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
                     last_reported_progress = current_progress
 
             except Exception as e:
+                # Enhanced error logging for file processing
+                import traceback
                 logger.error(f"Failed to process {html_file}: {e}")
+                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Error details: {str(e)}")
+                logger.error(f"Processing context: file={html_file}, progress={i+1}/{filtered_files}")
+                
+                # Check if this is a division error and log variable states
+                if "unsupported operand type(s) for /" in str(e):
+                    logger.error("🚨 DIVISION ERROR DETECTED in file processing - Logging variable states:")
+                    logger.error(f"  html_file: {html_file}")
+                    logger.error(f"  i: {i} (type: {type(i)})")
+                    logger.error(f"  filtered_files: {filtered_files} (type: {type(filtered_files)})")
+                    logger.error(f"  current_progress: {i+1} (type: {type(i+1)})")
+                    logger.error(f"File processing stack trace:\n{traceback.format_exc()}")
+                
+                logger.error(f"Stack trace:\n{traceback.format_exc()}")
                 skipped_count += 1
                 continue
 
@@ -2645,7 +2661,26 @@ def write_sms_messages(
         )
 
     except Exception as e:
+        # Enhanced error logging for SMS processing
+        import traceback
         logger.error(f"Failed to write SMS messages for {file}: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error details: {str(e)}")
+        logger.error(f"Processing context: file={file}, total_messages={total_messages if 'total_messages' in locals() else 'undefined'}")
+        
+        # Check if this is a division error and log variable states
+        if "unsupported operand type(s) for /" in str(e):
+            logger.error("🚨 DIVISION ERROR DETECTED in SMS processing - Logging variable states:")
+            logger.error(f"  file: {file}")
+            if 'total_messages' in locals():
+                logger.error(f"  total_messages: {total_messages} (type: {type(total_messages)})")
+            if 'processed_count' in locals():
+                logger.error(f"  processed_count: {processed_count} (type: {type(processed_count)})")
+            if 'skipped_count' in locals():
+                logger.error(f"  skipped_count: {skipped_count} (type: {type(skipped_count)})")
+            logger.error(f"SMS processing stack trace:\n{traceback.format_exc()}")
+        
+        logger.error(f"Stack trace:\n{traceback.format_exc()}")
 
 
 @lru_cache(maxsize=25000)
@@ -3771,7 +3806,26 @@ def write_mms_messages(
         )
 
     except Exception as e:
+        # Enhanced error logging for MMS processing
+        import traceback
         logger.error(f"Failed to write MMS messages for {file}: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error details: {str(e)}")
+        logger.error(f"Processing context: file={file}, total_messages={total_messages if 'total_messages' in locals() else 'undefined'}")
+        
+        # Check if this is a division error and log variable states
+        if "unsupported operand type(s) for /" in str(e):
+            logger.error("🚨 DIVISION ERROR DETECTED in MMS processing - Logging variable states:")
+            logger.error(f"  file: {file}")
+            if 'total_messages' in locals():
+                logger.error(f"  total_messages: {total_messages} (type: {type(total_messages)})")
+            if 'processed_count' in locals():
+                logger.error(f"  processed_count: {processed_count} (type: {type(processed_count)})")
+            if 'skipped_count' in locals():
+                logger.error(f"  skipped_count: {skipped_count} (type: {type(skipped_count)})")
+            logger.error(f"MMS processing stack trace:\n{traceback.format_exc()}")
+        
+        logger.error(f"Stack trace:\n{traceback.format_exc()}")
 
 
 def process_attachments(
@@ -3906,7 +3960,26 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                             # Fallback to a simple format if template fails
                             image_parts += f'    <part seq="0" ct="{content_type}" name="{filename}" data="attachments/{filename}" />\n'
                     except Exception as e:
+                        # Enhanced error logging with stack trace and context
+                        import traceback
                         logger.error(f"Failed to process image {filename}: {e}")
+                        logger.error(f"Error type: {type(e).__name__}")
+                        logger.error(f"Error details: {str(e)}")
+                        logger.error(f"Processing context: src={src}, filename={filename}")
+                        logger.error(f"Stack trace:\n{traceback.format_exc()}")
+                        
+                        # Check if this is a division error and log variable states
+                        if "unsupported operand type(s) for /" in str(e):
+                            logger.error("🚨 DIVISION ERROR DETECTED - Logging variable states:")
+                            logger.error(f"  src: {src} (type: {type(src)})")
+                            logger.error(f"  filename: {filename} (type: {type(filename)})")
+                            logger.error(f"  source_file_path: {source_file_path} (type: {type(source_file_path)})")
+                            logger.error(f"  attachments_dir: {attachments_dir} (type: {type(attachments_dir)})")
+                            logger.error(f"  dest_file_path: {dest_file_path} (type: {type(dest_file_path)})")
+                            if 'image_type' in locals():
+                                logger.error(f"  image_type: {image_type} (type: {type(image_type)})")
+                            if 'content_type' in locals():
+                                logger.error(f"  content_type: {content_type} (type: {type(content_type)})")
 
                         # Try to recover from common failure types
                         try:
@@ -3993,7 +4066,22 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                             # Fallback to a simple format if template fails
                             vcard_parts += f'    <part seq="0" ct="text/x-vCard" name="{filename}" data="attachments/{filename}" />\n'
                     except Exception as e:
+                        # Enhanced error logging with stack trace and context
+                        import traceback
                         logger.error(f"Failed to process vCard {filename}: {e}")
+                        logger.error(f"Error type: {type(e).__name__}")
+                        logger.error(f"Error details: {str(e)}")
+                        logger.error(f"Processing context: href={href}, filename={filename}")
+                        logger.error(f"Stack trace:\n{traceback.format_exc()}")
+                        
+                        # Check if this is a division error and log variable states
+                        if "unsupported operand type(s) for /" in str(e):
+                            logger.error("🚨 DIVISION ERROR DETECTED - Logging variable states:")
+                            logger.error(f"  href: {href} (type: {type(href)})")
+                            logger.error(f"  filename: {filename} (type: {type(filename)})")
+                            logger.error(f"  source_file_path: {source_file_path} (type: {type(source_file_path)})")
+                            logger.error(f"  attachments_dir: {attachments_dir} (type: {type(attachments_dir)})")
+                            logger.error(f"  dest_file_path: {dest_file_path} (type: {type(dest_file_path)})")
 
                         # Try to recover from common failure types
                         try:
