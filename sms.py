@@ -813,6 +813,19 @@ def main():
         logger.info(f"Processing directory: {PROCESSING_DIRECTORY}")
         logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
 
+        # Critical validation: ensure global variables are properly initialized
+        if OUTPUT_DIRECTORY is None:
+            logger.error("🚨 CRITICAL ERROR: OUTPUT_DIRECTORY is not initialized")
+            logger.error("This indicates setup_processing_paths() was not called or failed")
+            logger.error("Cannot proceed with conversion - exiting")
+            sys.exit(1)
+        
+        if PROCESSING_DIRECTORY is None:
+            logger.error("🚨 CRITICAL ERROR: PROCESSING_DIRECTORY is not initialized")
+            logger.error("This indicates setup_processing_paths() was not called or failed")
+            logger.error("Cannot proceed with conversion - exiting")
+            sys.exit(1)
+
         # Check and increase system file descriptor limits
         check_and_increase_file_limits()
 
@@ -3967,8 +3980,10 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
 
     # Safety check: ensure OUTPUT_DIRECTORY is initialized
     if OUTPUT_DIRECTORY is None:
-        logger.error("🚨 OUTPUT_DIRECTORY is None in build_image_parts - cannot process images")
+        logger.error("🚨 CRITICAL ERROR: OUTPUT_DIRECTORY is None in build_image_parts")
         logger.error("This indicates setup_processing_paths() has not been called yet")
+        logger.error("Please ensure the script is run from the command line, not imported as a module")
+        logger.error("If this error persists, there may be a threading or initialization issue")
         return image_parts
 
     for img in images:
@@ -4106,8 +4121,10 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
 
     # Safety check: ensure OUTPUT_DIRECTORY is initialized
     if OUTPUT_DIRECTORY is None:
-        logger.error("🚨 OUTPUT_DIRECTORY is None in build_vcard_parts - cannot process vCards")
+        logger.error("🚨 CRITICAL ERROR: OUTPUT_DIRECTORY is None in build_vcard_parts")
         logger.error("This indicates setup_processing_paths() has not been called yet")
+        logger.error("Please ensure the script is run from the command line, not imported as a module")
+        logger.error("If this error persists, there may be a threading or initialization issue")
         return vcard_parts
 
     for vcard in vcards:
@@ -5602,6 +5619,14 @@ def setup_processing_paths(
         ValueError: If parameters are invalid
         TypeError: If parameter types are incorrect
     """
+    # Check if already initialized to prevent multiple calls
+    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
+    
+    if OUTPUT_DIRECTORY is not None:
+        logger.warning("⚠️  setup_processing_paths() called multiple times - skipping re-initialization")
+        logger.warning(f"   Current OUTPUT_DIRECTORY: {OUTPUT_DIRECTORY}")
+        return
+
     # Validate parameters
     if not isinstance(processing_dir, Path):
         raise TypeError(
@@ -5619,7 +5644,7 @@ def setup_processing_paths(
     ]:
         raise ValueError(f"output_format must be 'xml' or 'html', got {output_format}")
 
-    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
+    logger.info("🔧 Initializing processing paths and global variables...")
 
     PROCESSING_DIRECTORY = Path(processing_dir).resolve()
     OUTPUT_DIRECTORY = PROCESSING_DIRECTORY / "conversations"
@@ -5654,6 +5679,8 @@ def setup_processing_paths(
         logger.info(
             "Phone number alias prompts disabled by default - using phone numbers as aliases"
         )
+    
+    logger.info("✅ Processing paths and global variables initialized successfully")
 
 
 def validate_processing_directory(processing_dir: Path) -> bool:
@@ -7752,6 +7779,24 @@ Output:
             if not validate_entire_configuration():
                 logger.error("Configuration validation failed. Please check the setup.")
                 sys.exit(1)
+
+        # Initialize processing paths and global variables
+        logger.info("Initializing processing paths and global variables...")
+        try:
+            setup_processing_paths(
+                args.processing_dir,
+                enable_phone_prompts=args.phone_prompts,
+                buffer_size=args.buffer_size,
+                batch_size=args.batch_size,
+                cache_size=args.cache_size,
+                large_dataset=args.large_dataset,
+                output_format=args.output_format
+            )
+            logger.info("✅ Processing paths initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize processing paths: {e}")
+            logger.error("This is a critical error that prevents the script from running")
+            sys.exit(1)
 
         # Run the main conversion
         main()
