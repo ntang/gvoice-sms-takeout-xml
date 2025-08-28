@@ -2686,6 +2686,11 @@ def write_sms_messages(
         processed_count = 0
         skipped_count = 0
 
+        # Initialize participants_context for all SMS messages
+        # This ensures group conversation detection works for all message types
+        participants_context = page_participants_raw if page_participants_raw else []
+        logger.debug(f"Initialized participants_context for SMS processing: {len(participants_context)} items")
+        
         # Process SMS messages and write to conversation files
         for i, message in enumerate(messages_raw):
             try:
@@ -2694,14 +2699,14 @@ def write_sms_messages(
                     # Process as MMS instead of SMS. Prefer page-level participants
                     # to capture full group membership; fall back to
                     # per-message cite.
-                    participants_context = (
+                    mms_participants_context = (
                         page_participants_raw
                         if page_participants_raw
                         else [[participant_raw]]
                     )
                     write_mms_messages(
                         file,
-                        participants_context,
+                        mms_participants_context,
                         [message],
                         own_number,
                         src_filename_map,
@@ -2785,31 +2790,41 @@ def write_sms_messages(
                 is_group = False
                 group_participants = [str(phone_number)]  # Default to single participant
                 
-                if participants_context and len(participants_context) > 0:
-                    # Look for group conversation markers in the participants context
-                    for participant_item in participants_context:
-                        if hasattr(participant_item, "find_all"):
-                            participants_div = participant_item.find("div", class_="participants")
-                            if participants_div and "Group conversation with:" in participants_div.get_text():
-                                is_group = True
-                                logger.info(f"Detected group conversation in SMS file: {file}")
-                                
-                                # Extract all participants from the group conversation
-                                cite_elements = participants_div.find_all("cite", class_="sender")
-                                if cite_elements:
-                                    group_participants = []
-                                    for cite in cite_elements:
-                                        phone, _ = extract_phone_and_alias_from_cite(cite)
-                                        if phone:
-                                            group_participants.append(phone)
+                try:
+                    if participants_context and len(participants_context) > 0:
+                        # Look for group conversation markers in the participants context
+                        for participant_item in participants_context:
+                            if hasattr(participant_item, "find_all"):
+                                participants_div = participant_item.find("div", class_="participants")
+                                if participants_div and "Group conversation with:" in participants_div.get_text():
+                                    is_group = True
+                                    logger.info(f"Detected group conversation in SMS file: {file}")
                                     
-                                    if group_participants:
-                                        logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
-                                    else:
-                                        # Fallback to original phone number if extraction failed
-                                        group_participants = [str(phone_number)]
-                                        logger.warning("Failed to extract group participants, using fallback")
-                                break
+                                    # Extract all participants from the group conversation
+                                    cite_elements = participants_div.find_all("cite", class_="sender")
+                                    if cite_elements:
+                                        group_participants = []
+                                        for cite in cite_elements:
+                                            try:
+                                                phone, _ = extract_phone_and_alias_from_cite(cite)
+                                                if phone:
+                                                    group_participants.append(phone)
+                                            except Exception as cite_error:
+                                                logger.debug(f"Failed to extract phone from cite element: {cite_error}")
+                                                continue
+                                        
+                                        if group_participants:
+                                            logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
+                                        else:
+                                            # Fallback to original phone number if extraction failed
+                                            group_participants = [str(phone_number)]
+                                            logger.warning("Failed to extract group participants, using fallback")
+                                    break
+                except Exception as group_error:
+                    logger.debug(f"Error during group conversation detection: {group_error}")
+                    # Fall back to individual conversation handling
+                    is_group = False
+                    group_participants = [str(phone_number)]
                 
                 # Write to conversation file
                 conversation_id = conversation_manager.get_conversation_id(
