@@ -3978,6 +3978,25 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     if not images:
         return image_parts
 
+    # CRITICAL FIX: Ensure OUTPUT_DIRECTORY is available
+    global OUTPUT_DIRECTORY
+    if OUTPUT_DIRECTORY is None:
+        # Try to auto-initialize from current working directory
+        try:
+            from pathlib import Path
+            current_dir = Path.cwd()
+            if (current_dir / "conversations").exists():
+                OUTPUT_DIRECTORY = current_dir / "conversations"
+                logger.info(f"🔄 Auto-initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
+            else:
+                # Create conversations directory in current working directory
+                OUTPUT_DIRECTORY = current_dir / "conversations"
+                OUTPUT_DIRECTORY.mkdir(exist_ok=True)
+                logger.info(f"🔄 Auto-created and initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
+        except Exception as e:
+            logger.error(f"🚨 Failed to auto-initialize OUTPUT_DIRECTORY: {e}")
+            return image_parts
+
     # Safety check: ensure OUTPUT_DIRECTORY is initialized
     if OUTPUT_DIRECTORY is None:
         logger.error("🚨 CRITICAL ERROR: OUTPUT_DIRECTORY is None in build_image_parts")
@@ -3993,6 +4012,19 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
             filename, _ = src_filename_map[src]
             logger.debug(f"Found mapping: {src} -> {filename}")
             if filename and filename != "No unused match found":
+                # CRITICAL FIX: Ensure PROCESSING_DIRECTORY is available
+                global PROCESSING_DIRECTORY
+                if PROCESSING_DIRECTORY is None:
+                    # Try to auto-initialize from current working directory
+                    try:
+                        from pathlib import Path
+                        current_dir = Path.cwd()
+                        PROCESSING_DIRECTORY = current_dir
+                        logger.info(f"🔄 Auto-initialized PROCESSING_DIRECTORY to: {PROCESSING_DIRECTORY}")
+                    except Exception as e:
+                        logger.error(f"🚨 Failed to auto-initialize PROCESSING_DIRECTORY: {e}")
+                        continue
+
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
                 if source_file_path.exists():
@@ -4118,6 +4150,25 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
 
     if not vcards:
         return vcard_parts
+
+    # CRITICAL FIX: Ensure OUTPUT_DIRECTORY is available
+    global OUTPUT_DIRECTORY
+    if OUTPUT_DIRECTORY is None:
+        # Try to auto-initialize from current working directory
+        try:
+            from pathlib import Path
+            current_dir = Path.cwd()
+            if (current_dir / "conversations").exists():
+                OUTPUT_DIRECTORY = current_dir / "conversations"
+                logger.info(f"🔄 Auto-initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
+            else:
+                # Create conversations directory in current working directory
+                OUTPUT_DIRECTORY = current_dir / "conversations"
+                OUTPUT_DIRECTORY.mkdir(exist_ok=True)
+                logger.info(f"🔄 Auto-created and initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
+        except Exception as e:
+            logger.error(f"🚨 Failed to auto-initialize OUTPUT_DIRECTORY: {e}")
+            return vcard_parts
 
     # Safety check: ensure OUTPUT_DIRECTORY is initialized
     if OUTPUT_DIRECTORY is None:
