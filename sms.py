@@ -66,8 +66,47 @@ from utils import is_valid_phone_number
 # Default file paths and names (can be overridden by command line arguments)
 DEFAULT_LOG_FILENAME = "gvoice_converter.log"
 
+# Configuration management
+import os
+from typing import Optional
+
+def get_config_path() -> Optional[Path]:
+    """Get the configuration file path from environment or default location."""
+    config_path = os.environ.get('GVOICE_CONFIG_PATH')
+    if config_path:
+        return Path(config_path)
+    
+    # Default to current directory
+    return Path.cwd() / "gvoice-config.txt"
+
+def load_config() -> dict:
+    """Load configuration from file or environment variables."""
+    config = {
+        'default_processing_dir': os.environ.get('GVOICE_DEFAULT_DIR', '.'),
+        'enable_path_validation': os.environ.get('GVOICE_ENABLE_VALIDATION', 'true').lower() == 'true',
+        'enable_runtime_validation': os.environ.get('GVOICE_RUNTIME_VALIDATION', 'true').lower() == 'true',
+        'validation_interval': int(os.environ.get('GVOICE_VALIDATION_INTERVAL', '10')),
+    }
+    
+    # Try to load from config file
+    config_path = get_config_path()
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                for line in f:
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.strip().split('=', 1)
+                        config[key.strip()] = value.strip()
+        except Exception as e:
+            logger.warning(f"Failed to load config file {config_path}: {e}")
+    
+    return config
+
+# Load configuration
+CONFIG = load_config()
+
 # Global variables for paths (set by command line arguments)
-PROCESSING_DIRECTORY = Path.cwd()  # Default to current working directory
+PROCESSING_DIRECTORY = Path(CONFIG.get('default_processing_dir', '.'))  # Default from config
 OUTPUT_DIRECTORY = None  # Will be set based on processing directory
 LOG_FILENAME = None  # Will be set based on processing directory
 
@@ -235,6 +274,70 @@ def strict_call(func: Callable, *args, **kwargs) -> Any:
 
     validate_function_call(func, args, kwargs, caller_info)
     return func(*args, **kwargs)
+
+
+def validate_runtime_paths() -> None:
+    """
+    Runtime validation to ensure critical paths remain valid during execution.
+    This function should be called periodically during long-running operations.
+    """
+    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY
+    
+    try:
+        # Check if processing directory still exists and is accessible
+        if PROCESSING_DIRECTORY and PROCESSING_DIRECTORY.exists():
+            # Test read access
+            test_file = next(PROCESSING_DIRECTORY.glob("*.html"), None)
+            if test_file and test_file.exists():
+                logger.debug("✅ Processing directory validation passed")
+            else:
+                logger.warning("⚠️  Processing directory may have become inaccessible")
+        else:
+            logger.error("❌ Processing directory no longer exists or accessible")
+        
+        # Check if output directory is still writable
+        if OUTPUT_DIRECTORY and OUTPUT_DIRECTORY.exists():
+            try:
+                test_file = OUTPUT_DIRECTORY / ".runtime_test"
+                test_file.write_text("test")
+                test_file.unlink()
+                logger.debug("✅ Output directory validation passed")
+            except Exception as e:
+                logger.error(f"❌ Output directory is no longer writable: {e}")
+        else:
+            logger.error("❌ Output directory no longer exists or accessible")
+            
+    except Exception as e:
+        logger.warning(f"⚠️  Runtime path validation failed: {e}")
+
+
+def validate_attachment_mapping_integrity(src_filename_map: Dict[str, Tuple[str, str]]) -> None:
+    """
+    Validate that all attachment mappings point to valid source files.
+    
+    Args:
+        src_filename_map: The attachment mapping to validate
+    """
+    if not src_filename_map:
+        logger.info("ℹ️  No attachment mappings to validate")
+        return
+    
+    logger.info("🔍 Validating attachment mapping integrity...")
+    valid_mappings = 0
+    invalid_mappings = 0
+    
+    for src, (filename, source_path) in src_filename_map.items():
+        if source_path and Path(source_path).exists():
+            valid_mappings += 1
+        else:
+            invalid_mappings += 1
+            logger.warning(f"⚠️  Invalid mapping: {src} -> {filename} (source: {source_path})")
+    
+    logger.info(f"✅ Attachment mapping validation: {valid_mappings} valid, {invalid_mappings} invalid")
+    
+    if invalid_mappings > 0:
+        logger.warning(f"⚠️  {invalid_mappings} attachment mappings have invalid source paths")
+        logger.warning("This may cause file copy operations to fail")
 
 
 # ====================================================================
@@ -1885,6 +1988,25 @@ def src_to_filename_mapping_with_progress(
     logger.info(
         f"Completed src-to-filename mapping. Successfully mapped {mapped_count} out of {total_src_elements} src elements"
     )
+    
+    # Validate attachment mapping integrity after completion
+    if 'validate_attachment_mapping_integrity' in globals():
+        # Convert the old format to new format for validation
+        new_format_mapping = {}
+        for src, filename in mapping.items():
+            if filename and filename != "No unused match found":
+                # Try to find the actual source path
+                if PROCESSING_DIRECTORY:
+                    source_path = PROCESSING_DIRECTORY / "Calls" / filename
+                    if source_path.exists():
+                        new_format_mapping[src] = (filename, str(source_path))
+                    else:
+                        new_format_mapping[src] = (filename, "")
+                else:
+                    new_format_mapping[src] = (filename, "")
+        
+        validate_attachment_mapping_integrity(new_format_mapping)
+    
     return mapping
 
 
@@ -5670,6 +5792,80 @@ def safe_file_operation(
         raise
 
 
+def resolve_attachment_path_fallback(filename: str, src: str, src_filename_map: Dict[str, Tuple[str, str]]) -> Optional[Path]:
+    """
+    Fallback mechanism for resolving attachment paths when the primary method fails.
+    
+    Args:
+        filename: The attachment filename to resolve
+        src: The source reference from HTML
+        src_filename_map: The attachment mapping dictionary
+        
+    Returns:
+        Resolved Path object or None if resolution fails
+    """
+    logger.debug(f"🔍 Attempting fallback path resolution for {filename}")
+    
+    # Method 1: Try to find the file in the current processing directory
+    if PROCESSING_DIRECTORY:
+        # Search in common subdirectories
+        search_dirs = ["Calls", "Attachments", "Files", "."]
+        for search_dir in search_dirs:
+            search_path = PROCESSING_DIRECTORY / search_dir / filename
+            if search_path.exists():
+                logger.info(f"✅ Found {filename} in fallback location: {search_path}")
+                return search_path
+        
+        # Method 2: Try fuzzy matching if exact match fails
+        logger.debug(f"🔍 Attempting fuzzy filename matching for {filename}")
+        for search_dir in search_dirs:
+            search_path = PROCESSING_DIRECTORY / search_dir
+            if search_path.exists():
+                for file_path in search_path.glob("*"):
+                    if filename.lower() in file_path.name.lower() or file_path.name.lower() in filename.lower():
+                        logger.info(f"✅ Found fuzzy match for {filename}: {file_path}")
+                        return file_path
+    
+    # Method 3: Try to reconstruct path from src reference
+    if src and src in src_filename_map:
+        _, source_path = src_filename_map[src]
+        if source_path:
+            reconstructed_path = Path(source_path)
+            if reconstructed_path.exists():
+                logger.info(f"✅ Reconstructed path for {filename}: {reconstructed_path}")
+                return reconstructed_path
+    
+    logger.warning(f"⚠️  All fallback methods failed for {filename}")
+    return None
+
+
+def create_attachment_backup(original_path: Path, backup_dir: Path) -> Optional[Path]:
+    """
+    Create a backup of an attachment file before processing.
+    
+    Args:
+        original_path: Path to the original file
+        backup_dir: Directory to store the backup
+        
+    Returns:
+        Path to the backup file or None if backup fails
+    """
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup_path = backup_dir / f"{original_path.stem}_backup{original_path.suffix}"
+        
+        # Use shutil.copy2 to preserve metadata
+        import shutil
+        shutil.copy2(original_path, backup_path)
+        
+        logger.debug(f"✅ Created backup: {backup_path}")
+        return backup_path
+        
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to create backup for {original_path}: {e}")
+        return None
+
+
 # ====================================================================
 # PATH CONFIGURATION
 # ====================================================================
@@ -5732,6 +5928,45 @@ def setup_processing_paths(
     if not html_files:
         logger.warning(f"No HTML files found in Calls directory: {calls_dir}")
         logger.warning("This may indicate the wrong directory was specified")
+    
+    # Comprehensive startup validation
+    logger.info("🔍 Performing comprehensive startup validation...")
+    
+    # Check for Phones.vcf file
+    phones_vcf = processing_dir / "Phones.vcf"
+    if phones_vcf.exists():
+        logger.info(f"✅ Found Phones.vcf: {phones_vcf}")
+    else:
+        logger.warning(f"⚠️  Phones.vcf not found: {phones_vcf}")
+        logger.warning("Contact information may be limited")
+    
+    # Check for other common Google Voice export files
+    common_files = ["Calls", "Voicemails", "Texts"]
+    for subdir in common_files:
+        subdir_path = processing_dir / subdir
+        if subdir_path.exists():
+            file_count = len(list(subdir_path.glob("*.html")))
+            logger.info(f"✅ Found {subdir} subdirectory with {file_count} HTML files")
+        else:
+            logger.info(f"ℹ️  {subdir} subdirectory not found (optional)")
+    
+    # Validate output directory can be created
+    try:
+        output_dir = processing_dir / "conversations"
+        output_dir.mkdir(exist_ok=True)
+        logger.info(f"✅ Output directory ready: {output_dir}")
+        
+        # Test write permissions
+        test_file = output_dir / ".test_write_permission"
+        test_file.write_text("test")
+        test_file.unlink()
+        logger.info("✅ Write permissions verified for output directory")
+    except Exception as e:
+        logger.error(f"❌ Cannot create or write to output directory: {e}")
+        raise
+    
+    logger.info("✅ Comprehensive startup validation completed")
+    
     if not isinstance(cache_size, int) or cache_size <= 0:
         raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
     if not isinstance(output_format, str) or output_format not in [
@@ -5954,6 +6189,10 @@ def process_html_files_batch(
             f"Processing batch {batch_number}/{total_batches} "
             f"({len(batch_files)} files)"
         )
+        
+        # Runtime path validation every 10 batches
+        if batch_number % 10 == 0 and 'validate_runtime_paths' in globals():
+            validate_runtime_paths()
 
         for html_file in batch_files:
             try:
@@ -7429,6 +7668,18 @@ Output:
             action="store_true",
             help="Enable detailed debugging for attachment matching (shows why attachments fail to match)",
         )
+        
+        parser.add_argument(
+            "--debug-paths",
+            action="store_true",
+            help="Enable detailed debugging for path resolution and validation",
+        )
+        
+        parser.add_argument(
+            "--validate-paths",
+            action="store_true",
+            help="Enable comprehensive path validation during processing",
+        )
 
         # Performance optimization arguments
         parser.add_argument(
@@ -7660,6 +7911,17 @@ Output:
                 logging.INFO
             )  # Reduce noise from parallel processing
             logger.info("🐛 Debug mode enabled - detailed logging for all modules")
+        
+        # Enable path debugging if requested
+        if hasattr(args, 'debug_paths') and args.debug_paths:
+            logging.getLogger('pathlib').setLevel(logging.DEBUG)
+            logger.info("🔍 Path debugging enabled - detailed path resolution logging")
+        
+        # Enable path validation if requested
+        if hasattr(args, 'validate_paths') and args.validate_paths:
+            CONFIG['enable_path_validation'] = True
+            CONFIG['enable_runtime_validation'] = True
+            logger.info("✅ Comprehensive path validation enabled")
 
         # Set up processing paths with strict parameter validation
         # Default to False (no prompts), True only if --phone-prompts is used
