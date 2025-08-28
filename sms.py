@@ -2781,9 +2781,39 @@ def write_sms_messages(
                 # Format SMS XML
                 sms_text = format_sms_xml(sms_values)
 
+                # Check if this is a group conversation and extract participants
+                is_group = False
+                group_participants = [str(phone_number)]  # Default to single participant
+                
+                if participants_context and len(participants_context) > 0:
+                    # Look for group conversation markers in the participants context
+                    for participant_item in participants_context:
+                        if hasattr(participant_item, "find_all"):
+                            participants_div = participant_item.find("div", class_="participants")
+                            if participants_div and "Group conversation with:" in participants_div.get_text():
+                                is_group = True
+                                logger.info(f"Detected group conversation in SMS file: {file}")
+                                
+                                # Extract all participants from the group conversation
+                                cite_elements = participants_div.find_all("cite", class_="sender")
+                                if cite_elements:
+                                    group_participants = []
+                                    for cite in cite_elements:
+                                        phone, _ = extract_phone_and_alias_from_cite(cite)
+                                        if phone:
+                                            group_participants.append(phone)
+                                    
+                                    if group_participants:
+                                        logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
+                                    else:
+                                        # Fallback to original phone number if extraction failed
+                                        group_participants = [str(phone_number)]
+                                        logger.warning("Failed to extract group participants, using fallback")
+                                break
+                
                 # Write to conversation file
                 conversation_id = conversation_manager.get_conversation_id(
-                    [str(phone_number)], False
+                    group_participants, is_group
                 )
                 if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
