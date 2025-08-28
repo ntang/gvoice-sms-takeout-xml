@@ -106,7 +106,7 @@ def load_config() -> dict:
 CONFIG = load_config()
 
 # Global variables for paths (set by command line arguments)
-PROCESSING_DIRECTORY = Path(CONFIG.get('default_processing_dir', '.'))  # Default from config
+PROCESSING_DIRECTORY = Path(CONFIG.get('default_processing_dir', '../gvoice-convert/'))  # Default to ../gvoice-convert/
 OUTPUT_DIRECTORY = None  # Will be set based on processing directory
 LOG_FILENAME = None  # Will be set based on processing directory
 
@@ -7524,7 +7524,7 @@ if __name__ == "__main__":
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
-  # Process files in current directory with high-performance defaults
+  # Process files in default directory (../gvoice-convert/) with high-performance defaults
   python sms.py
 
   # Process files in specified directory with high-performance defaults
@@ -7632,8 +7632,8 @@ Output:
         parser.add_argument(
             "processing_dir",
             nargs="?",
-            default=".",
-            help="Directory containing Google Voice export data (Calls/ and Phones.vcf). Defaults to current directory.",
+            default="../gvoice-convert/",
+            help="Directory containing Google Voice export data (Calls/ and Phones.vcf). Defaults to ../gvoice-convert/ directory.",
         )
 
         parser.add_argument(
