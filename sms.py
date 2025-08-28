@@ -6478,17 +6478,28 @@ def extract_call_info(
             )
 
             # Try to extract from filename if it contains a phone number
-            phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", filename)
-            if phone_match:
-                try:
-                    phone_number = format_number(
-                        phonenumbers.parse(phone_match.group(1), None)
-                    )
-                    logger.debug(
-                        f"Extracted phone number from filename: {phone_number}"
-                    )
-                except Exception as e:
-                    logger.debug(f"Failed to parse phone number from filename: {e}")
+            # Use multiple patterns for better coverage
+            filename_patterns = [
+                r"(\+\d{1,3}\s?\d{1,14})",  # International format
+                r"(\d{3}\s?\d{3}\s?\d{4})",  # US domestic format
+                r"(\d{10})",  # 10-digit format
+                r"(\d{3}-\d{3}-\d{4})",  # Dashed format
+            ]
+            
+            for pattern in filename_patterns:
+                phone_match = re.search(pattern, filename)
+                if phone_match:
+                    try:
+                        phone_number = format_number(
+                            phonenumbers.parse(phone_match.group(1), None)
+                        )
+                        logger.info(
+                            f"Successfully extracted phone number from filename: {phone_number}"
+                        )
+                        break  # Found a match, stop searching
+                    except Exception as e:
+                        logger.debug(f"Failed to parse phone number from filename pattern {pattern}: {e}")
+                        continue
 
             # Try to extract from any tel: links in the entire document
             if not phone_number:
@@ -6512,28 +6523,37 @@ def extract_call_info(
                                 )
                                 continue
 
-            # ENHANCED: Try final fallback - look for any phone number patterns
-            # in the entire HTML
-            if not phone_number:
-                logger.debug(
-                    f"Trying final fallback phone extraction for call {filename}"
-                )
-                # Look for any phone number patterns in the entire HTML content
-                text_content = soup.get_text()
-                phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{1,14})")
-                phone_match = phone_pattern.search(text_content)
+                    # ENHANCED: Try final fallback - look for any phone number patterns
+        # in the entire HTML
+        if not phone_number:
+            logger.debug(
+                f"Trying final fallback phone extraction for call {filename}"
+            )
+            # Look for any phone number patterns in the entire HTML content
+            text_content = soup.get_text()
+            # Use multiple patterns for better coverage
+            fallback_patterns = [
+                r"(\+\d{1,3}\s?\d{1,14})",  # International format
+                r"(\d{3}\s?\d{3}\s?\d{4})",  # US domestic format
+                r"(\d{10})",  # 10-digit format
+            ]
+            
+            for pattern in fallback_patterns:
+                phone_match = re.search(pattern, text_content)
                 if phone_match:
                     try:
                         phone_number = format_number(
                             phonenumbers.parse(phone_match.group(1), None)
                         )
-                        logger.debug(
-                            f"Extracted phone number from HTML content: {phone_number}"
+                        logger.info(
+                            f"Successfully extracted phone number from HTML content using pattern {pattern}: {phone_number}"
                         )
+                        break  # Found a match, stop searching
                     except Exception as e:
                         logger.debug(
-                            f"Failed to parse phone number from HTML content: {e}"
+                            f"Failed to parse phone number from HTML content using pattern {pattern}: {e}"
                         )
+                        continue
 
         if phone_number:
             # DATE FILTERING: Skip calls outside the specified date range
@@ -6641,22 +6661,34 @@ def extract_voicemail_info(
         # Enhanced fallback: if phone number extraction fails, try alternative
         # methods
         if not phone_number:
-            logger.debug(
+            logger.warning(
                 f"Primary phone extraction failed for voicemail {filename}, trying alternatives"
             )
+            logger.debug(f"HTML content preview: {str(soup)[:500]}...")
 
             # Try to extract from filename if it contains a phone number
-            phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", filename)
-            if phone_match:
-                try:
-                    phone_number = format_number(
-                        phonenumbers.parse(phone_match.group(1), None)
-                    )
-                    logger.debug(
-                        f"Extracted phone number from filename: {phone_number}"
-                    )
-                except Exception as e:
-                    logger.debug(f"Failed to parse phone number from filename: {e}")
+            # Use multiple patterns for better coverage
+            filename_patterns = [
+                r"(\+\d{1,3}\s?\d{1,14})",  # International format
+                r"(\d{3}\s?\d{3}\s?\d{4})",  # US domestic format
+                r"(\d{10})",  # 10-digit format
+                r"(\d{3}-\d{3}-\d{4})",  # Dashed format
+            ]
+            
+            for pattern in filename_patterns:
+                phone_match = re.search(pattern, filename)
+                if phone_match:
+                    try:
+                        phone_number = format_number(
+                            phonenumbers.parse(phone_match.group(1), None)
+                        )
+                        logger.info(
+                            f"Successfully extracted phone number from filename: {phone_number}"
+                        )
+                        break  # Found a match, stop searching
+                    except Exception as e:
+                        logger.debug(f"Failed to parse phone number from filename pattern {pattern}: {e}")
+                        continue
 
             # Try to extract from any tel: links in the entire document
             if not phone_number:
@@ -6772,6 +6804,13 @@ def extract_voicemail_info(
             logger.error(
                 f"Creating placeholder voicemail entry for {filename} due to extraction failure"
             )
+            logger.error(f"Extraction failure details:")
+            logger.error(f"  - Timestamp extraction: {'SUCCESS' if timestamp else 'FAILED'}")
+            logger.error(f"  - Duration extraction: {'SUCCESS' if duration else 'FAILED'}")
+            logger.error(f"  - Transcription extraction: {'SUCCESS' if transcription else 'FAILED'}")
+            logger.error(f"  - Phone number extraction: FAILED (all methods exhausted)")
+            logger.error(f"  - HTML content preview: {str(soup)[:300]}...")
+            
             # Generate a unique placeholder phone number
             placeholder_phone = f"unknown_voicemail_{hash(filename) % 1000000}"
             return {
@@ -6830,20 +6869,23 @@ def is_valid_phone_extraction(phone_candidate: str) -> bool:
             return False
 
     # Check if it looks like a reasonable phone number length
-    # Remove all non-digits and check length
+    # Remove all non-digits and check length - relaxed from 7-15 to 5-20
     digits_only = re.sub(r"[^0-9]", "", phone_candidate)
-    if len(digits_only) < 7 or len(digits_only) > 15:
+    if len(digits_only) < 5 or len(digits_only) > 20:
         return False
 
-    # Additional validation: ensure it starts with + and contains only valid
-    # phone characters
-    if not phone_candidate.startswith("+"):
-        return False
-
-    # Check for valid phone number characters only
-    valid_chars = set("+0123456789 -()")
-    if not all(c in valid_chars for c in phone_candidate):
-        return False
+    # Relaxed validation: allow phone numbers that don't start with +
+    # Many Google Voice exports use different formats
+    if phone_candidate.startswith("+"):
+        # International format - validate more strictly
+        valid_chars = set("+0123456789 -()")
+        if not all(c in valid_chars for c in phone_candidate):
+            return False
+    else:
+        # Domestic format - allow more flexibility
+        valid_chars = set("0123456789 -()")
+        if not all(c in valid_chars for c in phone_candidate):
+            return False
 
     # Check that it's not just a name/alias (no letters)
     if re.search(r"[a-zA-Z]", phone_candidate):
@@ -6856,19 +6898,43 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
     """Extract phone number from call/voicemail HTML."""
     try:
         # Look for phone number in various places
-        # Try to find phone number in href attributes
+        # Try to find phone number in href attributes (most reliable source)
         phone_links = soup.find_all("a", href=True)
         for link in phone_links:
             href = link.get("href", "")
             if href.startswith(STRING_POOL.PATTERNS["tel_href"]):
                 phone_match = TEL_HREF_PATTERN.search(href)
                 if phone_match:
-                    return phone_match.group(1)
+                    phone_number = phone_match.group(1)
+                    logger.info(f"Successfully extracted phone number from tel: link: {phone_number}")
+                    return phone_number
+                else:
+                    # Handle empty tel: links (like href="tel:")
+                    if href == "tel:":
+                        logger.debug("Found empty tel: link - skipping")
+                    else:
+                        logger.debug(f"Found tel: link but pattern didn't match: {href}")
 
-        # Try to find phone number in text content (but be more selective)
-        # Use a more restrictive pattern to avoid matching log messages or
-        # other text
-        phone_pattern = re.compile(r"(\+\d{1,3}\s?\d{3,4}\s?\d{3,4}\s?\d{3,4})")
+        # Try to find phone number in text content with multiple patterns
+        # Use comprehensive patterns to catch different phone number formats
+        phone_patterns = [
+            # International formats (most specific first)
+            r"(\+\d{1,3}\s?\d{3,4}\s?\d{3,4}\s?\d{3,4})",  # +1 555 555 5555
+            r"(\+\d{10,15})",  # +15555555555 (compact international)
+            
+            # US domestic formats
+            r"(\d{3}\s?\d{3}\s?\d{4})",  # 555 555 5555
+            r"(\d{10})",  # 5555555555 (10-digit)
+            r"(\d{11})",  # 15555555555 (11-digit with country code)
+            
+            # Formatted formats
+            r"(\d{3}-\d{3}-\d{4})",  # 555-555-5555 (dashed)
+            r"(\d{3}\.\d{3}\.\d{4})",  # 555.555.5555 (dotted)
+            r"\(\d{3}\)\s*\d{3}-\d{4}",  # (555) 555-5555 (parentheses)
+            
+            # Short codes and internal numbers (for Google Voice)
+            r"(\d{5,6})",  # 91590, 22891 (short codes)
+        ]
 
         # Only look in specific elements that are likely to contain phone numbers
         # Avoid extracting from the entire document which might contain log
@@ -6877,24 +6943,34 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
 
         # Look in cite elements (sender information)
         cite_elements = soup.find_all("cite")
+        logger.debug(f"Searching {len(cite_elements)} cite elements for phone numbers")
         for cite in cite_elements:
             text = cite.get_text().strip()
             if text and len(text) > 2:
-                phone_match = phone_pattern.search(text)
-                if phone_match:
-                    phone_candidates.append(phone_match.group(1))
+                for pattern in phone_patterns:
+                    phone_match = re.search(pattern, text)
+                    if phone_match:
+                        phone_candidate = phone_match.group(1)
+                        phone_candidates.append(phone_candidate)
+                        logger.debug(f"Found phone candidate in cite element: {phone_candidate}")
+                        break  # Found a match, move to next element
 
         # Look in specific message elements
         message_elements = soup.find_all("div", class_="message")
+        logger.debug(f"Searching {len(message_elements)} message elements for phone numbers")
         for msg in message_elements:
             # Only look in the cite part of messages
             cite = msg.find("cite")
             if cite:
                 text = cite.get_text().strip()
                 if text and len(text) > 2:
-                    phone_match = phone_pattern.search(text)
-                    if phone_match:
-                        phone_candidates.append(phone_match.group(1))
+                    for pattern in phone_patterns:
+                        phone_match = re.search(pattern, text)
+                        if phone_match:
+                            phone_candidate = phone_match.group(1)
+                            phone_candidates.append(phone_candidate)
+                            logger.debug(f"Found phone candidate in message cite: {phone_candidate}")
+                            break  # Found a match, move to next element
 
         # Look in specific participant elements
         participant_elements = soup.find_all(
@@ -6904,21 +6980,27 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                 word in str(x).lower() for word in ["sender", "participant", "contact"]
             ),
         )
+        logger.debug(f"Searching {len(participant_elements)} participant elements for phone numbers")
         for element in participant_elements:
             text = element.get_text().strip()
             if text and len(text) > 2:
-                phone_match = phone_pattern.search(text)
-                if phone_match:
-                    phone_candidates.append(phone_match.group(1))
+                for pattern in phone_patterns:
+                    phone_match = re.search(pattern, text)
+                    if phone_match:
+                        phone_candidate = phone_match.group(1)
+                        phone_candidates.append(phone_candidate)
+                        logger.debug(f"Found phone candidate in participant element: {phone_candidate}")
+                        break  # Found a match, move to next element
 
         # Return the first valid phone number found
         if phone_candidates:
+            logger.info(f"Found {len(phone_candidates)} phone number candidates: {phone_candidates}")
             # Validate that it looks like a real phone number (not part of a
             # log message)
             for candidate in phone_candidates:
                 # Use the new validation function
                 if is_valid_phone_extraction(candidate):
-                    logger.debug(f"Found valid phone number: {candidate}")
+                    logger.info(f"Successfully validated phone number: {candidate}")
                     return candidate
                 else:
                     logger.debug(
@@ -6926,10 +7008,12 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                     )
 
             # If all candidates fail validation, return None
-            logger.debug(
-                f"All phone number candidates failed validation: {phone_candidates}"
+            logger.warning(
+                f"All {len(phone_candidates)} phone number candidates failed validation: {phone_candidates}"
             )
             return None
+        else:
+            logger.debug("No phone number candidates found in HTML elements")
 
         # Note: We don't return names/aliases from phone extraction functions
         # Names should be extracted separately and not treated as phone numbers
@@ -6938,39 +7022,76 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
 
         # ENHANCED: Try to extract phone number from filename if provided
         if filename:
-            # Look for phone number patterns in filename
-            phone_match = phone_pattern.search(filename)
-            if phone_match:
-                try:
-                    phone_number = format_number(
-                        phonenumbers.parse(phone_match.group(1), None)
-                    )
-                    logger.debug(
-                        f"Extracted phone number from filename: {phone_number}"
-                    )
-                    return phone_number
-                except Exception as e:
-                    logger.debug(f"Failed to parse phone number from filename: {e}")
+            logger.debug(f"Attempting filename-based phone number extraction for: {filename}")
+            
+            # Look for phone number patterns in filename using comprehensive patterns
+            for pattern in phone_patterns:
+                phone_match = re.search(pattern, filename)
+                if phone_match:
+                    try:
+                        # Handle parentheses format specially (no capture group)
+                        if pattern == r"\(\d{3}\)\s*\d{3}-\d{4}":
+                            phone_match = re.search(r"\((\d{3})\)\s*(\d{3})-(\d{4})", filename)
+                            if phone_match:
+                                phone_text = f"+1{phone_match.group(1)}{phone_match.group(2)}{phone_match.group(3)}"
+                        else:
+                            phone_text = phone_match.group(1)
+                        
+                        # Try to parse and format the phone number
+                        try:
+                            phone_number = format_number(
+                                phonenumbers.parse(phone_text, None)
+                            )
+                            logger.info(
+                                f"Successfully extracted phone number from filename: {phone_number} (pattern: {pattern})"
+                            )
+                            return phone_number
+                        except Exception as parse_error:
+                            # If parsing fails, try to clean and return the raw number
+                            cleaned_number = re.sub(r"[^\d+]", "", phone_text)
+                            if len(cleaned_number) >= 5:  # Minimum reasonable length
+                                logger.info(
+                                    f"Extracted phone number from filename (raw): {cleaned_number} (pattern: {pattern})"
+                                )
+                                return cleaned_number
+                            else:
+                                logger.debug(f"Phone number too short after cleaning: {cleaned_number}")
+                                continue
+                    except Exception as e:
+                        logger.debug(f"Failed to extract phone number from filename pattern {pattern}: {e}")
+                        continue  # Try next pattern
 
             # ENHANCED: Extract name from filename and create hash-based phone number
             # This handles cases like "Transwood - Received - ..." without
             # phone numbers
-            for pattern in [" - Received - ", " - Placed - ", " - Missed - "]:
+            for pattern in [" - Received - ", " - Placed - ", " - Missed - ", " - Voicemail - ", " - Text - "]:
                 if pattern in filename:
                     name_part = filename.split(pattern)[0]
-                    if name_part and not name_part.isdigit():
+                    if name_part and not name_part.isdigit() and len(name_part.strip()) > 1:
                         # Create a consistent hash-based phone number for the
                         # same name
-                        hash_value = hash(name_part) % 100000000  # 8-digit number
-                        logger.debug(
-                            f"Generated hash-based phone number for {name_part}: {hash_value}"
+                        hash_value = hash(name_part.strip()) % 100000000  # 8-digit number
+                        logger.info(
+                            f"Generated hash-based phone number for name '{name_part}': {hash_value}"
+                        )
+                        return str(hash_value)
+                    elif not name_part or name_part.strip() == "":
+                        # Handle empty name parts (like " - Voicemail - ...")
+                        # Create a hash based on the timestamp part for uniqueness
+                        timestamp_part = filename.split(pattern)[1] if len(filename.split(pattern)) > 1 else filename
+                        hash_value = hash(timestamp_part) % 100000000  # 8-digit number
+                        logger.info(
+                            f"Generated hash-based phone number for empty name using timestamp: {hash_value}"
                         )
                         return str(hash_value)
 
+        # Log extraction failure summary
+        logger.warning(f"Phone number extraction failed for file: {filename}")
+        logger.warning("All extraction methods exhausted - no phone number found")
         return None
 
     except Exception as e:
-        logger.debug(f"Failed to extract phone from call: {e}")
+        logger.error(f"Failed to extract phone from call: {e}")
         return None
 
 
