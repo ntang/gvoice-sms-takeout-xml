@@ -67,9 +67,7 @@ from utils import is_valid_phone_number
 DEFAULT_LOG_FILENAME = "gvoice_converter.log"
 
 # Global variables for paths (set by command line arguments)
-PROCESSING_DIRECTORY = Path(
-    "../gvoice-convert/"
-).resolve()  # Default to ../gvoice-convert/ directory
+PROCESSING_DIRECTORY = Path.cwd()  # Default to current working directory
 OUTPUT_DIRECTORY = None  # Will be set based on processing directory
 LOG_FILENAME = None  # Will be set based on processing directory
 
@@ -4027,6 +4025,22 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
 
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
+                
+                # If the file doesn't exist in Calls, try to find it using the source_path from mapping
+                if not source_file_path.exists():
+                    # Try to get the actual source path from the mapping
+                    if src in src_filename_map:
+                        _, actual_source_path = src_filename_map[src]
+                        if actual_source_path and Path(actual_source_path).exists():
+                            source_file_path = Path(actual_source_path)
+                            logger.debug(f"Using actual source path: {source_file_path}")
+                        else:
+                            logger.warning(f"Source path not found for {filename}, skipping")
+                            continue
+                    else:
+                        logger.warning(f"No mapping found for src '{src}', skipping")
+                        continue
+                
                 if source_file_path.exists():
                     try:
                         # Use the attachments directory created in
@@ -4091,7 +4105,7 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                         if "unsupported operand type(s) for /" in str(e):
                             logger.error("🚨 DIVISION ERROR DETECTED - Logging variable states:")
                             logger.error(f"  src: {src} (type: {type(src)})")
-                            logger.error(f"  filename: {filename} (type: {type(filename)})")
+                            logger.error(f"  filename: (type: {type(filename)})")
                             logger.error(f"  source_file_path: {source_file_path} (type: {type(source_file_path)})")
                             logger.error(f"  attachments_dir: {attachments_dir} (type: {type(attachments_dir)})")
                             logger.error(f"  dest_file_path: {dest_file_path} (type: {type(dest_file_path)})")
@@ -4185,6 +4199,22 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
             if filename and filename != "No unused match found":
                 # Look for the file in the Calls subdirectory
                 source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
+                
+                # If the file doesn't exist in Calls, try to find it using the source_path from mapping
+                if not source_file_path.exists():
+                    # Try to get the actual source path from the mapping
+                    if href in src_filename_map:
+                        _, actual_source_path = src_filename_map[href]
+                        if actual_source_path and Path(actual_source_path).exists():
+                            source_file_path = Path(actual_source_path)
+                            logger.debug(f"Using actual source path: {source_file_path}")
+                        else:
+                            logger.warning(f"Source path not found for {filename}, skipping")
+                            continue
+                    else:
+                        logger.warning(f"No mapping found for href '{href}', skipping")
+                        continue
+                
                 if source_file_path.exists():
                     try:
                         # Use the attachments directory created in
@@ -5687,6 +5717,21 @@ def setup_processing_paths(
         raise ValueError(f"buffer_size must be a positive integer, got {buffer_size}")
     if not isinstance(batch_size, int) or batch_size <= 0:
         raise ValueError(f"batch_size must be a positive integer, got {batch_size}")
+    
+    # Validate that the processing directory exists and has the expected structure
+    if not processing_dir.exists():
+        raise ValueError(f"Processing directory does not exist: {processing_dir}")
+    
+    calls_dir = processing_dir / "Calls"
+    if not calls_dir.exists():
+        logger.warning(f"Calls subdirectory not found: {calls_dir}")
+        logger.warning("This may cause attachment processing to fail")
+    
+    # Check if there are any HTML files in the Calls directory
+    html_files = list(calls_dir.glob("*.html")) if calls_dir.exists() else []
+    if not html_files:
+        logger.warning(f"No HTML files found in Calls directory: {calls_dir}")
+        logger.warning("This may indicate the wrong directory was specified")
     if not isinstance(cache_size, int) or cache_size <= 0:
         raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
     if not isinstance(output_format, str) or output_format not in [
@@ -7240,7 +7285,7 @@ if __name__ == "__main__":
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
-  # Process files in default directory (../gvoice-convert/) with high-performance defaults
+  # Process files in current directory with high-performance defaults
   python sms.py
 
   # Process files in specified directory with high-performance defaults
@@ -7348,8 +7393,8 @@ Output:
         parser.add_argument(
             "processing_dir",
             nargs="?",
-            default="../gvoice-convert/",
-            help="Directory containing Google Voice export data (Calls/ and Phones.vcf). Defaults to ../gvoice-convert/ directory.",
+            default=".",
+            help="Directory containing Google Voice export data (Calls/ and Phones.vcf). Defaults to current directory.",
         )
 
         parser.add_argument(
