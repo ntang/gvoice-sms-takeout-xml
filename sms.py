@@ -67,9 +67,6 @@ from utils import is_valid_phone_number
 DEFAULT_LOG_FILENAME = "gvoice_converter.log"
 
 # Configuration management
-import os
-from typing import Optional
-
 def get_config_path() -> Optional[Path]:
     """Get the configuration file path from environment or default location."""
     config_path = os.environ.get('GVOICE_CONFIG_PATH')
@@ -82,7 +79,7 @@ def get_config_path() -> Optional[Path]:
 def load_config() -> dict:
     """Load configuration from file or environment variables."""
     config = {
-        'default_processing_dir': os.environ.get('GVOICE_DEFAULT_DIR', '.'),
+        'default_processing_dir': os.environ.get('GVOICE_DEFAULT_DIR', '../gvoice-convert/'),
         'enable_path_validation': os.environ.get('GVOICE_ENABLE_VALIDATION', 'true').lower() == 'true',
         'enable_runtime_validation': os.environ.get('GVOICE_RUNTIME_VALIDATION', 'true').lower() == 'true',
         'validation_interval': int(os.environ.get('GVOICE_VALIDATION_INTERVAL', '10')),
@@ -90,7 +87,7 @@ def load_config() -> dict:
     
     # Try to load from config file
     config_path = get_config_path()
-    if config_path.exists():
+    if config_path and config_path.exists():
         try:
             with open(config_path, 'r') as f:
                 for line in f:
@@ -4103,7 +4100,6 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     if OUTPUT_DIRECTORY is None:
         # Try to auto-initialize from current working directory
         try:
-            from pathlib import Path
             current_dir = Path.cwd()
             if (current_dir / "conversations").exists():
                 OUTPUT_DIRECTORY = current_dir / "conversations"
@@ -4137,10 +4133,9 @@ def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                 if PROCESSING_DIRECTORY is None:
                     # Try to auto-initialize from current working directory
                     try:
-                        from pathlib import Path
                         current_dir = Path.cwd()
                         PROCESSING_DIRECTORY = current_dir
-                        logger.info(f"🔄 Auto-initialized PROCESSING_DIRECTORY to: {PROCESSING_DIRECTORY}")
+                        logger.info(f"🚨 Auto-initialized PROCESSING_DIRECTORY to: {PROCESSING_DIRECTORY}")
                     except Exception as e:
                         logger.error(f"🚨 Failed to auto-initialize PROCESSING_DIRECTORY: {e}")
                         continue
@@ -4292,7 +4287,6 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     if OUTPUT_DIRECTORY is None:
         # Try to auto-initialize from current working directory
         try:
-            from pathlib import Path
             current_dir = Path.cwd()
             if (current_dir / "conversations").exists():
                 OUTPUT_DIRECTORY = current_dir / "conversations"
