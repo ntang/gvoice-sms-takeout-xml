@@ -101,16 +101,13 @@ def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
     if not cleaned:
         return False
 
-    # Skip if it's a fallback conversation ID
+    # Skip if it's a fallback conversation ID (old format)
     if cleaned.startswith("unknown_"):
         return False
 
-    # Handle hash-based fallback numbers (6-8 digits) for conversation management
+    # Handle hash-based fallback numbers (UN_ prefix) for conversation management
     # These are generated when no real phone number is found but we need a conversation identifier
-    # Must be exactly 6-8 digits, no more, no less
-    # Only accept these if they're not too long and not too short
-    if re.match(r"^[0-9]+$", cleaned) and 6 <= len(cleaned) <= 8:
-        # This is a hash-based fallback number, accept it for conversation purposes
+    if cleaned.startswith("UN_"):
         return True
 
     # Handle names FIRST (allow them as valid "phone numbers" for conversation purposes)
@@ -127,6 +124,10 @@ def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
 
     # Enhanced filtering for non-phone numbers when enabled
     if filter_non_phone:
+        # Filter out short codes (4-6 digits) - these are valid but should be filtered by default
+        if re.match(r"^[0-9]+$", cleaned) and 4 <= len(cleaned) <= 6:
+            return False
+            
         # Filter out toll-free numbers (800, 877, 888, 866, 855, 844, 833, 822, 800, 888, 877, 866, 855, 844, 833, 822)
         toll_free_patterns = [
             r"^\+?1?8[0-9]{2}",  # 800, 801, 802, 803, 804, 805, 806, 807, 808, 809
@@ -169,6 +170,11 @@ def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
         # Reject numbers that are too long (more than 15 digits is not a valid phone number)
         if len(digits_only) > 15:
             return False
+
+        # Accept short codes (4-6 digits) as valid phone numbers
+        # These will be filtered out by filter_non_phone if requested
+        if 4 <= len(digits_only) <= 6:
+            return True
 
         # Must be at least 10 digits for US numbers, 7 for international
         if len(digits_only) >= 10:
