@@ -33,7 +33,27 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 * Text formatting may be improved. For example, there is support for `<br>` tags now. It's possible there are also some text output regressions from my changes.
 * The header creation uses much less memory. My environment choked on header creation with a 1.5GB output file without my improvements.
 * Should work pretty reliably without the (Optional) steps below. I put in a bunch of stuff to work around issues with missing phone numbers.
+* **Hash-based fallback system**: When phone numbers cannot be extracted from filenames or content, the system now generates unique, consistent identifiers using the `UN_` prefix followed by a Base64-encoded MD5 hash. This ensures that conversations without phone numbers can still be processed and organized consistently.
 * Tested on my 1.5GB archive of 75000 messages. There are a lot of corner cases handled now. It runs completely autonomously on my archive without any hacking or workarounds.
+
+## Technical Details
+
+### Hash-Based Fallback System
+The converter now uses a sophisticated hash-based fallback system for handling conversations without phone numbers:
+
+* **Format**: `UN_{22_character_base64_hash}` (25 characters total)
+* **Algorithm**: MD5 hash of the input string (filename, conversation identifier, etc.)
+* **Encoding**: Base64 URL-safe encoding for maximum compatibility
+* **Uniqueness**: Full 128-bit MD5 ensures no hash collisions
+* **Consistency**: Same input always produces the same hash
+* **URL Safety**: No special characters that could cause issues in file systems or URLs
+
+**Examples**:
+- `UN_E7GCre66q93-hk4l3wGubA` - Generated from a filename
+- `UN_32Y7VxNu6Run-Dn-80XD4A` - Generated from a conversation name
+- `UN_VDpoE0f3gVKPYqyIJcrBbg` - Generated from a timestamp
+
+This system replaces the old 6-8 digit hash system and provides much better reliability and consistency.
 
 ## Issues
 * For dual or multi-SIM users, SMS Backup & Restore does not support setting SIM identity through the "sub_id" value on Android 14. I asked Synctech about this, and they said it is an Android 14 issue that they have not been able to figure out how to work around. Just know that all of your texts will show up as being associated with your primary SIM.
