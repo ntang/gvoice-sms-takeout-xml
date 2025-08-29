@@ -188,7 +188,7 @@ class ConversationManager:
                 phone_number = participants[0]
                 # Validate that the phone number is valid
                 try:
-                    from sms import is_valid_phone_number
+                    from utils import is_valid_phone_number
 
                     if not is_valid_phone_number(phone_number):
                         return "unknown"

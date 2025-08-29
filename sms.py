@@ -2969,10 +2969,7 @@ def extract_fallback_number_cached(filename: str) -> int:
     if " - Text - " in filename or " - Voicemail - " in filename:
         # Create a consistent hash-based number for the same name
         name_part = filename.split(" - ")[0]
-        hash_value = abs(hash(name_part)) % 100000000  # 8-digit number, ensure positive
-        # Ensure it's at least 8 digits by padding with zeros if needed
-        if hash_value < 10000000:  # Less than 8 digits
-            hash_value += 10000000  # Add 10 million to ensure 8 digits
+        hash_value = generate_unknown_number_hash(f"filename_name_{name_part}")
         return hash_value
 
     # Strategy 5: Extract any sequence of digits from filename (last resort)
@@ -3811,7 +3808,7 @@ def write_mms_messages(
                         )
 
                         # Create a unique conversation ID based on filename
-                        default_phone = f"default_{hash(file) % 1000000}"
+                        default_phone = generate_unknown_number_hash(f"default_{file}")
                         filename_participants = [default_phone]
                         filename_aliases = [
                             file.split(" - Text -")[0]
@@ -7125,20 +7122,20 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                     if name_part and not name_part.isdigit() and len(name_part.strip()) > 1:
                         # Create a consistent hash-based phone number for the
                         # same name
-                        hash_value = hash(name_part.strip()) % 100000000  # 8-digit number
+                        hash_value = generate_unknown_number_hash(f"call_name_{name_part.strip()}")
                         logger.info(
                             f"Generated hash-based phone number for name '{name_part}': {hash_value}"
                         )
-                        return str(hash_value)
+                        return hash_value
                     elif not name_part or name_part.strip() == "":
                         # Handle empty name parts (like " - Voicemail - ...")
                         # Create a hash based on the timestamp part for uniqueness
                         timestamp_part = filename.split(pattern)[1] if len(filename.split(pattern)) > 1 else filename
-                        hash_value = hash(timestamp_part) % 100000000  # 8-digit number
+                        hash_value = generate_unknown_number_hash(f"call_timestamp_{timestamp_part}")
                         logger.info(
                             f"Generated hash-based phone number for empty name using timestamp: {hash_value}"
                         )
-                        return str(hash_value)
+                        return hash_value
 
         # Log extraction failure summary
         logger.warning(f"Phone number extraction failed for file: {filename}")
