@@ -69,7 +69,7 @@ class TestSMSBasic(unittest.TestCase):
             "MESSAGE_BOX_SENT",
             "MESSAGE_BOX_RECEIVED",
             "PARTICIPANT_TYPE_SENDER",
-            "PARTICIPANT_TYPE_RECEIVER",
+            "PARTICIPANT_TYPE_RECEIVED",
             "HTML_PARSER",
             "GROUP_CONVERSATION_MARKER",
             "SMS_XML_TEMPLATE",
@@ -459,7 +459,7 @@ class TestSMSBasic(unittest.TestCase):
         """Test participant type constants."""
         # Test that participant type constants are properly defined
         self.assertIsInstance(sms.PARTICIPANT_TYPE_SENDER, int)
-        self.assertIsInstance(sms.PARTICIPANT_TYPE_RECEIVER, int)
+        self.assertIsInstance(sms.PARTICIPANT_TYPE_RECEIVED, int)
 
     def test_html_parser_constant(self):
         """Test HTML parser constant."""

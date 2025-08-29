@@ -722,7 +722,7 @@ def validate_configuration():
         "MESSAGE_BOX_SENT": MESSAGE_BOX_SENT,
         "MESSAGE_BOX_RECEIVED": MESSAGE_BOX_RECEIVED,
         "PARTICIPANT_TYPE_SENDER": PARTICIPANT_TYPE_SENDER,
-        "PARTICIPANT_TYPE_RECEIVER": PARTICIPANT_TYPE_RECEIVER,
+        "PARTICIPANT_TYPE_RECEIVED": PARTICIPANT_TYPE_RECEIVED,
     }
 
     for name, value in required_constants.items():
@@ -4697,7 +4697,7 @@ def build_participants_xml_cached(
             participant_type = (
                 PARTICIPANT_TYPE_SENDER
                 if participant.strip() == sender
-                else PARTICIPANT_TYPE_RECEIVER
+                else PARTICIPANT_TYPE_RECEIVED
             )
             participants_xml += PARTICIPANT_TEMPLATE.format(
                 number=participant.strip(), code=participant_type
