@@ -125,7 +125,7 @@ class ConversationManager:
         self.output_format = output_format
 
     def get_conversation_id(
-        self, participants: List[str], is_group: bool = False
+        self, participants: List[str], is_group: bool = False, phone_lookup_manager=None
     ) -> str:
         """Generate a unique conversation ID for participants."""
         if is_group:
@@ -137,14 +137,9 @@ class ConversationManager:
             participant_aliases = []
             for phone in participants:
                 # Use the phone lookup manager if available, otherwise use phone number
-                try:
-                    from sms import PHONE_LOOKUP_MANAGER
-
-                    if PHONE_LOOKUP_MANAGER:
-                        alias = PHONE_LOOKUP_MANAGER.get_alias(phone, None)
-                    else:
-                        alias = phone
-                except (AttributeError, NameError, ImportError):
+                if phone_lookup_manager:
+                    alias = phone_lookup_manager.get_alias(phone, None)
+                else:
                     alias = phone
                 participant_aliases.append(alias)
 

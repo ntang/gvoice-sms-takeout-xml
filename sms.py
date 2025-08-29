@@ -56,7 +56,8 @@ from attachment_manager import (
     copy_mapped_attachments,
 )
 
-from utils import is_valid_phone_number
+from utils import is_valid_phone_number, generate_unknown_number_hash
+import app_config
 
 
 # ====================================================================
@@ -344,39 +345,39 @@ def validate_attachment_mapping_integrity(src_filename_map: Dict[str, Tuple[str,
 # Configure logger reference only; configure handlers/levels in __main__
 logger = logging.getLogger(__name__)
 
-# Supported file extensions
-SUPPORTED_IMAGE_TYPES = {".jpg", ".jpeg", ".png", ".gif"}
-SUPPORTED_VCARD_TYPES = {".vcf"}
-SUPPORTED_EXTENSIONS = SUPPORTED_IMAGE_TYPES | SUPPORTED_VCARD_TYPES
+# Import constants from config module
+SUPPORTED_IMAGE_TYPES = app_config.SUPPORTED_IMAGE_TYPES
+SUPPORTED_VCARD_TYPES = app_config.SUPPORTED_VCARD_TYPES
+SUPPORTED_EXTENSIONS = app_config.SUPPORTED_EXTENSIONS
 
 # MMS message type constants
-MMS_TYPE_SENT = 128
-MMS_TYPE_RECEIVED = 132
+MMS_TYPE_SENT = app_config.MMS_TYPE_SENT
+MMS_TYPE_RECEIVED = app_config.MMS_TYPE_RECEIVED
 
 # Message box constants
-MESSAGE_BOX_SENT = 2
-MESSAGE_BOX_RECEIVED = 1
+MESSAGE_BOX_SENT = app_config.MESSAGE_BOX_SENT
+MESSAGE_BOX_RECEIVED = app_config.MESSAGE_BOX_RECEIVED
 
 # Participant type codes for MMS
-PARTICIPANT_TYPE_SENDER = 137
-PARTICIPANT_TYPE_RECEIVER = 151
+PARTICIPANT_TYPE_SENDER = app_config.PARTICIPANT_TYPE_SENDER
+PARTICIPANT_TYPE_RECEIVED = app_config.PARTICIPANT_TYPE_RECEIVED
 
 # Error messages
-ERROR_NO_MESSAGES = "No messages found in HTML file"
-ERROR_NO_PARTICIPANTS = "Could not find participant phone number"
-ERROR_NO_SENDER = "Unable to determine sender in MMS with multiple participants"
+ERROR_NO_MESSAGES = app_config.ERROR_NO_MESSAGES
+ERROR_NO_PARTICIPANTS = app_config.ERROR_NO_PARTICIPANTS
+ERROR_NO_SENDER = app_config.ERROR_NO_SENDER
 
 # Default values and thresholds
-DEFAULT_FALLBACK_TIME = 1000  # milliseconds
-MIN_PHONE_NUMBER_LENGTH = 7
-FILENAME_TRUNCATE_LENGTH = 50
+DEFAULT_FALLBACK_TIME = app_config.DEFAULT_FALLBACK_TIME
+MIN_PHONE_NUMBER_LENGTH = app_config.MIN_PHONE_NUMBER_LENGTH
+FILENAME_TRUNCATE_LENGTH = app_config.FILENAME_TRUNCATE_LENGTH
 
 # MMS placeholder messages
-MMS_PLACEHOLDER_MESSAGES = {"MMS Sent", "MMS Received"}
+MMS_PLACEHOLDER_MESSAGES = app_config.MMS_PLACEHOLDER_MESSAGES
 
 # HTML parsing constants
-HTML_PARSER = "html.parser"
-GROUP_CONVERSATION_MARKER = "Group Conversation"
+HTML_PARSER = app_config.HTML_PARSER
+GROUP_CONVERSATION_MARKER = app_config.GROUP_CONVERSATION_MARKER
 
 # Pre-compiled regex patterns for performance
 FILENAME_PATTERN = re.compile(r"(?:\((\d+)\))?\.(jpg|gif|png|vcf)$")
@@ -2640,7 +2641,7 @@ def write_sms_messages(
             logger.debug("Fallback conversation ID will be created from filename hash")
             logger.debug(f"Phone number that failed validation: '{phone_number}'")
             # Create a unique conversation ID based on filename
-            phone_number = f"unknown_{hash(file) % 1000000}"
+            phone_number = generate_unknown_number_hash(file)
             participant_raw = create_dummy_participant(phone_number)
 
         # Final validation check with enhanced debugging
@@ -2791,35 +2792,44 @@ def write_sms_messages(
                 group_participants = [str(phone_number)]  # Default to single participant
                 
                 try:
-                    if participants_context and len(participants_context) > 0:
-                        # Look for group conversation markers in the participants context
-                        for participant_item in participants_context:
-                            if hasattr(participant_item, "find_all"):
-                                participants_div = participant_item.find("div", class_="participants")
-                                if participants_div and "Group conversation with:" in participants_div.get_text():
-                                    is_group = True
-                                    logger.info(f"Detected group conversation in SMS file: {file}")
+                    # Look for group conversation markers directly in the HTML structure
+                    if soup is not None:
+                        participants_div = soup.find("div", class_="participants")
+                        if participants_div:
+                            raw_text = participants_div.get_text()
+                            
+                            if "Group conversation with:" in raw_text:
+                                is_group = True
+                                logger.info(f"Detected group conversation in SMS file: {file}")
+                                
+                                # Extract all participants from the group conversation
+                                cite_elements = participants_div.find_all("cite", class_="sender")
+                                if cite_elements:
+                                    group_participants = []
+                                    for cite in cite_elements:
+                                        try:
+                                            phone, _ = extract_phone_and_alias_from_cite(cite)
+                                            if phone:
+                                                group_participants.append(phone)
+                                        except Exception as cite_error:
+                                            logger.debug(f"Failed to extract phone from cite element: {cite_error}")
+                                            continue
                                     
-                                    # Extract all participants from the group conversation
-                                    cite_elements = participants_div.find_all("cite", class_="sender")
-                                    if cite_elements:
-                                        group_participants = []
-                                        for cite in cite_elements:
-                                            try:
-                                                phone, _ = extract_phone_and_alias_from_cite(cite)
-                                                if phone:
-                                                    group_participants.append(phone)
-                                            except Exception as cite_error:
-                                                logger.debug(f"Failed to extract phone from cite element: {cite_error}")
-                                                continue
-                                        
-                                        if group_participants:
-                                            logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
-                                        else:
-                                            # Fallback to original phone number if extraction failed
-                                            group_participants = [str(phone_number)]
-                                            logger.warning("Failed to extract group participants, using fallback")
-                                    break
+                                    if group_participants:
+                                        logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
+                                    else:
+                                        # Fallback to original phone number if extraction failed
+                                        group_participants = [str(phone_number)]
+                                        logger.warning("Failed to extract group participants, using fallback")
+                                else:
+                                    logger.debug("No cite elements found in group conversation participants div")
+                            else:
+                                logger.debug("No group conversation marker found in HTML structure")
+                        else:
+                            logger.debug("No participants div found in HTML structure")
+                    else:
+                        logger.debug("No soup available for group conversation detection")
+                        
                 except Exception as group_error:
                     logger.debug(f"Error during group conversation detection: {group_error}")
                     # Fall back to individual conversation handling
@@ -2828,7 +2838,7 @@ def write_sms_messages(
                 
                 # Write to conversation file
                 conversation_id = conversation_manager.get_conversation_id(
-                    group_participants, is_group
+                    group_participants, is_group, phone_lookup_manager
                 )
                 if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
@@ -6666,7 +6676,7 @@ def extract_call_info(
                 f"Creating placeholder call entry for {filename} due to extraction failure"
             )
             # Generate a unique placeholder phone number
-            placeholder_phone = f"unknown_call_{hash(filename) % 1000000}"
+            placeholder_phone = generate_unknown_number_hash(f"call_{filename}")
             return {
                 "type": call_type,
                 "phone_number": placeholder_phone,
@@ -6857,7 +6867,7 @@ def extract_voicemail_info(
             logger.error(f"  - HTML content preview: {str(soup)[:300]}...")
             
             # Generate a unique placeholder phone number
-            placeholder_phone = f"unknown_voicemail_{hash(filename) % 1000000}"
+            placeholder_phone = generate_unknown_number_hash(f"voicemail_{filename}")
             return {
                 "phone_number": placeholder_phone,
                 "timestamp": timestamp or int(time.time() * 1000),
