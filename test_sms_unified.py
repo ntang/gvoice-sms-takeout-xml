@@ -3712,12 +3712,12 @@ class TestSMSIntegration(unittest.TestCase):
                     f"Fallback number for '{filename}' should not be 0",
                 )
 
-                # Should be a reasonable length (8 digits for hash-based)
+                # Should be a reasonable length (25 characters for UN_ prefixed hash-based)
                 fallback_str = str(fallback_number)
                 self.assertEqual(
                     len(fallback_str),
-                    8,
-                    f"Hash-based fallback should be 8 digits, got {len(fallback_str)}",
+                    25,
+                    f"Hash-based fallback should be 25 characters, got {len(fallback_str)}",
                 )
 
                 # Should be valid for phone number validation
@@ -3782,9 +3782,9 @@ class TestSMSIntegration(unittest.TestCase):
             ("+15551234567", True, "valid US phone number"),
             ("+44 20 7946 0958", True, "valid international phone number"),
             ("15551234567", True, "valid US phone number without +"),
-            # Hash-based fallback numbers (8 digits)
-            ("12345678", True, "hash-based fallback number"),
-            ("87654321", True, "hash-based fallback number"),
+            # Hash-based fallback numbers (UN_ prefixed)
+            ("UN_E7GCre66q93-hk4l3wGubA", True, "hash-based fallback number"),
+            ("UN_32Y7VxNu6Run-Dn-80XD4A", True, "hash-based fallback number"),
             # Invalid numbers
             ("123", False, "too short"),
             ("1234567890123456", False, "too long"),

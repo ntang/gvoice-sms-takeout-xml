@@ -41,7 +41,6 @@ class TestPhoneNumberValidation(unittest.TestCase):
         """Test that invalid phone numbers are rejected."""
         invalid_numbers = [
             "123",  # Too short
-            "123456",  # Too short
             "abcdef",  # No digits
             "",  # Empty
             None,  # None
@@ -51,6 +50,21 @@ class TestPhoneNumberValidation(unittest.TestCase):
         for number in invalid_numbers:
             with self.subTest(number=number):
                 self.assertFalse(is_valid_phone_number(number))
+
+    def test_short_code_handling(self):
+        """Test that short codes are handled correctly."""
+        short_codes = [
+            "1234",  # 4 digits
+            "12345",  # 5 digits
+            "123456",  # 6 digits
+        ]
+
+        for code in short_codes:
+            with self.subTest(code=code):
+                # Short codes should be valid without filtering
+                self.assertTrue(is_valid_phone_number(code, filter_non_phone=False))
+                # Short codes should be filtered out with filtering enabled
+                self.assertFalse(is_valid_phone_number(code, filter_non_phone=True))
 
     def test_toll_free_filtering(self):
         """Test toll-free number filtering."""
@@ -236,8 +250,74 @@ class TestSMSProcessing(unittest.TestCase):
         phone_numbers = extract_phone_numbers_from_text(test_html)
         self.assertIn("+15551234567", phone_numbers)
         self.assertIn("+15559876543", phone_numbers)
-        # The function finds both tel: links and plain numbers, so we expect 4 total
-        self.assertEqual(len(phone_numbers), 4)
+        # The function extracts phone numbers from tel: links, so we expect 2 total
+        self.assertEqual(len(phone_numbers), 2)
+
+
+class TestHashGeneration(unittest.TestCase):
+    """Test hash generation functionality."""
+
+    def test_hash_generation_uniqueness(self):
+        """Test that hash generation produces unique results for different inputs."""
+        from utils import generate_unknown_number_hash
+
+        # Test different inputs produce different hashes
+        hash1 = generate_unknown_number_hash("test_input_1")
+        hash2 = generate_unknown_number_hash("test_input_2")
+        hash3 = generate_unknown_number_hash("test_input_3")
+
+        self.assertNotEqual(hash1, hash2)
+        self.assertNotEqual(hash1, hash3)
+        self.assertNotEqual(hash2, hash3)
+
+    def test_hash_generation_consistency(self):
+        """Test that hash generation produces consistent results for the same input."""
+        from utils import generate_unknown_number_hash
+
+        # Test same input produces same hash
+        input_text = "consistent_test_input"
+        hash1 = generate_unknown_number_hash(input_text)
+        hash2 = generate_unknown_number_hash(input_text)
+        hash3 = generate_unknown_number_hash(input_text)
+
+        self.assertEqual(hash1, hash2)
+        self.assertEqual(hash1, hash3)
+        self.assertEqual(hash2, hash3)
+
+    def test_hash_generation_format(self):
+        """Test that hash generation produces correctly formatted hashes."""
+        from utils import generate_unknown_number_hash
+        import re
+
+        # Test hash format: UN_ + 22 character Base64 string
+        hash_value = generate_unknown_number_hash("test_input")
+        
+        # Should start with UN_
+        self.assertTrue(hash_value.startswith("UN_"))
+        
+        # Should be exactly 25 characters (UN_ + 22 Base64 chars)
+        self.assertEqual(len(hash_value), 25)
+        
+        # Should match the pattern from config
+        pattern = r"^UN_[A-Za-z0-9_-]{22}$"
+        self.assertIsNotNone(re.match(pattern, hash_value))
+
+    def test_hash_generation_url_safe(self):
+        """Test that generated hashes are URL-safe."""
+        from utils import generate_unknown_number_hash
+
+        # Test multiple hashes to ensure they're URL-safe
+        test_inputs = ["test1", "test2", "test3", "test with spaces", "test-with-dashes"]
+        
+        for test_input in test_inputs:
+            with self.subTest(input=test_input):
+                hash_value = generate_unknown_number_hash(test_input)
+                
+                # Should not contain URL-unsafe characters
+                unsafe_chars = ['+', '/', '=']
+                for char in unsafe_chars:
+                    self.assertNotIn(char, hash_value, 
+                                   f"Hash contains unsafe character '{char}': {hash_value}")
 
 
 class TestConfiguration(unittest.TestCase):
@@ -253,7 +333,7 @@ class TestConfiguration(unittest.TestCase):
 
     def test_config_constants(self):
         """Test that configuration constants are properly defined."""
-        from config import DEFAULT_CONFIG
+        from app_config import DEFAULT_CONFIG
 
         required_keys = [
             "SUPPORTED_IMAGE_TYPES",
@@ -279,6 +359,7 @@ def run_tests():
         TestPhoneNumberValidation,
         TestPhoneLookupManager,
         TestSMSProcessing,
+        TestHashGeneration,
         TestConfiguration,
     ]
 
