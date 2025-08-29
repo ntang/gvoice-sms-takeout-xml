@@ -7,12 +7,40 @@ This module contains common utility functions used throughout the SMS/MMS conver
 import logging
 import re
 import os
+import hashlib
+import base64
 from pathlib import Path
 from typing import List, Optional, Union, Tuple
 from datetime import datetime
 import phonenumbers
 
 logger = logging.getLogger(__name__)
+
+
+def generate_unknown_number_hash(input_string: str) -> str:
+    """
+    Generate a consistent hash-based ID for unknown numbers.
+    
+    Args:
+        input_string: String to hash (typically filename or conversation identifier)
+        
+    Returns:
+        str: Hash-based ID with UN_ prefix and Base64 encoded MD5 hash
+        
+    Example:
+        >>> generate_unknown_number_hash("John Doe - Text - 2024-01-01T12_00_00Z.html")
+        'UN_XUFAKrxLKna5t2M'
+    """
+    # Generate MD5 hash (128 bits)
+    hash_obj = hashlib.md5(input_string.encode('utf-8'))
+    hash_bytes = hash_obj.digest()  # Get raw bytes
+    
+    # Encode in Base64 for maximum efficiency (22 characters)
+    # Remove padding characters (=) and replace URL-unsafe chars
+    hash_b64 = base64.urlsafe_b64encode(hash_bytes).decode('ascii')
+    hash_b64 = hash_b64.rstrip('=')  # Remove padding
+    
+    return f"UN_{hash_b64}"
 
 
 def extract_phone_numbers_from_text(text: str) -> List[str]:
