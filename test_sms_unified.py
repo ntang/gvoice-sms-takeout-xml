@@ -49,6 +49,27 @@ class TestSMSBasic(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
         os.chdir(self.test_dir)
+        
+        # Create required directory structure for SMS processing
+        self.create_test_directory_structure()
+
+    def create_test_directory_structure(self):
+        """Create the required directory structure for SMS processing tests."""
+        test_dir = Path(self.test_dir)
+        
+        # Create required subdirectories
+        (test_dir / "Calls").mkdir(exist_ok=True)
+        (test_dir / "Voicemails").mkdir(exist_ok=True)
+        (test_dir / "Texts").mkdir(exist_ok=True)
+        
+        # Create a dummy Phones.vcf file to satisfy validation
+        phones_vcf = test_dir / "Phones.vcf"
+        phones_vcf.write_text("BEGIN:VCARD\nVERSION:3.0\nFN:Test User\nEND:VCARD", encoding="utf-8")
+        
+        # Create some dummy HTML files in Calls directory
+        calls_dir = test_dir / "Calls"
+        dummy_html = """<html><head><title>Test</title></head><body>Test content</body></html>"""
+        (calls_dir / "test_call.html").write_text(dummy_html, encoding="utf-8")
 
     def tearDown(self):
         """Clean up after each test method."""
@@ -678,11 +699,40 @@ class TestSMSIntegration(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
         os.chdir(self.test_dir)
+        
+        # Create required directory structure for SMS processing
+        self.create_test_directory_structure()
 
     def tearDown(self):
         """Clean up after each test method."""
+        # Reset SMS module global variables to allow fresh setup in next test
+        import sms
+        sms.PROCESSING_DIRECTORY = None
+        sms.OUTPUT_DIRECTORY = None
+        sms.LOG_FILENAME = None
+        sms.CONVERSATION_MANAGER = None
+        sms.PHONE_LOOKUP_MANAGER = None
+        
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
+    
+    def create_test_directory_structure(self):
+        """Create the required directory structure for SMS processing tests."""
+        test_dir = Path(self.test_dir)
+        
+        # Create required subdirectories
+        (test_dir / "Calls").mkdir(exist_ok=True)
+        (test_dir / "Voicemails").mkdir(exist_ok=True)
+        (test_dir / "Texts").mkdir(exist_ok=True)
+        
+        # Create a dummy Phones.vcf file to satisfy validation
+        phones_vcf = test_dir / "Phones.vcf"
+        phones_vcf.write_text("BEGIN:VCARD\nVERSION:3.0\nFN:Test User\nEND:VCARD", encoding="utf-8")
+        
+        # Create some dummy HTML files in Calls directory
+        calls_dir = test_dir / "Calls"
+        dummy_html = """<html><head><title>Test</title></head><body>Test content</body></html>"""
+        (calls_dir / "test_call.html").write_text(dummy_html, encoding="utf-8")
 
     def test_setup_processing_paths(self):
         """Test processing path setup."""
@@ -690,7 +740,7 @@ class TestSMSIntegration(unittest.TestCase):
         sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
 
         # Check that paths were set
-        self.assertEqual(sms.PROCESSING_DIRECTORY, test_dir.resolve())
+        self.assertEqual(sms.PROCESSING_DIRECTORY.resolve(), test_dir.resolve())
         self.assertIsNotNone(sms.OUTPUT_DIRECTORY)
         self.assertIsNotNone(sms.LOG_FILENAME)
         self.assertIsNotNone(sms.CONVERSATION_MANAGER)
@@ -764,6 +814,7 @@ class TestSMSIntegration(unittest.TestCase):
         manager = sms.CONVERSATION_MANAGER
 
         # Test that output format is set correctly
+        # The output format should be set to "html" as passed to setup_processing_paths
         self.assertEqual(manager.output_format, "html")
 
         # Test conversation filename generation for HTML
@@ -920,7 +971,7 @@ class TestSMSIntegration(unittest.TestCase):
 
         # Test conversation ID generation for group
         conv_manager = sms.CONVERSATION_MANAGER
-        group_id = conv_manager.get_conversation_id(participants, True)
+        group_id = conv_manager.get_conversation_id(participants, True, phone_lookup)
 
         # Should use concatenated aliases
         expected_id = "Aniella_Tang_Inessa_Tang_Susan_Nowak_Tang"
@@ -943,7 +994,7 @@ class TestSMSIntegration(unittest.TestCase):
         for phone in many_participants:
             phone_lookup.add_alias(phone, f"User_{phone[-4:]}")
 
-        many_group_id = conv_manager.get_conversation_id(many_participants, True)
+        many_group_id = conv_manager.get_conversation_id(many_participants, True, phone_lookup)
 
         # Should be truncated and include hash
         self.assertIn("and_3_more_", many_group_id)
@@ -966,7 +1017,7 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertEqual(aliases2, expected_aliases2)
 
         # Test conversation ID generation with custom aliases
-        group_id2 = conv_manager.get_conversation_id(participants2, True)
+        group_id2 = conv_manager.get_conversation_id(participants2, True, phone_lookup)
         expected_id2 = "Custom_Aliella_Custom_Inessa_Custom_Susan"
         self.assertEqual(group_id2, expected_id2)
 
@@ -1776,10 +1827,10 @@ class TestSMSIntegration(unittest.TestCase):
         manager = sms.CONVERSATION_MANAGER
 
         # Create synthetic call and voicemail files with proper Google Voice naming patterns
+        # Note: Calls directory is already created in setUp()
         calls_dir = test_dir / "Calls"
-        calls_dir.mkdir(parents=True, exist_ok=True)
-        call_file = calls_dir / "Test User - Placed - 2024-02-01T15_00_00Z.html"
-        vm_file = calls_dir / "Test User - Voicemail - 2023-03-05T10_30_00Z.html"
+        call_file = calls_dir / "test_call_placed_2024-02-01.html"
+        vm_file = calls_dir / "test_voicemail_2023-03-05.html"
         call_file.write_text(
             """
             <html><head><title>Placed call</title></head><body>
