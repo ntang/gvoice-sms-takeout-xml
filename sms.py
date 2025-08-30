@@ -2490,7 +2490,69 @@ def write_sms_messages(
             logger.info(f"Skipping file with invalid phone number pattern: {file}")
             return
 
-        # Get the primary phone number for this conversation
+        # EARLY GROUP CONVERSATION DETECTION - Do this before processing individual messages
+        is_group = False
+        group_participants = []
+        conversation_id = None
+        
+        try:
+            # First, check page-level participants for group conversation markers
+            if page_participants_raw:
+                participants, aliases = get_participant_phone_numbers_and_aliases(page_participants_raw)
+                if participants and len(participants) > 1:
+                    # This is likely a group conversation
+                    is_group = True
+                    group_participants = participants
+                    logger.info(f"Detected group conversation in SMS file: {file} with {len(participants)} participants")
+                    logger.debug(f"Group participants: {participants}")
+                    logger.debug(f"Group aliases: {aliases}")
+                    
+                    # Generate conversation ID for the group
+                    conversation_id = conversation_manager.get_conversation_id(
+                        group_participants, is_group, phone_lookup_manager
+                    )
+                    logger.info(f"Generated group conversation ID: {conversation_id}")
+            
+            # If not detected from page participants, check HTML structure
+            if not is_group and soup is not None:
+                participants_div = soup.find("div", class_="participants")
+                if participants_div:
+                    raw_text = participants_div.get_text()
+                    if "Group conversation with:" in raw_text:
+                        is_group = True
+                        logger.info(f"Detected group conversation in SMS file: {file} via HTML structure")
+                        
+                        # Extract all participants from the group conversation
+                        cite_elements = participants_div.find_all("cite", class_="sender")
+                        if cite_elements:
+                            for cite in cite_elements:
+                                try:
+                                    phone, _ = extract_phone_and_alias_from_cite(cite)
+                                    if phone and phone not in group_participants:
+                                        group_participants.append(phone)
+                                except Exception as cite_error:
+                                    logger.debug(f"Failed to extract phone from cite element: {cite_error}")
+                                    continue
+                            
+                            if group_participants:
+                                logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
+                                # Generate conversation ID for the group
+                                conversation_id = conversation_manager.get_conversation_id(
+                                    group_participants, is_group, phone_lookup_manager
+                                )
+                                logger.info(f"Generated group conversation ID: {conversation_id}")
+                            else:
+                                logger.warning("Failed to extract group participants from HTML structure")
+                                is_group = False
+                        else:
+                            logger.debug("No cite elements found in group conversation participants div")
+                            is_group = False
+        except Exception as group_error:
+            logger.error(f"Error during group conversation detection: {group_error}")
+            is_group = False
+            group_participants = []
+
+        # Get the primary phone number for this conversation (for individual conversations or fallback)
         phone_number, participant_raw = get_first_phone_number(
             messages_raw, fallback_number
         )
@@ -2705,6 +2767,12 @@ def write_sms_messages(
                         if page_participants_raw
                         else [[participant_raw]]
                     )
+                    
+                    # For MMS messages in group conversations, use the same conversation ID
+                    # to ensure all messages (SMS and MMS) go to the same conversation file
+                    if conversation_id is not None:
+                        logger.debug(f"Using existing conversation ID {conversation_id} for MMS message in group conversation")
+                    
                     write_mms_messages(
                         file,
                         mms_participants_context,
@@ -2714,6 +2782,7 @@ def write_sms_messages(
                         conversation_manager,
                         phone_lookup_manager,
                         soup=None,  # No soup available in SMS context
+                        conversation_id=conversation_id,  # Pass the conversation ID for consistency
                     )
                     processed_count += 1  # Count as processed, not skipped
                     continue
@@ -2787,59 +2856,15 @@ def write_sms_messages(
                 # Format SMS XML
                 sms_text = format_sms_xml(sms_values)
 
-                # Check if this is a group conversation and extract participants
-                is_group = False
-                group_participants = [str(phone_number)]  # Default to single participant
-                
-                try:
-                    # Look for group conversation markers directly in the HTML structure
-                    if soup is not None:
-                        participants_div = soup.find("div", class_="participants")
-                        if participants_div:
-                            raw_text = participants_div.get_text()
-                            
-                            if "Group conversation with:" in raw_text:
-                                is_group = True
-                                logger.info(f"Detected group conversation in SMS file: {file}")
-                                
-                                # Extract all participants from the group conversation
-                                cite_elements = participants_div.find_all("cite", class_="sender")
-                                if cite_elements:
-                                    group_participants = []
-                                    for cite in cite_elements:
-                                        try:
-                                            phone, _ = extract_phone_and_alias_from_cite(cite)
-                                            if phone:
-                                                group_participants.append(phone)
-                                        except Exception as cite_error:
-                                            logger.debug(f"Failed to extract phone from cite element: {cite_error}")
-                                            continue
-                                    
-                                    if group_participants:
-                                        logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
-                                    else:
-                                        # Fallback to original phone number if extraction failed
-                                        group_participants = [str(phone_number)]
-                                        logger.warning("Failed to extract group participants, using fallback")
-                                else:
-                                    logger.debug("No cite elements found in group conversation participants div")
-                            else:
-                                logger.debug("No group conversation marker found in HTML structure")
-                        else:
-                            logger.debug("No participants div found in HTML structure")
-                    else:
-                        logger.debug("No soup available for group conversation detection")
-                        
-                except Exception as group_error:
-                    logger.debug(f"Error during group conversation detection: {group_error}")
-                    # Fall back to individual conversation handling
-                    is_group = False
-                    group_participants = [str(phone_number)]
+                # Use pre-determined conversation ID for group conversations, or generate for individual conversations
+                if conversation_id is None:
+                    # This is an individual conversation - generate conversation ID
+                    conversation_id = conversation_manager.get_conversation_id(
+                        [str(phone_number)], False, phone_lookup_manager
+                    )
+                    logger.debug(f"Generated individual conversation ID: {conversation_id}")
                 
                 # Write to conversation file
-                conversation_id = conversation_manager.get_conversation_id(
-                    group_participants, is_group, phone_lookup_manager
-                )
                 if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
                     message_text = sms_values.get("message", "")
@@ -3493,6 +3518,7 @@ def write_mms_messages(
     conversation_manager: "ConversationManager",
     phone_lookup_manager: "PhoneLookupManager",
     soup: Optional[BeautifulSoup] = None,
+    conversation_id: Optional[str] = None,
 ):
     """
     Write MMS messages to the backup file.
@@ -3503,6 +3529,7 @@ def write_mms_messages(
         messages_raw: List of message elements from HTML
         own_number: User's phone number
         src_filename_map: Mapping of src elements to filenames
+        conversation_id: Optional conversation ID to use (for group conversations)
     """
     try:
         # Get total message count for progress tracking
@@ -3930,9 +3957,14 @@ def write_mms_messages(
                 )
 
                 # Write to conversation file
-                conversation_id = conversation_manager.get_conversation_id(
-                    participants, True
-                )
+                # Use passed conversation_id if available (for group conversations), otherwise generate new one
+                if conversation_id is None:
+                    conversation_id = conversation_manager.get_conversation_id(
+                        participants, True, phone_lookup_manager
+                    )
+                    logger.debug(f"Generated MMS conversation ID: {conversation_id}")
+                else:
+                    logger.debug(f"Using passed conversation ID for MMS: {conversation_id}")
                 if conversation_manager.output_format == "html":
                     # For HTML output, extract text and attachments directly
                     message_text = message_content
