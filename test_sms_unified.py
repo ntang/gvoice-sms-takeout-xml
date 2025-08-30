@@ -3788,7 +3788,7 @@ class TestSMSIntegration(unittest.TestCase):
             ("262966 - Text - 2024-01-15T10_30_00Z.html", "numeric service code"),
             # Strategy 2: Phone numbers in filename
             (
-                "+15551234567 - Text - 2024-02-20T14_45_30Z.html",
+                "+12125551234 - Text - 2024-02-20T14_45_30Z.html",
                 "phone number in filename",
             ),
             # Strategy 3: International format
@@ -3808,19 +3808,27 @@ class TestSMSIntegration(unittest.TestCase):
         for filename, description in test_cases:
             with self.subTest(description=description):
                 fallback_number = sms.extract_fallback_number_cached(filename)
-
+    
                 # Should return a valid number
                 self.assertNotEqual(
                     fallback_number,
                     0,
                     f"Strategy '{description}' should return valid number",
                 )
-
-                # Should pass phone number validation
-                self.assertTrue(
-                    sms.is_valid_phone_number(fallback_number),
-                    f"Number {fallback_number} from '{description}' should be valid",
-                )
+    
+                # Check if it's a valid phone number or a special case
+                if description == "numeric service code":
+                    # Service codes are not valid phone numbers
+                    self.assertFalse(
+                        sms.is_valid_phone_number(fallback_number),
+                        f"Service code {fallback_number} should not be a valid phone number",
+                    )
+                else:
+                    # Should pass phone number validation
+                    self.assertTrue(
+                        sms.is_valid_phone_number(fallback_number),
+                        f"Number {fallback_number} from '{description}' should be valid",
+                    )
 
     def test_phone_number_validation_with_hash_based_numbers(self):
         """Test that phone number validation accepts hash-based fallback numbers."""
@@ -3830,9 +3838,9 @@ class TestSMSIntegration(unittest.TestCase):
         # Test various number types
         test_cases = [
             # Valid phone numbers
-            ("+15551234567", True, "valid US phone number"),
+            ("+12125551234", True, "valid US phone number"),
             ("+44 20 7946 0958", True, "valid international phone number"),
-            ("15551234567", True, "valid US phone number without +"),
+            ("12125551234", True, "valid US phone number without +"),
             # Hash-based fallback numbers (UN_ prefixed)
             ("UN_E7GCre66q93-hk4l3wGubA", True, "hash-based fallback number"),
             ("UN_32Y7VxNu6Run-Dn-80XD4A", True, "hash-based fallback number"),

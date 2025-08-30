@@ -81,131 +81,17 @@ def extract_phone_numbers_from_text(text: str) -> List[str]:
 def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
     """
     Check if a phone number is valid with enhanced validation.
-
-    Args:
-        phone_number: Phone number string or integer to validate
-        filter_non_phone: If True, filter out shortcodes and other non-phone patterns
-
-    Returns:
-        bool: True if phone number appears valid, False otherwise
+    
+    This function now uses the unified phone utilities module for consistent behavior.
     """
-    if not phone_number:
-        return False
-
-    # Convert to string if it's an integer or other type
-    if not isinstance(phone_number, str):
-        phone_number = str(phone_number)
-
-    # Clean the phone number
-    cleaned = phone_number.strip()
-    if not cleaned:
-        return False
-
-    # Skip if it's a fallback conversation ID (old format)
-    if cleaned.startswith("unknown_"):
-        return False
-
-    # Handle hash-based fallback numbers (UN_ prefix) for conversation management
-    # These are generated when no real phone number is found but we need a conversation identifier
-    if cleaned.startswith("UN_"):
-        return True
-
-    # Handle names FIRST (allow them as valid "phone numbers" for conversation purposes)
-    # But be more strict - names should have spaces (not just random letters)
-    if re.match(r"^[A-Za-z\s\-\.]+$", cleaned) and len(cleaned.strip()) > 2:
-        # Names should have spaces to be considered valid
-        if " " in cleaned:
-            return True
-
-    # Skip if it's clearly not a phone number (contains letters, etc.)
-    # But only after we've checked for valid names
-    if re.search(r"[a-zA-Z]", cleaned):
-        return False
-
-    # Enhanced filtering for non-phone numbers when enabled
-    if filter_non_phone:
-        # Filter out short codes (4-6 digits) - these are valid but should be filtered by default
-        if re.match(r"^[0-9]+$", cleaned) and 4 <= len(cleaned) <= 6:
-            return False
-            
-        # Filter out toll-free numbers (800, 877, 888, 866, 855, 844, 833, 822, 800, 888, 877, 866, 855, 844, 833, 822)
-        toll_free_patterns = [
-            r"^\+?1?8[0-9]{2}",  # 800, 801, 802, 803, 804, 805, 806, 807, 808, 809
-            r"^\+?1?8[7-9][0-9]",  # 870-899 (covers 877, 888, 866, 855, 844, 833, 822)
-        ]
-
-        for pattern in toll_free_patterns:
-            if re.match(pattern, cleaned):
-                return False
-
-        # Filter out non-US numbers (don't start with +1 or 1)
-        if not re.match(r"^\+?1", cleaned):
-            return False
-
-    # Try the strict phonenumbers library validation first
-    try:
-        parsed = phonenumbers.parse(cleaned, None)
-        if phonenumbers.is_valid_number(parsed):
-            return True
-    except Exception:
-        pass
-
-    # Fallback validation for edge cases
-    # Check for common phone number patterns - be more strict
-    phone_patterns = [
-        r"^\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$",  # US format: +1 (555) 123-4567
-        r"^\+[0-9]{7,15}$",  # International format: must start with +
-    ]
-
-    for pattern in phone_patterns:
-        if re.match(pattern, cleaned):
-            return True
-
-    # If it looks like a phone number but failed strict validation,
-    # be more strict about what we accept
-    if re.match(r"^\+?[0-9\s\-\(\)\.]+$", cleaned):
-        # Remove all non-digits and check length
-        digits_only = re.sub(r"[^0-9]", "", cleaned)
-
-        # Reject numbers that are too long (more than 15 digits is not a valid phone number)
-        if len(digits_only) > 15:
-            return False
-
-        # Accept short codes (4-6 digits) as valid phone numbers
-        # These will be filtered out by filter_non_phone if requested
-        if 4 <= len(digits_only) <= 6:
-            return True
-
-        # Must be at least 10 digits for US numbers, 7 for international
-        if len(digits_only) >= 10:
-            # Must start with +1 for US numbers or have proper international format
-            if (
-                cleaned.startswith("+1")
-                or cleaned.startswith("1")
-                or cleaned.startswith("+")
-            ):
-                return True
-        elif len(digits_only) >= 7:
-            # International numbers must start with +
-            if cleaned.startswith("+"):
-                return True
-
-    return False
+    from phone_utils import is_valid_phone_number as validate_phone
+    return validate_phone(phone_number, filter_non_phone)
 
 
 def normalize_phone_number(phone_number: str) -> str:
     """Normalize a phone number to E.164 format."""
-    try:
-        # Parse the phone number
-        parsed = phonenumbers.parse(phone_number, None)
-        if phonenumbers.is_valid_number(parsed):
-            return phonenumbers.format_number(
-                parsed, phonenumbers.PhoneNumberFormat.E164
-            )
-        else:
-            return phone_number
-    except Exception:
-        return phone_number
+    from phone_utils import normalize_phone_number as normalize_phone
+    return normalize_phone(phone_number)
 
 
 # Duplicate function removed

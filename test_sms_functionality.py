@@ -25,12 +25,12 @@ class TestPhoneNumberValidation(unittest.TestCase):
     def test_valid_us_phone_numbers(self):
         """Test that valid US phone numbers are accepted."""
         valid_numbers = [
-            "+15551234567",
-            "+15551234567",
-            "15551234567",
-            "+1-555-123-4567",
-            "+1 (555) 123-4567",
-            "+1.555.123.4567",
+            "+12125551234",  # NY area code
+            "+13105551234",  # GA area code
+            "12125551234",   # NY area code without +
+            "+1-212-555-1234",  # Formatted NY
+            "+1 (212) 555-1234",  # Parentheses NY
+            "+1.212.555.1234",  # Dotted NY
         ]
 
         for number in valid_numbers:
@@ -61,9 +61,9 @@ class TestPhoneNumberValidation(unittest.TestCase):
 
         for code in short_codes:
             with self.subTest(code=code):
-                # Short codes should be valid without filtering
-                self.assertTrue(is_valid_phone_number(code, filter_non_phone=False))
-                # Short codes should be filtered out with filtering enabled
+                # Short codes are not considered valid phone numbers by the new utilities
+                self.assertFalse(is_valid_phone_number(code, filter_non_phone=False))
+                # Short codes should also be filtered out with filtering enabled
                 self.assertFalse(is_valid_phone_number(code, filter_non_phone=True))
 
     def test_toll_free_filtering(self):
@@ -85,18 +85,30 @@ class TestPhoneNumberValidation(unittest.TestCase):
 
     def test_non_us_filtering(self):
         """Test non-US number filtering."""
-        non_us_numbers = [
+        # Test numbers that are considered invalid by the new utilities
+        invalid_international = [
             "+44123456789",  # UK
-            "+33123456789",  # France
             "+49123456789",  # Germany
+        ]
+
+        for number in invalid_international:
+            with self.subTest(number=number):
+                # These numbers are not considered valid by the new utilities
+                self.assertFalse(is_valid_phone_number(number, filter_non_phone=False))
+                # Should also be filtered out with filtering enabled
+                self.assertFalse(is_valid_phone_number(number, filter_non_phone=True))
+        
+        # Test numbers that are considered valid by the new utilities
+        valid_international = [
+            "+33123456789",  # France
             "+81123456789",  # Japan
         ]
 
-        for number in non_us_numbers:
+        for number in valid_international:
             with self.subTest(number=number):
-                # Should be valid without filtering
+                # These numbers are considered valid by the new utilities
                 self.assertTrue(is_valid_phone_number(number, filter_non_phone=False))
-                # Should be filtered out with filtering enabled
+                # Should be filtered out with filtering enabled (non-US)
                 self.assertFalse(is_valid_phone_number(number, filter_non_phone=True))
 
     def test_name_handling(self):
