@@ -4095,6 +4095,122 @@ class TestSMSIntegration(unittest.TestCase):
         print("✅ This ensures all messages (from SusanT, Inessa, etc.) end up in the same file")
         print("✅ The fix prevents messages from being scattered across different conversation files")
 
+    def test_index_page_attachment_count_accuracy(self):
+        """Test that the index page shows accurate attachment counts (not counting placeholders)."""
+        # Create test data with real attachments and placeholder attachments
+        test_data = {
+            "conversation_with_real_attachments.html": {
+                "content": """<html>
+                <table>
+                    <tr>
+                        <td class="timestamp">2024-01-01 10:00:00</td>
+                        <td class="sender">TestUser</td>
+                        <td class="message">Message with image</td>
+                        <td>📷 Image</td>
+                    </tr>
+                    <tr>
+                        <td class="timestamp">2024-01-01 11:00:00</td>
+                        <td class="sender">TestUser2</td>
+                        <td class="message">Message without attachment</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td class="timestamp">2024-01-01 12:00:00</td>
+                        <td class="sender">TestUser</td>
+                        <td class="message">Message with vCard</td>
+                        <td>📇 vCard</td>
+                    </tr>
+                </table>
+                </html>""",
+            },
+            "conversation_with_no_attachments.html": {
+                "content": """<html>
+                <table>
+                    <tr>
+                        <td class="timestamp">2024-01-01 10:00:00</td>
+                        <td class="sender">TestUser</td>
+                        <td class="message">Plain message</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td class="timestamp">2024-01-01 11:00:00</td>
+                        <td class="sender">TestUser2</td>
+                        <td class="message">Another plain message</td>
+                        <td>-</td>
+                    </tr>
+                </table>
+                </html>""",
+            }
+        }
+        
+        # Write test data to temporary files
+        test_output_dir = Path(self.test_dir) / "conversations"
+        test_output_dir.mkdir(exist_ok=True)
+        
+        for filename, data in test_data.items():
+            test_file_path = test_output_dir / filename
+            with open(test_file_path, "w", encoding="utf-8") as f:
+                f.write(data["content"])
+        
+        # Create a conversation manager to test
+        from conversation_manager import ConversationManager
+        conv_manager = ConversationManager(test_output_dir, output_format="html")
+        
+        # Manually set conversation stats to simulate real processing
+        conv_manager.conversation_stats = {
+            "conversation_with_real_attachments": {
+                "num_sms": 3,
+                "num_calls": 0,
+                "num_voicemails": 0,
+                "num_img": 1,
+                "num_vcf": 1,
+                "num_audio": 0,
+                "num_video": 0,
+                "real_attachments": 2
+            },
+            "conversation_with_no_attachments": {
+                "num_sms": 2,
+                "num_calls": 0,
+                "num_voicemails": 0,
+                "num_img": 0,
+                "num_vcf": 0,
+                "num_audio": 0,
+                "num_video": 0,
+                "real_attachments": 0
+            }
+        }
+        
+        # Test extracting stats for conversations
+        stats_with_attachments = conv_manager._extract_conversation_stats(
+            test_output_dir / "conversation_with_real_attachments.html"
+        )
+        stats_no_attachments = conv_manager._extract_conversation_stats(
+            test_output_dir / "conversation_with_no_attachments.html"
+        )
+        
+        # Verify that conversations with real attachments show correct count
+        self.assertEqual(stats_with_attachments["attachments_count"], 2, 
+                        "Should count 2 real attachments (1 image + 1 vCard)")
+        
+        # Verify that conversations with no attachments show zero count
+        self.assertEqual(stats_no_attachments["attachments_count"], 0, 
+                        "Should count 0 attachments (placeholders '-' should not be counted)")
+        
+        # Test the accurate stats method
+        accurate_stats_with_attachments = conv_manager._get_conversation_stats_accurate(
+            "conversation_with_real_attachments"
+        )
+        accurate_stats_no_attachments = conv_manager._get_conversation_stats_accurate(
+            "conversation_with_no_attachments"
+        )
+        
+        self.assertEqual(accurate_stats_with_attachments["attachments_count"], 2,
+                        "Accurate stats should show 2 real attachments")
+        self.assertEqual(accurate_stats_no_attachments["attachments_count"], 0,
+                        "Accurate stats should show 0 attachments")
+        
+        print("✅ Index page attachment count accuracy test passed")
+
 
 def create_test_suite(test_type="basic", test_limit=100):
     """

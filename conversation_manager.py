@@ -550,8 +550,9 @@ class ConversationManager:
                     # Get conversation name (without extension)
                     conversation_name = file_path.stem
 
-                    # Extract conversation statistics and latest message time
-                    conv_stats = self._extract_conversation_stats(file_path)
+                    # Get accurate stats from conversation manager
+                    conversation_id = file_path.stem
+                    conv_stats = self._get_conversation_stats_accurate(conversation_id)
 
                     # Build table row
                     builder.append_line("                <tr>")
@@ -636,6 +637,27 @@ class ConversationManager:
     ) -> Dict[str, Union[int, str]]:
         """Extract statistics from a conversation file (HTML or XML)."""
         try:
+            # Try to get stats from conversation manager first (more accurate)
+            conversation_id = file_path.stem
+            if conversation_id in self.conversation_stats:
+                stats = self.conversation_stats[conversation_id]
+                return {
+                    "sms_count": stats.get("num_sms", 0),
+                    "calls_count": stats.get("num_calls", 0),
+                    "voicemails_count": stats.get("num_voicemails", 0),
+                    "attachments_count": self._count_real_attachments(stats),
+                    "latest_message_time": "From cache"  # Could enhance this
+                }
+
+            # Fallback to file parsing if needed
+            return self._parse_file_for_stats(file_path)
+        except Exception as e:
+            logger.error(f"Failed to extract stats from {file_path}: {e}")
+            return self._get_default_stats()
+
+    def _parse_file_for_stats(self, file_path: Path) -> Dict[str, Union[int, str]]:
+        """Parse file content to extract statistics (fallback method)."""
+        try:
             # Read the file
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -684,13 +706,16 @@ class ConversationManager:
                     ):
                         sms_count += 1
 
-                    # Check for attachments in the same row
+                    # Improved attachment detection - only count real attachments
                     attachments_cell = (
-                        row.find_all("td")[2] if len(row.find_all("td")) > 2 else None
+                        row.find_all("td")[3] if len(row.find_all("td")) > 3 else None
                     )
                     if attachments_cell:
                         attachments_text = attachments_cell.get_text().strip()
-                        if attachments_text != "-" and attachments_text:
+                        # Only count if it's not a placeholder and contains actual attachment indicators
+                        if (attachments_text != "-" and 
+                            attachments_text and 
+                            any(indicator in attachments_text for indicator in ["📷", "📇", "🎵", "🎬", "Image", "vCard", "Audio", "Video"])):
                             attachments_count += 1
 
                     # Get timestamp for latest message
@@ -726,14 +751,18 @@ class ConversationManager:
             }
 
         except Exception as e:
-            logger.error(f"Failed to extract stats from {file_path}: {e}")
-            return {
-                "sms_count": 0,
-                "calls_count": 0,
-                "voicemails_count": 0,
-                "attachments_count": 0,
-                "latest_message_time": "Error",
-            }
+            logger.error(f"Failed to parse file {file_path}: {e}")
+            return self._get_default_stats()
+
+    def _get_default_stats(self) -> Dict[str, Union[int, str]]:
+        """Get default statistics when extraction fails."""
+        return {
+            "sms_count": 0,
+            "calls_count": 0,
+            "voicemails_count": 0,
+            "attachments_count": 0,
+            "latest_message_time": "Error",
+        }
 
     def _finalize_xml_file(
         self, file_info: dict, sorted_messages: list, conversation_id: str
@@ -1027,6 +1056,9 @@ class ConversationManager:
             "num_vcf": 0,
             "num_calls": 0,
             "num_voicemails": 0,
+            "num_audio": 0,
+            "num_video": 0,
+            "real_attachments": 0,
         }
 
         # Count from conversation stats
@@ -1047,9 +1079,59 @@ class ConversationManager:
         return total_stats
 
     def update_stats(self, conversation_id: str, stats: Dict[str, int]):
-        """Update statistics for a conversation."""
+        """Update statistics for a conversation with enhanced attachment tracking."""
+        if conversation_id not in self.conversation_stats:
+            # Initialize conversation stats with proper structure
+            self.conversation_stats[conversation_id] = {
+                "num_sms": 0,
+                "num_calls": 0,
+                "num_voicemails": 0,
+                "num_img": 0,
+                "num_vcf": 0,
+                "num_audio": 0,
+                "num_video": 0,
+                "real_attachments": 0
+            }
+        
+        # Update individual counts
+        for key, value in stats.items():
+            if key in self.conversation_stats[conversation_id]:
+                self.conversation_stats[conversation_id][key] += value
+        
+        # Calculate real attachment count (only actual attachments, not placeholders)
+        self.conversation_stats[conversation_id]["real_attachments"] = (
+            self.conversation_stats[conversation_id]["num_img"] +
+            self.conversation_stats[conversation_id]["num_vcf"] +
+            self.conversation_stats[conversation_id]["num_video"] +
+            self.conversation_stats[conversation_id]["num_audio"]
+        )
+
+    def _count_real_attachments(self, stats: Dict[str, int]) -> int:
+        """Count only real attachments, not placeholders."""
+        real_attachments = 0
+        real_attachments += stats.get("num_img", 0)  # Images
+        real_attachments += stats.get("num_vcf", 0)  # vCards
+        real_attachments += stats.get("num_audio", 0)  # Audio files
+        real_attachments += stats.get("num_video", 0)  # Video files
+        return real_attachments
+
+    def _get_conversation_stats_accurate(self, conversation_id: str) -> Dict[str, Union[int, str]]:
+        """Get accurate stats for a conversation from cached data."""
         if conversation_id in self.conversation_stats:
-            for key, value in stats.items():
-                self.conversation_stats[conversation_id][key] = (
-                    self.conversation_stats[conversation_id].get(key, 0) + value
-                )
+            stats = self.conversation_stats[conversation_id]
+            return {
+                "sms_count": stats.get("num_sms", 0),
+                "calls_count": stats.get("num_calls", 0),
+                "voicemails_count": stats.get("num_voicemails", 0),
+                "attachments_count": stats.get("real_attachments", 0),
+                "latest_message_time": "From cache"  # Could enhance this
+            }
+        else:
+            # Return defaults if no cached stats
+            return {
+                "sms_count": 0,
+                "calls_count": 0,
+                "voicemails_count": 0,
+                "attachments_count": 0,
+                "latest_message_time": "Unknown"
+            }
