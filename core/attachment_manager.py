@@ -14,7 +14,7 @@ from typing import Dict, List, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 
-from html_processor import STRING_POOL
+from processors.html_processor import STRING_POOL
 
 logger = logging.getLogger(__name__)
 

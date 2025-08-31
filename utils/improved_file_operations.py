@@ -12,7 +12,7 @@ from typing import List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Import improved utilities
-from improved_utils import copy_file_safely, ensure_directory_with_permissions, ProgressTracker
+from .improved_utils import copy_file_safely, ensure_directory_with_permissions, ProgressTracker
 
 logger = logging.getLogger(__name__)
 

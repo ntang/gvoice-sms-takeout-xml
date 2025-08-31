@@ -4153,7 +4153,7 @@ class TestSMSIntegration(unittest.TestCase):
                 f.write(data["content"])
         
         # Create a conversation manager to test
-        from conversation_manager import ConversationManager
+        from core.conversation_manager import ConversationManager
         conv_manager = ConversationManager(test_output_dir, output_format="html")
         
         # Manually set conversation stats to simulate real processing

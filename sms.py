@@ -29,6 +29,14 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+# ====================================================================
+# PROJECT ROOT DETECTION FOR PORTABLE IMPORTS
+# ====================================================================
+# Find project root (where this script is located) and add to Python path
+# This ensures imports work regardless of where the project is located on the filesystem
+PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 import dateutil.parser
 import phonenumbers
 from bs4 import BeautifulSoup
@@ -42,25 +50,25 @@ from templates import (
 )
 
 # Import new modular components
-from conversation_manager import ConversationManager
-from phone_lookup import PhoneLookupManager
-from html_processor import (
+from core.conversation_manager import ConversationManager
+from core.phone_lookup import PhoneLookupManager
+from processors.html_processor import (
     get_file_type,
     STRING_POOL,
 )
-from file_processor import (
+from processors.file_processor import (
     process_single_html_file,
 )
-from attachment_manager import (
+from core.attachment_manager import (
     build_attachment_mapping_with_progress,
     copy_mapped_attachments,
 )
 
 # Import improved file operations
-from improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
+from utils.improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
 
-from utils import is_valid_phone_number, generate_unknown_number_hash
-import app_config
+from utils.utils import is_valid_phone_number, generate_unknown_number_hash
+from core.app_config import *
 
 
 # ====================================================================
@@ -348,39 +356,14 @@ def validate_attachment_mapping_integrity(src_filename_map: Dict[str, Tuple[str,
 # Configure logger reference only; configure handlers/levels in __main__
 logger = logging.getLogger(__name__)
 
-# Import constants from config module
-SUPPORTED_IMAGE_TYPES = app_config.SUPPORTED_IMAGE_TYPES
-SUPPORTED_VCARD_TYPES = app_config.SUPPORTED_VCARD_TYPES
-SUPPORTED_EXTENSIONS = app_config.SUPPORTED_EXTENSIONS
-
-# MMS message type constants
-MMS_TYPE_SENT = app_config.MMS_TYPE_SENT
-MMS_TYPE_RECEIVED = app_config.MMS_TYPE_RECEIVED
-
-# Message box constants
-MESSAGE_BOX_SENT = app_config.MESSAGE_BOX_SENT
-MESSAGE_BOX_RECEIVED = app_config.MESSAGE_BOX_RECEIVED
-
-# Participant type codes for MMS
-PARTICIPANT_TYPE_SENDER = app_config.PARTICIPANT_TYPE_SENDER
-PARTICIPANT_TYPE_RECEIVED = app_config.PARTICIPANT_TYPE_RECEIVED
-
-# Error messages
-ERROR_NO_MESSAGES = app_config.ERROR_NO_MESSAGES
-ERROR_NO_PARTICIPANTS = app_config.ERROR_NO_PARTICIPANTS
-ERROR_NO_SENDER = app_config.ERROR_NO_SENDER
-
-# Default values and thresholds
-DEFAULT_FALLBACK_TIME = app_config.DEFAULT_FALLBACK_TIME
-MIN_PHONE_NUMBER_LENGTH = app_config.MIN_PHONE_NUMBER_LENGTH
-FILENAME_TRUNCATE_LENGTH = app_config.FILENAME_TRUNCATE_LENGTH
-
-# MMS placeholder messages
-MMS_PLACEHOLDER_MESSAGES = app_config.MMS_PLACEHOLDER_MESSAGES
-
-# HTML parsing constants
-HTML_PARSER = app_config.HTML_PARSER
-GROUP_CONVERSATION_MARKER = app_config.GROUP_CONVERSATION_MARKER
+# Configuration constants are now imported directly from core.app_config
+# SUPPORTED_IMAGE_TYPES, SUPPORTED_VCARD_TYPES, SUPPORTED_EXTENSIONS
+# MMS_TYPE_SENT, MMS_TYPE_RECEIVED
+# MESSAGE_BOX_SENT, MESSAGE_BOX_RECEIVED
+# PARTICIPANT_TYPE_SENDER, PARTICIPANT_TYPE_RECEIVED
+# ERROR_NO_MESSAGES, ERROR_NO_PARTICIPANTS, ERROR_NO_SENDER
+# DEFAULT_FALLBACK_TIME, MIN_PHONE_NUMBER_LENGTH, FILENAME_TRUNCATE_LENGTH
+# MMS_PLACEHOLDER_MESSAGES, HTML_PARSER, GROUP_CONVERSATION_MARKER
 
 # Pre-compiled regex patterns for performance
 FILENAME_PATTERN = re.compile(r"(?:\((\d+)\))?\.(jpg|gif|png|vcf)$")

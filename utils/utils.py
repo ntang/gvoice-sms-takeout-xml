@@ -84,13 +84,13 @@ def is_valid_phone_number(phone_number, filter_non_phone: bool = False) -> bool:
     
     This function now uses the unified phone utilities module for consistent behavior.
     """
-    from phone_utils import is_valid_phone_number as validate_phone
+    from utils.phone_utils import is_valid_phone_number as validate_phone
     return validate_phone(phone_number, filter_non_phone)
 
 
 def normalize_phone_number(phone_number: str) -> str:
     """Normalize a phone number to E.164 format."""
-    from phone_utils import normalize_phone_number as normalize_phone
+    from utils.phone_utils import normalize_phone_number as normalize_phone
     return normalize_phone(phone_number)
 
 

@@ -70,3 +70,14 @@ sms-converter-config.txt
 # Test artifacts
 test_output/
 test_results/
+
+# Temporary directories (gitignored)
+.temp/
+.temp/*
+temp/
+temp/*
+
+# Runtime generated files
+conversations/
+gvoice_converter.log
+phone_lookup.txt

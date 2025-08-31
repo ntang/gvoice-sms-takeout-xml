@@ -15,7 +15,7 @@ import logging
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from phone_utils import PhoneNumberProcessor, is_valid_phone_number, normalize_phone_number, is_toll_free_number, extract_phone_numbers_from_text
+from utils.phone_utils import PhoneNumberProcessor, is_valid_phone_number, normalize_phone_number, is_toll_free_number, extract_phone_numbers_from_text
 
 # Set up logging for tests
 logger = logging.getLogger(__name__)

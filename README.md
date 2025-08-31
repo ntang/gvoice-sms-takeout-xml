@@ -38,6 +38,47 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 
 ## Technical Details
 
+### Project Structure
+The project has been reorganized for better maintainability and clarity:
+
+```
+gvoice-sms-takeout-xml/
+├── sms.py                    # Main entry point script
+├── core/                     # Core functionality modules
+│   ├── conversation_manager.py    # Manages conversation files and statistics
+│   ├── phone_lookup.py           # Handles phone number aliases and lookups
+│   ├── attachment_manager.py     # Manages file attachments and copying
+│   └── app_config.py             # Configuration constants and settings
+├── processors/               # File processing logic
+│   ├── file_processor.py         # Main file processing orchestration
+│   └── html_processor.py        # HTML parsing and processing utilities
+├── utils/                    # Utility functions and helpers
+│   ├── improved_utils.py         # Enhanced utility functions
+│   ├── improved_file_operations.py # File operation utilities
+│   ├── phone_utils.py            # Phone number processing utilities
+│   └── utils.py                  # General utility functions
+├── tests/                    # Comprehensive test suite
+│   ├── unit/                      # Unit tests for individual modules
+│   ├── integration/               # Integration tests for full workflows
+│   └── utils/                     # Test utilities and runners
+├── templates/                # HTML output templates
+├── config/                   # Configuration files
+├── docs/                     # Implementation documentation
+├── archive/                  # Deprecated/orphaned files
+├── .temp/                    # Temporary outputs (test results, logs, generated conversations)
+├── .gitignore               # Git ignore patterns
+└── README.md                # This documentation
+```
+
+### Smart Import System
+The project uses a smart import system that automatically detects the project root and adds it to the Python path. This ensures the project can be moved anywhere on the filesystem and still work correctly.
+
+**Key Benefits:**
+- **Portable**: Project can be cloned and run from any location
+- **No Installation Required**: Just clone and run `python sms.py`
+- **Self-Contained**: All dependencies are resolved relative to the project root
+- **User-Friendly**: Standard "clone and run" workflow
+
 ### Hash-Based Fallback System
 The converter now uses a sophisticated hash-based fallback system for handling conversations without phone numbers:
 
@@ -66,15 +107,15 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 1. (Optional) Delete all Google Contacts (this is causes numbers show up for each thread, otherwise Takeout will sometimes only have names. If you want to skip this step, you can, but some messages won't be linked to the right thread if you do. Note that this may remove Contact Photos on iOS if you don't pause syncing on your iOS device)
 1. Get Google Voice Takeout and download
 1. (Optional) Restore contacts to your account
-1. Clone this repo to your computer. Downloading sms.py and requirements.txt should also work.
+1. Clone this repo to your computer: `git clone <repository-url>`
 1. Extract Google Voice Takeout and move the folder into the same folder as this script
 1. Open terminal
 1. Install python
 1. Install pip
 1. Create virtual environment (`python -m venv .venv`)
 1. Activate virtual environment (`.venv\Scripts\activate.bat` or `source .venv/bin/activate`)
-1. Install dependencies (`python -m pip install -r requirements.txt`)
-1. `python sms.py`
+1. Install dependencies (`python -m pip install -r config/requirements.txt`)
+1. Run the converter: `python sms.py`
 
 
 ## Testing with an emulator:

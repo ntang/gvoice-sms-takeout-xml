@@ -14,7 +14,7 @@ from unittest.mock import patch, Mock
 import logging
 
 # Import the module to test
-import improved_file_operations
+import utils.improved_file_operations as improved_file_operations
 
 # Suppress logging during tests
 logging.getLogger("improved_file_operations").setLevel(logging.ERROR)

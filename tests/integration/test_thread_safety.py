@@ -16,8 +16,8 @@ from unittest.mock import Mock, patch
 
 # Import the modules we want to test
 import sms
-from conversation_manager import ConversationManager
-from phone_lookup import PhoneLookupManager
+from core.conversation_manager import ConversationManager
+from core.phone_lookup import PhoneLookupManager
 
 
 class TestThreadSafety(unittest.TestCase):
@@ -93,7 +93,7 @@ class TestThreadSafety(unittest.TestCase):
             test_files.add(test_file.name)
 
         # Test parallel copying
-        from attachment_manager import copy_attachments_parallel
+        from core.attachment_manager import copy_attachments_parallel
 
         copy_attachments_parallel(test_files, self.temp_dir)
 

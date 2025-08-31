@@ -14,7 +14,7 @@ from unittest.mock import patch, Mock
 import logging
 
 # Import the module to test
-import improved_utils
+import utils.improved_utils as improved_utils
 
 # Suppress logging during tests
 logging.getLogger("improved_utils").setLevel(logging.ERROR)
@@ -96,7 +96,7 @@ class TestImprovedFileOperations(unittest.TestCase):
         test_file = self.temp_dir / "to_delete.txt"
         test_file.write_text("Delete me")
         
-        with patch('improved_utils.send2trash') as mock_send2trash:
+        with patch('utils.improved_utils.send2trash') as mock_send2trash:
             result = improved_utils.safe_delete_file(test_file, use_trash=True)
             
             self.assertTrue(result)

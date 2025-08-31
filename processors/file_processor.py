@@ -10,13 +10,13 @@ from pathlib import Path
 from typing import Dict, Union, Optional
 from bs4 import BeautifulSoup
 
-from html_processor import (
+from .html_processor import (
     parse_html_file,
     get_file_type,
     should_skip_file,
 )
-from conversation_manager import ConversationManager
-from phone_lookup import PhoneLookupManager
+from core.conversation_manager import ConversationManager
+from core.phone_lookup import PhoneLookupManager
 
 logger = logging.getLogger(__name__)
 
