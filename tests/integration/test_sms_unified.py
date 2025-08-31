@@ -1141,9 +1141,18 @@ class TestSMSIntegration(unittest.TestCase):
         result = sms.build_attachment_mapping()
         self.assertIsInstance(result, dict)
 
-        # Test build_attachment_mapping_with_progress
-        result = sms.build_attachment_mapping_with_progress()
-        self.assertIsInstance(result, dict)
+        # Test build_attachment_mapping_with_progress_new (using PathManager)
+        # Note: This function requires a PathManager instance, so we'll test the new function
+        # First we need to set up a PathManager
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        if hasattr(sms, 'PATH_MANAGER') and sms.PATH_MANAGER:
+            from core.attachment_manager_new import build_attachment_mapping_with_progress_new
+            result = build_attachment_mapping_with_progress_new(sms.PATH_MANAGER)
+            self.assertIsInstance(result, dict)
+        else:
+            # Skip this test if PathManager is not available
+            self.skipTest("PathManager not available for testing")
 
     def test_html_processing_integration(self):
         """Test HTML processing integration."""

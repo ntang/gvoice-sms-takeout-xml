@@ -59,9 +59,9 @@ from processors.html_processor import (
 from processors.file_processor import (
     process_single_html_file,
 )
-from core.attachment_manager import (
-    build_attachment_mapping_with_progress,
-    copy_mapped_attachments,
+from core.attachment_manager_new import (
+    build_attachment_mapping_with_progress_new,
+    copy_mapped_attachments_new,
 )
 
 # Import improved file operations
@@ -176,6 +176,9 @@ CONVERSATION_MANAGER = None
 
 # Global phone lookup manager
 PHONE_LOOKUP_MANAGER = None
+
+# Global path manager for consistent path handling
+PATH_MANAGER = None
 
 # Global filtering configuration
 INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
@@ -902,12 +905,12 @@ def main():
                     break
             
             # Only process attachments that are referenced by the sample HTML files
-            src_filename_map = build_attachment_mapping_with_progress(
-                str(PROCESSING_DIRECTORY), sample_files=sample_html_files
+            src_filename_map = build_attachment_mapping_with_progress_new(
+                PATH_MANAGER, sample_files=sample_html_files
             )
         else:
-            src_filename_map = build_attachment_mapping_with_progress(
-                str(PROCESSING_DIRECTORY)
+            src_filename_map = build_attachment_mapping_with_progress_new(
+                PATH_MANAGER
             )
         
         mapping_time = time.time() - mapping_start
@@ -918,8 +921,11 @@ def main():
         # Copy all mapped attachments
         logger.info("Copying mapped attachments...")
         copy_start = time.time()
-        copy_mapped_attachments(
-            src_filename_map, str(OUTPUT_DIRECTORY), str(PROCESSING_DIRECTORY)
+        # Ensure output directories exist before copying
+        PATH_MANAGER.ensure_output_directories()
+        
+        copy_mapped_attachments_new(
+            src_filename_map, PATH_MANAGER
         )
         copy_time = time.time() - copy_start
         logger.info(f"Attachment copying completed in {copy_time:.2f}s")
@@ -6010,7 +6016,7 @@ def setup_processing_paths(
         TypeError: If parameter types are incorrect
     """
     # Check if already initialized to prevent multiple calls
-    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER
+    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER, PATH_MANAGER
     
     if OUTPUT_DIRECTORY is not None:
         logger.warning("⚠️  setup_processing_paths() called multiple times - skipping re-initialization")
@@ -6112,6 +6118,19 @@ def setup_processing_paths(
     PHONE_LOOKUP_MANAGER = strict_call(
         PhoneLookupManager, phone_lookup_file, enable_phone_prompts
     )
+
+    # Initialize new PathManager system
+    logger.info("🔧 Initializing new PathManager system...")
+    try:
+        from core.path_manager import PathManager
+        # Use test mode if we're in a test environment
+        test_mode = 'pytest' in sys.modules or 'unittest' in sys.modules
+        PATH_MANAGER = PathManager(processing_dir, test_mode=test_mode)
+        PATH_MANAGER.ensure_output_directories()
+        logger.info("✅ PathManager initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize PathManager: {e}")
+        raise
 
     logger.info(f"Processing directory: {PROCESSING_DIRECTORY}")
     logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
