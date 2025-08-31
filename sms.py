@@ -1349,6 +1349,7 @@ def is_valid_image_src(src: str) -> bool:
         return False
 
     # Skip src that looks like HTML filenames (contains Google Voice patterns)
+    # But be more specific to avoid filtering out actual attachment filenames
     if any(
         pattern in src
         for pattern in [
@@ -1359,23 +1360,39 @@ def is_valid_image_src(src: str) -> bool:
             " - Missed - ",
         ]
     ):
-        logger.debug(f"Filtering out HTML filename as invalid image src: {src}")
-        return False
+        # Check if this is actually an attachment filename (has image extension or number suffix)
+        # Attachment filenames typically end with patterns like "-1-1", "-2-1", etc.
+        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+            logger.debug(f"Allowing attachment filename as valid image src: {src}")
+            return True
+        else:
+            logger.debug(f"Filtering out HTML filename as invalid image src: {src}")
+            return False
 
     # Skip src that contains timestamp patterns (likely HTML filenames)
+    # But allow if it's an attachment filename with timestamp
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", src):
-        logger.debug(f"Filtering out timestamp pattern as invalid image src: {src}")
-        return False
+        # Check if this is an attachment filename (has number suffix or image extension)
+        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+            logger.debug(f"Allowing attachment filename with timestamp as valid image src: {src}")
+            return True
+        else:
+            logger.debug(f"Filtering out timestamp pattern as invalid image src: {src}")
+            return False
 
     # Skip src that contains phone number patterns (likely HTML filenames)
+    # But allow if it's an attachment filename with phone number
     if re.search(r"\+\d+", src):
-        logger.debug(f"Filtering out phone number pattern as invalid image src: {src}")
-        return False
+        # Check if this is an attachment filename (has number suffix or image extension)
+        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+            logger.debug(f"Allowing attachment filename with phone number as valid image src: {src}")
+            return True
+        else:
+            logger.debug(f"Filtering out phone number pattern as invalid image src: {src}")
+            return False
 
     # Valid image src should be a filename with image extension or data URL
     if src.startswith("data:"):
-        return True
-
         return True
 
     # Allow relative paths that might be images
@@ -1408,6 +1425,7 @@ def is_valid_vcard_href(href: str) -> bool:
         return False
 
     # Skip href that looks like HTML filenames (contains Google Voice patterns)
+    # But be more specific to avoid filtering out actual vCard filenames
     if any(
         pattern in href
         for pattern in [
@@ -1418,13 +1436,24 @@ def is_valid_vcard_href(href: str) -> bool:
             " - Missed - ",
         ]
     ):
-        logger.debug(f"Filtering out HTML filename as invalid vCard href: {href}")
-        return False
+        # Check if this is actually a vCard filename (has .vcf extension or number suffix)
+        if href.endswith('.vcf') or re.search(r"-\d+-\d+$", href):
+            logger.debug(f"Allowing vCard filename as valid href: {href}")
+            return True
+        else:
+            logger.debug(f"Filtering out HTML filename as invalid vCard href: {href}")
+            return False
 
     # Skip href that contains timestamp patterns (likely HTML filenames)
+    # But allow if it's a vCard filename with timestamp
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", href):
-        logger.debug(f"Filtering out timestamp pattern as invalid vCard href: {href}")
-        return False
+        # Check if this is a vCard filename (has .vcf extension or number suffix)
+        if href.endswith('.vcf') or re.search(r"-\d+-\d+$", href):
+            logger.debug(f"Allowing vCard filename with timestamp as valid href: {href}")
+            return True
+        else:
+            logger.debug(f"Filtering out timestamp pattern as invalid vCard href: {href}")
+            return False
 
     # Valid vCard href should be a filename with .vcf extension or data URL
     if href.startswith("data:"):
