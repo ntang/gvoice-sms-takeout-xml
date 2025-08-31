@@ -2809,7 +2809,17 @@ def write_sms_messages(
                         message_text = "[Empty message]"
                     attachments = []
                     # Determine sender display for SMS
-                    sender_display = "Me" if sms_values.get("type") == 2 else alias
+                    if is_group and group_participants:
+                        # Use enhanced sender detection for group conversations
+                        sender_display = get_enhanced_sender_for_group(message, group_participants)
+                        # If enhanced detection returns a phone number, try to get the alias
+                        if sender_display != "Me" and phone_lookup_manager:
+                            sender_alias = phone_lookup_manager.get_alias(sender_display, None)
+                            if sender_alias:
+                                sender_display = sender_alias
+                    else:
+                        # Use existing logic for individual conversations
+                        sender_display = "Me" if sms_values.get("type") == 2 else alias
                     conversation_manager.write_message_with_content(
                         conversation_id,
                         message_text,
@@ -4817,6 +4827,65 @@ def get_message_type(message: BeautifulSoup) -> int:
     except Exception as e:
         logger.error(f"Failed to determine message type: {e}")
         return 1  # Default to received
+
+
+def get_enhanced_sender_for_group(message: BeautifulSoup, group_participants: List[str]) -> str:
+    """
+    Extract the actual sender from a message in a group conversation.
+    This function specifically handles the Google Voice HTML structure without
+    breaking existing functionality for individual conversations.
+    
+    Args:
+        message: Message element from HTML
+        group_participants: List of participant phone numbers in the group
+        
+    Returns:
+        str: Sender's phone number or "Me" if sent by user
+    """
+    try:
+        cite_element = message.cite
+        if not cite_element:
+            logger.debug("No cite element found, defaulting to 'Me'")
+            return "Me"  # Fallback
+        
+        # Check for "Me" message pattern: <abbr class="fn" title="">Me</abbr>
+        fn_abbr = cite_element.find("abbr", class_="fn")
+        if fn_abbr and fn_abbr.get_text().strip() == "Me":
+            logger.debug("Detected 'Me' message via abbr element")
+            return "Me"
+        
+        # Check for other participant pattern: <span class="fn">Name</span>
+        fn_span = cite_element.find("span", class_="fn")
+        if fn_span:
+            # Extract phone number from tel: link
+            tel_link = cite_element.find("a", class_="tel")
+            if tel_link:
+                href = tel_link.get("href", "")
+                if href.startswith("tel:"):
+                    phone_number = href[4:]  # Remove "tel:" prefix
+                    if phone_number in group_participants:
+                        logger.debug(f"Detected sender phone number: {phone_number}")
+                        return phone_number
+                    else:
+                        logger.debug(f"Phone number {phone_number} not in group participants: {group_participants}")
+        
+        # Additional fallback: check if there's a tel: link that matches group participants
+        tel_links = cite_element.find_all("a", class_="tel")
+        for tel_link in tel_links:
+            href = tel_link.get("href", "")
+            if href.startswith("tel:"):
+                phone_number = href[4:]
+                if phone_number in group_participants:
+                    logger.debug(f"Detected sender phone number via tel link: {phone_number}")
+                    return phone_number
+        
+        # Final fallback: use existing logic to maintain compatibility
+        logger.debug("Enhanced sender detection failed, using fallback logic")
+        return "Me"
+        
+    except Exception as e:
+        logger.debug(f"Enhanced sender detection failed: {e}")
+        return "Me"  # Fallback to maintain existing behavior
 
 
 def get_message_text(message: BeautifulSoup) -> str:
