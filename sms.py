@@ -89,12 +89,18 @@ def get_config_path() -> Optional[Path]:
     return Path.cwd() / "gvoice-config.txt"
 
 def load_config() -> dict:
-    """Load configuration from file or environment variables."""
+    """Load configuration from file or environment variables with schema validation."""
     config = {
         'default_processing_dir': os.environ.get('GVOICE_DEFAULT_DIR', '../gvoice-convert/'),
         'enable_path_validation': os.environ.get('GVOICE_ENABLE_VALIDATION', 'true').lower() == 'true',
         'enable_runtime_validation': os.environ.get('GVOICE_RUNTIME_VALIDATION', 'true').lower() == 'true',
         'validation_interval': int(os.environ.get('GVOICE_VALIDATION_INTERVAL', '10')),
+        'max_workers': int(os.environ.get('GVOICE_MAX_WORKERS', '16')),
+        'chunk_size': int(os.environ.get('GVOICE_CHUNK_SIZE', '1000')),
+        'memory_threshold': int(os.environ.get('GVOICE_MEMORY_THRESHOLD', '10000')),
+        'buffer_size': int(os.environ.get('GVOICE_BUFFER_SIZE', '32768')),
+        'cache_size': int(os.environ.get('GVOICE_CACHE_SIZE', '50000')),
+        'batch_size': int(os.environ.get('GVOICE_BATCH_SIZE', '1000')),
     }
     
     # Try to load from config file
@@ -108,6 +114,52 @@ def load_config() -> dict:
                         config[key.strip()] = value.strip()
         except Exception as e:
             logger.warning(f"Failed to load config file {config_path}: {e}")
+    
+    # Validate configuration using schema
+    try:
+        from core.app_config import validate_config_schema, validate_config_relationships, validate_config_paths
+        
+        # Schema validation
+        schema_errors = validate_config_schema(config)
+        if schema_errors:
+            logger.error("Configuration schema validation failed:")
+            for error in schema_errors:
+                logger.error(f"  - {error}")
+            logger.warning("Using default configuration values")
+            # Reset to defaults on validation failure
+            config = {
+                'default_processing_dir': '../gvoice-convert/',
+                'enable_path_validation': True,
+                'enable_runtime_validation': True,
+                'validation_interval': 10,
+                'max_workers': 16,
+                'chunk_size': 1000,
+                'memory_threshold': 10000,
+                'buffer_size': 32768,
+                'cache_size': 50000,
+                'batch_size': 1000,
+            }
+        
+        # Relationship validation
+        relationship_errors = validate_config_relationships(config)
+        if relationship_errors:
+            logger.warning("Configuration relationship validation warnings:")
+            for error in relationship_errors:
+                logger.warning(f"  - {error}")
+        
+        # Path validation
+        path_errors = validate_config_paths(config)
+        if path_errors:
+            logger.warning("Configuration path validation warnings:")
+            for error in path_errors:
+                logger.warning(f"  - {error}")
+                
+    except ImportError as e:
+        logger.warning(f"Could not import configuration validation: {e}")
+        logger.warning("Configuration validation disabled")
+    except Exception as e:
+        logger.warning(f"Configuration validation failed: {e}")
+        logger.warning("Configuration validation disabled")
     
     return config
 
@@ -754,6 +806,22 @@ def main():
         logger.info(f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
         logger.info(f"  Streaming parsing: {ENABLE_STREAMING_PARSING}")
         logger.info(f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB")
+        
+        # Initialize memory monitoring
+        if ENABLE_PERFORMANCE_MONITORING:
+            try:
+                from utils.memory_monitor import get_memory_monitor
+                memory_monitor = get_memory_monitor()
+                memory_monitor.take_snapshot("conversion_start", {
+                    "processing_dir": str(PROCESSING_DIRECTORY),
+                    "output_dir": str(OUTPUT_DIRECTORY),
+                    "max_workers": MAX_WORKERS,
+                    "chunk_size": CHUNK_SIZE_OPTIMAL
+                })
+                logger.info("✅ Memory monitoring initialized")
+            except Exception as e:
+                logger.warning(f"⚠️  Memory monitoring initialization failed: {e}")
+                logger.warning("Memory monitoring disabled")
 
         # Validate configuration
         validate_configuration()
@@ -900,6 +968,32 @@ def main():
             )
         else:
             logger.info("  Performance breakdown: Processing completed too quickly for accurate timing")
+        
+        # Memory monitoring summary
+        if ENABLE_PERFORMANCE_MONITORING:
+            try:
+                from utils.memory_monitor import get_memory_summary, generate_memory_recommendations
+                
+                memory_summary = get_memory_summary()
+                if "error" not in memory_summary:
+                    logger.info("Memory Usage Summary:")
+                    logger.info(f"  Current memory: {memory_summary['current_memory_mb']:.1f}MB")
+                    logger.info(f"  Peak memory: {memory_summary['peak_memory_mb']:.1f}MB (at {memory_summary['peak_memory_time']})")
+                    logger.info(f"  Average memory: {memory_summary['average_memory_mb']:.1f}MB")
+                    logger.info(f"  Open files: {memory_summary['open_files']}")
+                    logger.info(f"  Active threads: {memory_summary['threads']}")
+                    
+                    # Generate optimization recommendations
+                    recommendations = generate_memory_recommendations()
+                    if recommendations:
+                        logger.info("Memory Optimization Recommendations:")
+                        for rec in recommendations:
+                            logger.info(f"  • {rec}")
+                else:
+                    logger.warning(f"⚠️  Memory monitoring summary unavailable: {memory_summary['error']}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️  Memory monitoring summary failed: {e}")
 
         # Throughput metrics
         if "num_sms" in stats and stats["num_sms"] > 0 and elapsed_time > 0:
@@ -1899,6 +1993,17 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
         "num_voicemails": 0,
     }
     own_number = None
+    
+    # Memory monitoring for file processing
+    if ENABLE_PERFORMANCE_MONITORING:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("html_processing_start", {
+                "src_filename_map_size": len(src_filename_map),
+                "processing_mode": "sequential" if not ENABLE_BATCH_PROCESSING else "batch"
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for HTML processing start failed: {e}")
 
     # Get HTML files from the Calls subdirectory
     calls_directory = PROCESSING_DIRECTORY / "Calls"
@@ -2010,6 +2115,19 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
         f"Completed processing {filtered_files} files. "
         f"Final stats - SMS: {stats['num_sms']}, Images: {stats['num_img']}, vCards: {stats['num_vcf']}, Calls: {stats['num_calls']}, Voicemails: {stats['num_voicemails']}"
     )
+    
+    # Memory monitoring for file processing completion
+    if ENABLE_PERFORMANCE_MONITORING:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("html_processing_complete", {
+                "processed_files": filtered_files,
+                "final_stats": stats,
+                "processing_mode": "sequential" if not ENABLE_BATCH_PROCESSING else "batch"
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for HTML processing completion failed: {e}")
+    
     return stats
 
 
@@ -6154,6 +6272,19 @@ def process_html_files_parallel(
     logger.info(
         f"Using parallel processing for {total_files} files with {MAX_WORKERS} workers"
     )
+    
+    # Memory monitoring for parallel processing start
+    if ENABLE_PERFORMANCE_MONITORING:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("parallel_processing_start", {
+                "total_files": total_files,
+                "max_workers": MAX_WORKERS,
+                "chunk_size": CHUNK_SIZE_OPTIMAL,
+                "batch_size": batch_size
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for parallel processing start failed: {e}")
 
     # Split files into chunks for parallel processing - use generator for
     # memory efficiency
@@ -6197,6 +6328,18 @@ def process_html_files_parallel(
             except Exception as e:
                 logger.error(f"Failed to process chunk: {e}")
                 continue
+
+    # Memory monitoring for parallel processing completion
+    if ENABLE_PERFORMANCE_MONITORING:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("parallel_processing_complete", {
+                "total_files": total_files,
+                "final_stats": stats,
+                "chunks_processed": len(chunks)
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for parallel processing completion failed: {e}")
 
     return stats
 
