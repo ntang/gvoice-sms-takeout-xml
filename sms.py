@@ -185,6 +185,7 @@ DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
 DATE_FILTER_NEWER_THAN = None  # Filter out messages newer than this date
 FILTER_NUMBERS_WITHOUT_ALIASES = False  # Filter out numbers without aliases
 FILTER_NON_PHONE_NUMBERS = False  # Filter out non-phone numbers like shortcodes
+FULL_RUN = False  # Default: not in full-run mode
 
 # Thread safety locks
 GLOBAL_STATS_LOCK = threading.Lock()
@@ -878,7 +879,7 @@ def main():
                 )
 
                 # Ask user if they want to continue
-                if not args.full_run:
+                if not FULL_RUN:
                     logger.error(
                         "❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode"
                     )
