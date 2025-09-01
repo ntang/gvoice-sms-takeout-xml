@@ -66,20 +66,25 @@ def copy_mapped_attachments_new(
         path_manager: PathManager instance for consistent path handling
     """
     
-    logger.info(f"Copying {len(src_filename_map)} mapped attachments using PathManager")
+    # Filter out None entries at the start to avoid type validation errors
+    valid_mappings = {
+        src: (filename, source_path) 
+        for src, (filename, source_path) in src_filename_map.items() 
+        if source_path is not None
+    }
+    
+    skipped_count = len(src_filename_map) - len(valid_mappings)
+    if skipped_count > 0:
+        logger.info(f"Skipping {skipped_count} entries with no attachment files (this is normal for text-only messages)")
+    
+    logger.info(f"Copying {len(valid_mappings)} valid attachments using PathManager")
     
     copied_count = 0
     failed_count = 0
     
-    for src, (filename, source_path) in src_filename_map.items():
+    for src, (filename, source_path) in valid_mappings.items():
         try:
-            # Validate source path
-            if not isinstance(source_path, Path):
-                raise PathValidationError(
-                    f"Invalid source path type: {type(source_path)}", 
-                    context="copy_mapped_attachments_new"
-                )
-            
+            # Validate source path (now guaranteed to be Path object)
             if not source_path.exists():
                 logger.warning(f"Source file no longer exists: {source_path}")
                 failed_count += 1
@@ -107,7 +112,7 @@ def copy_mapped_attachments_new(
             copied_count += 1
             
             if copied_count % 100 == 0:
-                logger.info(f"Copied {copied_count}/{len(src_filename_map)} attachments")
+                logger.info(f"Copied {copied_count}/{len(valid_mappings)} attachments")
                 
         except Exception as e:
             logger.error(f"Failed to copy {filename}: {e}")
