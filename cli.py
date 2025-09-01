@@ -232,7 +232,7 @@ def validate_and_setup(config: AppConfig) -> bool:
 )
 @click.option(
     '--large-dataset/--no-large-dataset',
-    default=False,
+    default=True,
     help="Enable optimizations for datasets with 50,000+ messages"
 )
 @click.option(

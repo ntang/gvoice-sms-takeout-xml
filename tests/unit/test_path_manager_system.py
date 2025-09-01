@@ -453,6 +453,77 @@ class TestPathManagerIntegration(unittest.TestCase):
         # Verify all workers completed successfully
         self.assertEqual(len(results), 3)
         self.assertEqual(len(errors), 0)
+    
+    def test_enhanced_attachment_mapping_google_voice_patterns(self):
+        """Test enhanced attachment mapping for Google Voice export naming patterns."""
+        # Create test data that mimics the real Google Voice export structure
+        html_dir = self.processing_dir / "Calls"
+        
+        # Clear existing files to avoid conflicts
+        for existing_file in html_dir.glob("*"):
+            if existing_file.name != "conversation_0_0.html":  # Keep one for the test framework
+                if existing_file.is_file():
+                    existing_file.unlink()
+                elif existing_file.is_dir():
+                    shutil.rmtree(existing_file)
+        
+        # Create HTML file with src reference using contact name
+        html_content = """
+        <html>
+        <body>
+        <div><img src="Susan Nowak Tang - Text - 2024-10-20T14_50_55Z-6-1" alt="Image MMS Attachment" /></div>
+        <div><img src="John Doe - Text - 2024-02-09T15_30_51Z-12-1" alt="Image MMS Attachment" /></div>
+        <div><img src="Jane Smith - Placed - 2019-05-01T19_10_12Z" alt="Call Record" /></div>
+        </body>
+        </html>
+        """
+        test_html = html_dir / "test_conversation.html"
+        test_html.write_text(html_content)
+        
+        # Create actual attachment files with phone number naming (Google Voice style)
+        attachments = [
+            "+16462728914 - Text - 2024-10-20T14_50_55Z-6-1.jpg",
+            "John Doe - Text - 2024-02-09T15_30_51Z-12-.jpg",  # Note: missing "1" at end
+            "+15551234567 - Placed - 2019-05-01T19_10_12Z.html"
+        ]
+        
+        for att_name in attachments:
+            att_file = html_dir / att_name
+            att_file.write_text(f"fake attachment data for {att_name}")
+        
+        # Debug: Print what files we actually created
+        print(f"\nTest files created:")
+        for f in html_dir.glob("*"):
+            print(f"  {f.name}")
+        
+        # Test the enhanced attachment mapping
+        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        
+        # Debug: Print the mapping results
+        print(f"\nMapping results:")
+        for src, (filename, source_path) in mapping.items():
+            print(f"  {src} -> {filename}")
+        
+        # Verify the enhanced mapping worked
+        self.assertIn("Susan Nowak Tang - Text - 2024-10-20T14_50_55Z-6-1", mapping)
+        self.assertIn("John Doe - Text - 2024-02-09T15_30_51Z-12-1", mapping)
+        self.assertIn("Jane Smith - Placed - 2019-05-01T19_10_12Z", mapping)
+        
+        # Check that the correct attachments were mapped
+        susan_mapping = mapping["Susan Nowak Tang - Text - 2024-10-20T14_50_55Z-6-1"]
+        self.assertEqual(susan_mapping[0], "+16462728914 - Text - 2024-10-20T14_50_55Z-6-1.jpg")
+        
+        john_mapping = mapping["John Doe - Text - 2024-02-09T15_30_51Z-12-1"]
+        self.assertEqual(john_mapping[0], "John Doe - Text - 2024-02-09T15_30_51Z-12-.jpg")
+        
+        jane_mapping = mapping["Jane Smith - Placed - 2019-05-01T19_10_12Z"]
+        self.assertEqual(jane_mapping[0], "+15551234567 - Placed - 2019-05-01T19_10_12Z.html")
+        
+        # Verify source paths are correct
+        for src, (filename, source_path) in mapping.items():
+            if filename != "No attachment found":
+                self.assertIsInstance(source_path, Path)
+                self.assertTrue(source_path.exists())
 
 
 if __name__ == "__main__":

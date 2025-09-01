@@ -124,7 +124,7 @@ class AppConfig(BaseSettings):
     )
     
     large_dataset: bool = Field(
-        default=False,
+        default=True,
         description="Enable optimizations for datasets with 50,000+ messages"
     )
     

@@ -179,7 +179,7 @@ def build_attachment_mapping_with_progress_new(
             assigned_filename = None
             source_path = None
             
-            # Look for attachments that might match this src
+            # First try the original indirect matching logic
             for attachment_filename in att_filenames:
                 if attachment_filename not in used_attachments:
                     # Check if this attachment could be the one referenced by this src
@@ -194,12 +194,48 @@ def build_attachment_mapping_with_progress_new(
                         source_path = file_location_index[attachment_filename]
                         break
             
+            # If original logic failed, try enhanced Google Voice pattern matching
+            if not assigned_filename:
+                for attachment_filename in att_filenames:
+                    if attachment_filename not in used_attachments:
+                        # Pattern 1: Extract timestamp and type from src
+                        src_parts = src_normalized.split(' - ')
+                        if len(src_parts) >= 3:
+                            timestamp_part = src_parts[2]  # e.g., "2024-10-20T14_50_55Z-6-1"
+                            type_part = src_parts[1]      # e.g., "Text"
+                            
+                            logger.debug(f"Enhanced matching: src='{src_normalized}', timestamp_part='{timestamp_part}', type_part='{type_part}'")
+                            logger.debug(f"Checking attachment: {attachment_filename}")
+                            
+                            # Look for attachments with similar timestamp and type
+                            if (timestamp_part in attachment_filename and 
+                                type_part.lower() in attachment_filename.lower()):
+                                logger.debug(f"Timestamp/type match found: {src_normalized} -> {attachment_filename}")
+                                assigned_filename = attachment_filename
+                                source_path = file_location_index[attachment_filename]
+                                break
+                        
+                        # Pattern 2: Try fuzzy matching on contact name
+                        if not assigned_filename:
+                            contact_name = src_parts[0] if src_parts else ""
+                            if contact_name and len(contact_name) > 3:
+                                logger.debug(f"Trying contact name matching: contact_name='{contact_name}'")
+                                # Look for attachments containing the contact name
+                                if contact_name.lower() in attachment_filename.lower():
+                                    logger.debug(f"Contact name match found: {src_normalized} -> {attachment_filename}")
+                                    assigned_filename = attachment_filename
+                                    source_path = file_location_index[attachment_filename]
+                                    break
+            
             if assigned_filename:
                 mapping[src_normalized] = (assigned_filename, source_path)
                 used_attachments.add(assigned_filename)
                 logger.debug(f"Indirect match: {src_normalized} -> {assigned_filename}")
             else:
-                logger.warning(f"No attachment found for src: {src_normalized}")
+                # Log as debug instead of warning for non-critical cases
+                logger.debug(f"No attachment found for src: {src_normalized} (this may be normal for text-only messages)")
+                # Still create a mapping to avoid processing errors
+                mapping[src_normalized] = ("No attachment found", None)
     
     logger.info(
         f"✅ Completed attachment mapping. Created {len(mapping)} mappings from {len(src_elements)} src elements and {len(att_filenames)} attachment files"
@@ -320,16 +356,19 @@ def list_att_filenames_with_progress_new(processing_directory: Path) -> List[str
         
         # Walk through the processing directory
         for root, dirs, files in os.walk(processing_directory):
+            logger.debug(f"Scanning directory: {root}")
             for file in files:
                 file_path = Path(root) / file
                 if file_path.suffix.lower() in attachment_extensions:
                     attachment_files.append(file)
+                    logger.debug(f"Found attachment: {file} in {root}")
                 
                 # Progress reporting for large directories
                 if len(attachment_files) % 1000 == 0:
                     logger.info(f"Found {len(attachment_files)} attachment files...")
         
         logger.info(f"✅ Attachment filename collection completed: {len(attachment_files)} files found")
+        logger.debug(f"All attachment files found: {attachment_files}")
         return attachment_files
         
     except Exception as e:

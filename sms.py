@@ -3603,6 +3603,56 @@ def write_mms_messages(
         processed_count = 0
         skipped_count = 0
 
+        # EARLY GROUP CONVERSATION DETECTION - Do this before processing individual messages
+        is_group = False
+        group_participants = []
+        
+        try:
+            # First, check page-level participants for group conversation markers
+            if participants_raw:
+                participants, aliases = get_participant_phone_numbers_and_aliases(participants_raw)
+                if participants and len(participants) > 1:
+                    # This is likely a group conversation
+                    is_group = True
+                    group_participants = participants
+                    logger.info(f"Detected group conversation in MMS file: {file} with {len(participants)} participants")
+                    logger.debug(f"Group participants: {participants}")
+                    logger.debug(f"Group aliases: {aliases}")
+            
+            # If not detected from page participants, check HTML structure
+            if not is_group and soup is not None:
+                participants_div = soup.find("div", class_="participants")
+                if participants_div:
+                    raw_text = participants_div.get_text()
+                    if "Group conversation with:" in raw_text:
+                        is_group = True
+                        logger.info(f"Detected group conversation in MMS file: {file} via HTML structure")
+                        
+                        # Extract all participants from the group conversation
+                        cite_elements = participants_div.find_all("cite", class_="sender")
+                        if cite_elements:
+                            for cite in cite_elements:
+                                try:
+                                    phone, _ = extract_phone_and_alias_from_cite(cite)
+                                    if phone and phone not in group_participants:
+                                        group_participants.append(phone)
+                                except Exception as cite_error:
+                                    logger.debug(f"Failed to extract phone from cite element: {cite_error}")
+                                    continue
+                            
+                            if group_participants:
+                                logger.info(f"Extracted {len(group_participants)} participants from group conversation: {group_participants}")
+                            else:
+                                logger.warning("Failed to extract group participants from HTML structure")
+                                is_group = False
+                        else:
+                            logger.debug("No cite elements found in group conversation participants div")
+                            is_group = False
+        except Exception as group_error:
+            logger.error(f"Error during group conversation detection: {group_error}")
+            is_group = False
+            group_participants = []
+
         # Extract participant phone numbers and aliases
         (
             participants,
