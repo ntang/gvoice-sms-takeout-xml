@@ -123,6 +123,13 @@ class AppConfig(BaseSettings):
         description="Enable progress logging during processing"
     )
     
+    large_dataset: bool = Field(
+        default=False,
+        description="Enable optimizations for datasets with 50,000+ messages"
+    )
+    
+
+    
     # ====================================================================
     # VALIDATION SETTINGS
     # ====================================================================
@@ -301,10 +308,50 @@ class AppConfig(BaseSettings):
     @model_validator(mode='after')
     def validate_test_mode_conflicts(self):
         """Validate that test mode settings don't conflict."""
+        # Only modify values if there's an actual conflict
+        # This validator should not change default behavior
+        return self
+    
+    @model_validator(mode='after')
+    def validate_cli_conflicts(self):
+        """Validate that CLI options don't conflict with each other."""
+        errors = []
+        
+
+        
+        # Critical conflict: full-run + test-limit
+        # Detect if test_limit was explicitly set to a non-default value while full_run is True
+        if self.full_run and self.test_limit != 100:  # 100 is the default test_limit
+            errors.append(
+                "Conflicting options: --full-run and --test-limit cannot be used together.\n"
+                "  • --full-run means 'process all entries without test mode limitations'\n"
+                "  • --test-limit means 'limit processing to N entries in test mode'\n"
+                "  • These are mutually exclusive concepts\n"
+                "  • Use --full-run to process all entries, or use --test-limit without --full-run for test mode"
+            )
+        
+        # Critical conflict: full-run + test-mode
+        # Detect if test_mode was explicitly set to True while full_run is True
         if self.full_run and self.test_mode:
-            # Full run overrides test mode
-            self.test_mode = False
-            self.test_limit = 0
+            errors.append(
+                "Conflicting options: --full-run and --test-mode cannot be used together.\n"
+                "  • --full-run means 'process all entries without test mode limitations'\n"
+                "  • --test-mode means 'enable testing mode with limited processing'\n"
+                "  • These are mutually exclusive concepts\n"
+                "  • Use --full-run to process all entries, or use --test-mode without --full-run for test mode"
+            )
+        
+        # Critical conflict: verbose + debug
+        if self.verbose and self.debug:
+            errors.append(
+                "Conflicting options: --verbose and --debug cannot be used together.\n"
+                "  • --verbose sets logging to INFO level\n"
+                "  • --debug sets logging to DEBUG level (includes verbose)\n"
+                "  • Use --debug for maximum detail, or --verbose for moderate detail"
+            )
+        
+        if errors:
+            raise ValueError("\n\n".join(errors))
         
         return self
     
@@ -341,7 +388,7 @@ class AppConfig(BaseSettings):
     def effective_test_limit(self) -> int:
         """Get the effective test limit."""
         if self.full_run:
-            return 0
+            return 10000  # Maximum allowed value for full run mode
         return self.test_limit
     
     # ====================================================================
