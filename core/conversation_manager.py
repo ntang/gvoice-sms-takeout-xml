@@ -79,7 +79,7 @@ class ConversationManager:
         buffer_size: int = 8192,
         batch_size: int = 1000,
         large_dataset: bool = False,
-        output_format: str = "xml",
+        output_format: str = "html",
     ):
         # Validate parameters
         if not isinstance(output_dir, Path):

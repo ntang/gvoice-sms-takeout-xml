@@ -6052,7 +6052,7 @@ def setup_processing_paths(
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-    output_format: str = "xml",
+            output_format: str = "html",
 ) -> None:
     """
     Set up all file paths based on the specified processing directory.
