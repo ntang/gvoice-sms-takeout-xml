@@ -6047,7 +6047,7 @@ def create_attachment_backup(original_path: Path, backup_dir: Path) -> Optional[
 
 def setup_processing_paths(
     processing_dir: Path,
-    enable_phone_prompts: bool = True,
+            enable_phone_prompts: bool = False,
     buffer_size: int = 8192,
     batch_size: int = 1000,
     cache_size: int = 25000,
