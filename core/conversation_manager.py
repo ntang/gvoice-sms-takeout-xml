@@ -195,11 +195,14 @@ class ConversationManager:
                 except (AttributeError, NameError, ImportError):
                     pass
 
-                # Get alias for the phone number
+                # Check if contact is filtered
                 try:
                     from sms import PHONE_LOOKUP_MANAGER
 
                     if PHONE_LOOKUP_MANAGER:
+                        # Check if contact should be filtered out
+                        if PHONE_LOOKUP_MANAGER.is_filtered(phone_number):
+                            return "filtered"
                         alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, None)
                     else:
                         alias = phone_number

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class PhoneLookupManager:
     """Manages phone number to alias mappings with user interaction."""
 
-    def __init__(self, lookup_file: Path, enable_prompts: bool = True):
+    def __init__(self, lookup_file: Path, enable_prompts: bool = True, skip_filtered_contacts: bool = True):
         # Validate parameters
         if not isinstance(lookup_file, Path):
             raise TypeError(
@@ -28,10 +28,16 @@ class PhoneLookupManager:
             raise TypeError(
                 f"enable_prompts must be a boolean, got {type(enable_prompts).__name__}"
             )
+        if not isinstance(skip_filtered_contacts, bool):
+            raise TypeError(
+                f"skip_filtered_contacts must be a boolean, got {type(skip_filtered_contacts).__name__}"
+            )
 
         self.lookup_file = lookup_file
         self.enable_prompts = enable_prompts
+        self.skip_filtered_contacts = skip_filtered_contacts
         self.phone_aliases = {}  # Maps phone numbers to aliases
+        self.contact_filters = {}  # Maps phone numbers to filter info
 
         # Thread safety: Add lock for file operations
         self._file_lock = threading.Lock()
@@ -53,22 +59,44 @@ class PhoneLookupManager:
                             line = line.strip()
                             if line and not line.startswith("#"):
                                 try:
-                                    phone, alias = line.split("|", 1)
-                                    phone = phone.strip()
-                                    alias = alias.strip()
-
-                                    # Check for exclusion patterns
-                                    if alias.startswith("EXCLUDE:"):
-                                        # This number should be excluded from processing
-                                        self.phone_aliases[
-                                            phone
-                                        ] = f"EXCLUDE:{alias[8:]}"
+                                    parts = line.split("|")
+                                    phone = parts[0].strip()
+                                    alias = parts[1].strip() if len(parts) > 1 else phone
+                                    
+                                    # Check for filter information in third column
+                                    filter_info = None
+                                    if len(parts) > 2:
+                                        filter_part = parts[2].strip()
+                                        if filter_part.startswith("EXCLUDE:"):
+                                            # Legacy exclusion format - convert to new filter format
+                                            filter_info = f"filter=excluded:{filter_part[8:]}"
+                                            self.phone_aliases[phone] = alias
+                                        elif filter_part.startswith("filter="):
+                                            # New filter format
+                                            filter_info = filter_part
+                                            self.phone_aliases[phone] = alias
+                                        elif filter_part == "filter":
+                                            # Simple filter without type
+                                            filter_info = "filter"
+                                            self.phone_aliases[phone] = alias
+                                        else:
+                                            # Unknown third column, treat as part of alias
+                                            alias = f"{alias}|{filter_part}"
+                                            self.phone_aliases[phone] = alias
+                                    else:
+                                        # No filter, just alias
+                                        self.phone_aliases[phone] = alias
+                                    
+                                    # Store filter info if present
+                                    if filter_info:
+                                        self.contact_filters[phone] = filter_info
                                         logger.debug(
-                                            f"Loaded exclusion for {phone}: {alias}"
+                                            f"Loaded contact {phone} with filter: {filter_info}"
                                         )
                                     else:
-                                        # Normal alias
-                                        self.phone_aliases[phone] = alias
+                                        logger.debug(
+                                            f"Loaded contact {phone} without filter"
+                                        )
 
                                 except ValueError:
                                     # Skip malformed lines
@@ -83,12 +111,11 @@ class PhoneLookupManager:
                         self.lookup_file.parent.mkdir(parents=True, exist_ok=True)
                         with open(self.lookup_file, "w", encoding="utf8") as f:
                             f.write("# Phone number lookup file\n")
-                            f.write("# Format: phone_number|alias\n")
+                            f.write("# Format: phone_number|alias[|filter]\n")
                             f.write("# Lines starting with # are comments\n")
-                            f.write(
-                                "# To exclude a number, use: phone_number|EXCLUDE:reason\n"
-                            )
-                            f.write("# Example: +1234567890|EXCLUDE:spam\n")
+                            f.write("# Filter examples: filter, filter=spam, filter=blocked\n")
+                            f.write("# Legacy format: phone_number|EXCLUDE:reason (auto-converted)\n")
+                            f.write("# Example: +1234567890|John Doe|filter=spam\n")
                         logger.info(f"Created new phone lookup file: {self.lookup_file}")
                     except Exception as create_error:
                         logger.warning(f"Could not create phone lookup file: {create_error}")
@@ -106,10 +133,15 @@ class PhoneLookupManager:
                 
                 with open(self.lookup_file, "w", encoding="utf8") as f:
                     f.write("# Phone number lookup file\n")
-                    f.write("# Format: phone_number|alias\n")
+                    f.write("# Format: phone_number|alias[|filter]\n")
                     f.write("# Lines starting with # are comments\n")
+                    f.write("# Filter examples: filter, filter=spam, filter=blocked\n")
+                    f.write("# Legacy EXCLUDE: format is automatically converted\n")
                     for phone, alias in sorted(self.phone_aliases.items()):
-                        f.write(f"{phone}|{alias}\n")
+                        if phone in self.contact_filters:
+                            f.write(f"{phone}|{alias}|{self.contact_filters[phone]}\n")
+                        else:
+                            f.write(f"{phone}|{alias}\n")
                 logger.info(
                     f"Saved {len(self.phone_aliases)} phone number aliases to {self.lookup_file}"
                 )
@@ -281,22 +313,42 @@ class PhoneLookupManager:
             alias = input("Alias: ").strip()
 
             if alias:
-                # Sanitize the alias
-                sanitized_alias = self.sanitize_alias(alias)
-                if sanitized_alias != alias:
-                    print(f"Alias sanitized to: {sanitized_alias}")
+                # Handle filter commands
+                if alias.lower() == "filter":
+                    # User wants to filter this contact
+                    self.add_filter(phone_number, "filter")
+                    return "Unknown"
+                elif alias.lower().startswith("filter="):
+                    # User wants to filter with specific type
+                    try:
+                        filter_type = alias.split("=", 1)[1].strip()
+                        if filter_type:  # Ensure we have a valid filter type
+                            self.add_filter(phone_number, filter_type)
+                            return "Unknown"
+                        else:
+                            self.add_filter(phone_number, "filter")
+                            return "Unknown"
+                    except IndexError:
+                        self.add_filter(phone_number, "filter")
+                        return "Unknown"
+                else:
+                    # Normal alias input
+                    # Sanitize the alias
+                    sanitized_alias = self.sanitize_alias(alias)
+                    if sanitized_alias != alias:
+                        print(f"Alias sanitized to: {sanitized_alias}")
 
-                # Store the mapping
-                self.phone_aliases[phone_number] = sanitized_alias
+                    # Store the mapping
+                    self.phone_aliases[phone_number] = sanitized_alias
 
-                # CRITICAL: Save immediately to disk to prevent data loss
-                # Don't use batched saving for user-specified aliases
-                self.save_aliases()
-                logger.info(
-                    f"Immediately saved alias '{sanitized_alias}' for {phone_number} to {self.lookup_file}"
-                )
+                    # CRITICAL: Save immediately to disk to prevent data loss
+                    # Don't use batched saving for user-specified aliases
+                    self.save_aliases()
+                    logger.info(
+                        f"Immediately saved alias '{sanitized_alias}' for {phone_number} to {self.lookup_file}"
+                    )
 
-                return sanitized_alias
+                    return sanitized_alias
             else:
                 # User chose to use the phone number
                 return phone_number
@@ -324,8 +376,18 @@ class PhoneLookupManager:
             f"Immediately saved alias '{sanitized_alias}' for phone number {phone_number} to {self.lookup_file}"
         )
 
+    def is_filtered(self, phone_number: str) -> bool:
+        """Check if a phone number is filtered out."""
+        if not self.skip_filtered_contacts:
+            return False
+        return phone_number in self.contact_filters
+    
+    def get_filter_info(self, phone_number: str) -> Optional[str]:
+        """Get the filter information for a phone number, if any."""
+        return self.contact_filters.get(phone_number)
+    
     def is_excluded(self, phone_number: str) -> bool:
-        """Check if a phone number is excluded from processing."""
+        """Check if a phone number is excluded from processing (legacy method)."""
         if phone_number in self.phone_aliases:
             alias = self.phone_aliases[phone_number]
             return alias.startswith("EXCLUDE:")
@@ -346,8 +408,23 @@ class PhoneLookupManager:
             return not alias.startswith("EXCLUDE:")
         return False
 
+    def add_filter(self, phone_number: str, filter_type: str = "filter"):
+        """Add a phone number to the filter list."""
+        if filter_type == "filter":
+            filter_info = "filter"
+        else:
+            filter_info = f"filter={filter_type}"
+        
+        self.contact_filters[phone_number] = filter_info
+        
+        # CRITICAL: Save immediately to disk to prevent data loss
+        self.save_aliases()
+        logger.info(
+            f"Immediately saved filter '{filter_info}' for {phone_number} to {self.lookup_file}"
+        )
+    
     def add_exclusion(self, phone_number: str, reason: str = "excluded"):
-        """Add a phone number to the exclusion list."""
+        """Add a phone number to the exclusion list (legacy method)."""
         exclusion_alias = f"EXCLUDE:{reason}"
         self.phone_aliases[phone_number] = exclusion_alias
 

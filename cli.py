@@ -114,6 +114,9 @@ def set_global_variables_for_compatibility(config: AppConfig) -> None:
     # Set phone prompts variable
     sms.ENABLE_PHONE_PROMPTS = config.phone_prompts
     
+    # Set skip filtered contacts variable
+    sms.SKIP_FILTERED_CONTACTS = config.skip_filtered_contacts
+    
     # Set output format variable
     sms.OUTPUT_FORMAT = config.output_format
     
@@ -330,6 +333,11 @@ def validate_and_setup(config: AppConfig) -> bool:
     '--phone-prompts/--no-phone-prompts',
     default=False,
     help="Enable interactive phone number alias prompts"
+)
+@click.option(
+    '--skip-filtered-contacts/--no-skip-filtered-contacts',
+    default=True,
+    help="Skip processing filtered contacts by default (except in group messages)"
 )
 @click.pass_context
 def cli(ctx, **kwargs):

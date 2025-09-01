@@ -128,6 +128,11 @@ class AppConfig(BaseSettings):
         description="Enable optimizations for datasets with 50,000+ messages"
     )
     
+    skip_filtered_contacts: bool = Field(
+        default=True,
+        description="Skip processing filtered contacts by default (except in group messages)"
+    )
+    
 
     
     # ====================================================================

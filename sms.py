@@ -182,6 +182,9 @@ PATH_MANAGER = None
 # Global limited file list for test mode
 LIMITED_HTML_FILES = None
 
+# Global skip filtered contacts setting
+SKIP_FILTERED_CONTACTS = True
+
 # Global filtering configuration
 INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
 DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
@@ -2860,6 +2863,14 @@ def write_sms_messages(
                         skipped_count += 1
                         continue
 
+                # Check if contact is filtered (skip unless it's a group message)
+                if phone_lookup_manager.is_filtered(str(phone_number)) and not is_group:
+                    logger.debug(
+                        f"Skipping message from {phone_number} - contact is filtered"
+                    )
+                    skipped_count += 1
+                    continue
+
                 # Get alias for the phone number, with filename-based fallback
                 alias = phone_lookup_manager.get_alias(str(phone_number), None)
 
@@ -3957,6 +3968,13 @@ def write_mms_messages(
                 # needed
                 final_aliases = []
                 for participant_idx, phone in enumerate(participants):
+                    # Check if contact is filtered (skip unless it's a group message)
+                    if phone_lookup_manager.is_filtered(phone) and not is_group:
+                        logger.debug(
+                            f"Skipping MMS participant {phone} - contact is filtered"
+                        )
+                        continue
+                    
                     if (
                         participant_idx < len(participant_aliases)
                         and participant_aliases[participant_idx]
@@ -6171,7 +6189,7 @@ def setup_processing_paths(
     )
     phone_lookup_file = PROCESSING_DIRECTORY / "phone_lookup.txt"
     PHONE_LOOKUP_MANAGER = strict_call(
-        PhoneLookupManager, phone_lookup_file, enable_phone_prompts
+        PhoneLookupManager, phone_lookup_file, enable_phone_prompts, SKIP_FILTERED_CONTACTS
     )
 
     # Initialize new PathManager system
