@@ -179,6 +179,9 @@ PHONE_LOOKUP_MANAGER = None
 # Global path manager for consistent path handling
 PATH_MANAGER = None
 
+# Global limited file list for test mode
+LIMITED_HTML_FILES = None
+
 # Global filtering configuration
 INCLUDE_SERVICE_CODES = False  # Default: filter out service codes
 DATE_FILTER_OLDER_THAN = None  # Filter out messages older than this date
@@ -775,6 +778,30 @@ def validate_configuration():
     logger.info("Configuration validation passed")
 
 
+def get_limited_file_list(limit: int) -> List[Path]:
+    """
+    Get a limited list of HTML files for test mode.
+    
+    Args:
+        limit: Maximum number of files to return
+        
+    Returns:
+        List of Path objects for HTML files, limited to the specified count
+    """
+    html_files = []
+    for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
+        for file in files:
+            if file.endswith(".html"):
+                html_files.append(Path(root) / file)
+                if len(html_files) >= limit:
+                    break
+        if len(html_files) >= limit:
+            break
+    
+    logger.info(f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
+    return html_files
+
+
 def main():
     """Main conversion function with comprehensive progress logging and performance optimization."""
     start_time = time.time()
@@ -785,6 +812,17 @@ def main():
         logger.info("=" * 60)
         logger.info(f"Processing directory: {PROCESSING_DIRECTORY}")
         logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
+        
+        # Test mode indicator
+        if TEST_MODE:
+            logger.info(f"🧪 TEST MODE ENABLED - All operations limited to {TEST_LIMIT} files")
+            # Create global limited file list for test mode
+            global LIMITED_HTML_FILES
+            LIMITED_HTML_FILES = get_limited_file_list(TEST_LIMIT)
+            logger.info(f"🧪 TEST MODE: Created global limited file list with {len(LIMITED_HTML_FILES)} files")
+        else:
+            logger.info("🚀 FULL RUN MODE - Processing all files")
+            LIMITED_HTML_FILES = None
 
         # Critical validation: ensure global variables are properly initialized
         if OUTPUT_DIRECTORY is None:
@@ -834,37 +872,52 @@ def main():
             # Quick check: scan a few files to see if any fall within the date
             # range
             logger.info("📅 Scanning files to validate date range coverage...")
-            sample_files = []
-            for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
-                for file in files:
-                    if file.endswith(".html") and len(sample_files) < 10:
-                        sample_files.append(os.path.join(root, file))
-                if len(sample_files) >= 10:
-                    break
+            
+            if TEST_MODE:
+                # In test mode, use the limited file list for date validation
+                sample_files = get_limited_file_list(min(10, TEST_LIMIT))
+                sample_files = [str(f) for f in sample_files]
+                logger.info(f"🧪 TEST MODE: Date validation using limited file list ({len(sample_files)} files)")
+                
+                # In test mode, be more lenient with date validation
+                logger.info("🧪 TEST MODE: Skipping strict date validation for test purposes")
+                files_in_range = 1  # Assume files are valid in test mode
+            else:
+                # In full mode, scan up to 10 files for date validation
+                sample_files = []
+                for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
+                    for file in files:
+                        if file.endswith(".html") and len(sample_files) < 10:
+                            sample_files.append(os.path.join(root, file))
+                        if len(sample_files) >= 10:
+                            break
+                    if len(sample_files) >= 10:
+                        break
 
             # Check if any sample files fall within the date range
             files_in_range = 0
-            for file_path in sample_files:
-                try:
-                    # Extract timestamp from filename (common pattern:
-                    # YYYY-MM-DDTHH_MM_SSZ)
-                    filename = os.path.basename(file_path)
-                    if "T" in filename and "Z.html" in filename:
-                        # Extract the timestamp part
-                        timestamp_str = (
-                            filename.split("T")[0]
-                            + "T"
-                            + filename.split("T")[1].split("Z")[0]
-                        )
-                        timestamp_str = timestamp_str.replace("_", ":")
-                        file_date = dateutil.parser.parse(timestamp_str)
+            if not TEST_MODE:  # Skip date validation loop in test mode
+                for file_path in sample_files:
+                    try:
+                        # Extract timestamp from filename (common pattern:
+                        # YYYY-MM-DDTHH_MM_SSZ)
+                        filename = os.path.basename(file_path)
+                        if "T" in filename and "Z.html" in filename:
+                            # Extract the timestamp part
+                            timestamp_str = (
+                                filename.split("T")[0]
+                                + "T"
+                                + filename.split("T")[1].split("Z")[0]
+                            )
+                            timestamp_str = timestamp_str.replace("_", ":")
+                            file_date = dateutil.parser.parse(timestamp_str)
 
-                        # Check if file falls within our valid range
-                        if DATE_FILTER_OLDER_THAN < file_date < DATE_FILTER_NEWER_THAN:
-                            files_in_range += 1
-                except Exception:
-                    # Skip files we can't parse
-                    continue
+                            # Check if file falls within our valid range
+                            if DATE_FILTER_OLDER_THAN < file_date < DATE_FILTER_NEWER_THAN:
+                                files_in_range += 1
+                    except Exception:
+                        # Skip files we can't parse
+                        continue
 
             if files_in_range == 0:
                 logger.warning(
@@ -878,13 +931,17 @@ def main():
                     "   Consider adjusting your date filters or use --full-run to process all files"
                 )
 
-                # Ask user if they want to continue
-                if not FULL_RUN:
-                    logger.error(
-                        "❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode"
-                    )
-                    logger.error("   Use --full-run to override this safety check")
-                    sys.exit(1)
+                # In test mode, bypass the date validation failure
+                if TEST_MODE:
+                    logger.info("🧪 TEST MODE: Bypassing date validation failure for test purposes")
+                else:
+                    # Ask user if they want to continue
+                    if not FULL_RUN:
+                        logger.error(
+                            "❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode"
+                        )
+                        logger.error("   Use --full-run to override this safety check")
+                        sys.exit(1)
 
         # Build attachment mapping
         logger.info("Building attachment mapping...")
@@ -893,16 +950,14 @@ def main():
         # In test mode, limit attachment mapping to only process files that will be used
         if TEST_MODE:
             logger.info(f"🧪 TEST MODE: Limiting attachment mapping to support {TEST_LIMIT} HTML files")
-            # Get a sample of HTML files to determine which attachments are needed
-            sample_html_files = []
-            for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
-                for file in files:
-                    if file.endswith(".html"):
-                        sample_html_files.append(os.path.join(root, file))
-                        if len(sample_html_files) >= TEST_LIMIT:
-                            break
-                if len(sample_html_files) >= TEST_LIMIT:
-                    break
+            # Use the global limited file list for attachment mapping
+            if LIMITED_HTML_FILES:
+                sample_html_files = [str(f) for f in LIMITED_HTML_FILES]
+                logger.info(f"🧪 TEST MODE: Using global limited file list for attachment mapping")
+            else:
+                # Fallback to creating a new limited list
+                sample_html_files = get_limited_file_list(TEST_LIMIT)
+                sample_html_files = [str(f) for f in sample_html_files]
             
             # Only process attachments that are referenced by the sample HTML files
             src_filename_map = build_attachment_mapping_with_progress_new(
@@ -2046,13 +2101,21 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
         logger.error(f"Calls directory not found: {calls_directory}")
         return stats
 
-    # Get HTML files as generator for memory efficiency
-    html_files_gen = calls_directory.rglob("*.html")
+    # In test mode, use the global limited file list
+    if TEST_MODE and LIMITED_HTML_FILES:
+        logger.info(f"🧪 TEST MODE: Using global limited file list with {len(LIMITED_HTML_FILES)} files")
+        # Filter to only include files from the Calls directory
+        html_files_list = [f for f in LIMITED_HTML_FILES if "Calls" in str(f)]
+        total_files = len(html_files_list)
+        logger.info(f"🧪 TEST MODE: Found {total_files} files in Calls directory from limited list")
+    else:
+        # Get HTML files as generator for memory efficiency
+        html_files_gen = calls_directory.rglob("*.html")
 
-    # Count files first for progress tracking (this is the only time we need
-    # the full list)
-    html_files_list = list(html_files_gen)
-    total_files = len(html_files_list)
+        # Count files first for progress tracking (this is the only time we need
+        # the full list)
+        html_files_list = list(html_files_gen)
+        total_files = len(html_files_list)
 
     if total_files == 0:
         logger.error(f"No HTML files found in Calls directory: {calls_directory}")
@@ -2065,14 +2128,6 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
     logger.info(
         f"Found {total_files} HTML files, processing all types including calls and voicemails"
     )
-
-    # Apply test mode limit if enabled
-    if TEST_MODE and filtered_files > TEST_LIMIT:
-        logger.info(
-            f"🧪 TEST MODE: Limiting processing to first {TEST_LIMIT} files out of {filtered_files} total"
-        )
-        all_files = all_files[:TEST_LIMIT]
-        filtered_files = TEST_LIMIT
 
     # Use batch processing for large datasets
     if filtered_files > LARGE_DATASET_THRESHOLD and ENABLE_BATCH_PROCESSING:
