@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import dateutil.parser
 
 # Import our new configuration system
 from core.unified_config import AppConfig
@@ -107,8 +108,8 @@ def set_global_variables_for_compatibility(config: AppConfig) -> None:
     sms.FILTER_NON_PHONE_NUMBERS = config.filter_non_phone_numbers
     
     # Set date filter variables
-    sms.DATE_FILTER_OLDER_THAN = config.older_than
-    sms.DATE_FILTER_NEWER_THAN = config.newer_than
+    sms.DATE_FILTER_OLDER_THAN = dateutil.parser.parse(config.older_than) if config.older_than else None
+    sms.DATE_FILTER_NEWER_THAN = dateutil.parser.parse(config.newer_than) if config.newer_than else None
     
     # Set phone prompts variable
     sms.ENABLE_PHONE_PROMPTS = config.phone_prompts
@@ -286,7 +287,7 @@ def validate_and_setup(config: AppConfig) -> bool:
 )
 @click.option(
     '--test-mode/--no-test-mode',
-    default=True,
+    default=False,
     help="Enable testing mode with limited processing (default: 100 entries)"
 )
 @click.option(
