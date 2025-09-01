@@ -1059,6 +1059,27 @@ def main():
             except Exception as e:
                 logger.warning(f"⚠️  Memory monitoring summary failed: {e}")
 
+        # Export Health Assessment
+        try:
+            logger.info("🔍 Export Health Assessment:")
+            export_health_summary = generate_export_health_summary()
+            
+            if "error" not in export_health_summary:
+                logger.info(f"  Overall Status: {export_health_summary['overall_status']}")
+                logger.info(f"  Files Analyzed: {export_health_summary['total_files']}")
+                logger.info(f"  Low Message Count Files: {export_health_summary['low_message_files']}")
+                logger.info(f"  Suspicious Files: {export_health_summary['suspicious_files']}")
+                
+                if export_health_summary['recommendations']:
+                    logger.info("  Recommendations:")
+                    for rec in export_health_summary['recommendations']:
+                        logger.info(f"    • {rec}")
+            else:
+                logger.warning(f"⚠️  Export health assessment unavailable: {export_health_summary['error']}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Export health assessment failed: {e}")
+
         # Throughput metrics
         if "num_sms" in stats and stats["num_sms"] > 0 and elapsed_time > 0:
             sms_per_second = stats["num_sms"] / elapsed_time
@@ -2227,6 +2248,403 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
 # process_single_html_file function moved to file_processor module
 
 
+def analyze_file_completeness(filename: str, message_count: int, file_size_bytes: int) -> Dict[str, Any]:
+    """
+    Analyze if a file appears complete or truncated based on message count and file size.
+    
+    Args:
+        filename: HTML filename being analyzed
+        message_count: Number of messages found in the file
+        file_size_bytes: File size in bytes
+        
+    Returns:
+        Dictionary containing diagnostic information about file completeness
+    """
+    file_size_kb = file_size_bytes / 1024
+    
+    # Calculate expected file size range based on message count
+    # Base size: ~1.5-2.0 KB per message for typical Google Voice HTML structure
+    base_size_per_message = 1.75  # KB per message
+    variance = 0.25  # ±0.25 KB variance
+    
+    expected_min = max(1.0, (message_count * base_size_per_message) - variance)
+    expected_max = (message_count * base_size_per_message) + variance
+    expected_size_range = f"{expected_min:.1f}-{expected_max:.1f}"
+    
+    # Determine if file size is suspicious
+    size_suspicious = not (expected_min <= file_size_kb <= expected_max)
+    
+    # Additional analysis based on filename patterns
+    filename_analysis = {
+        "contains_timestamp": "T" in filename and "Z" in filename,
+        "contains_contact_name": " - " in filename,
+        "file_type": "Text" if " - Text -" in filename else "Other"
+    }
+    
+    # Assess risk level based on multiple factors
+    risk_factors = []
+    if size_suspicious:
+        risk_factors.append("suspicious_file_size")
+    if message_count == 1 and filename_analysis["contains_timestamp"]:
+        risk_factors.append("single_message_with_timestamp")
+    if file_size_kb < 1.0:
+        risk_factors.append("extremely_small_file")
+    if file_size_kb > 10.0 and message_count <= 2:
+        risk_factors.append("large_file_few_messages")
+    
+    risk_level = "LOW"
+    if len(risk_factors) >= 2:
+        risk_level = "HIGH"
+    elif len(risk_factors) == 1:
+        risk_level = "MEDIUM"
+    
+    return {
+        "filename": filename,
+        "message_count": message_count,
+        "file_size_kb": file_size_kb,
+        "expected_size_range": expected_size_range,
+        "size_suspicious": size_suspicious,
+        "filename_analysis": filename_analysis,
+        "risk_factors": risk_factors,
+        "risk_level": risk_level,
+        "recommendation": _get_file_recommendation(risk_level, risk_factors)
+    }
+
+
+def _get_file_recommendation(risk_level: str, risk_factors: List[str]) -> str:
+    """Generate recommendation based on risk level and factors."""
+    if risk_level == "HIGH":
+        return "Investigate immediately - likely missing data or corruption"
+    elif risk_level == "MEDIUM":
+        return "Monitor closely - may indicate partial export"
+    else:
+        return "Appears normal - single message likely legitimate"
+
+
+def analyze_temporal_patterns(files: List[str]) -> Dict[str, Any]:
+    """
+    Analyze temporal patterns across conversation files to detect potential gaps.
+    
+    Args:
+        files: List of HTML filenames to analyze
+        
+    Returns:
+        Dictionary containing temporal pattern analysis
+    """
+    if not files:
+        return {"error": "No files provided for analysis"}
+    
+    # Extract timestamps from filenames
+    timestamp_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z)')
+    file_timestamps = []
+    
+    for filename in files:
+        match = timestamp_pattern.search(filename)
+        if match:
+            timestamp_str = match.group(1).replace('_', ':')
+            try:
+                timestamp = dateutil.parser.parse(timestamp_str)
+                file_timestamps.append({
+                    'filename': filename,
+                    'timestamp': timestamp,
+                    'timestamp_str': timestamp_str
+                })
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from {filename}: {e}")
+    
+    if not file_timestamps:
+        return {"error": "No valid timestamps found in filenames"}
+    
+    # Sort by timestamp
+    file_timestamps.sort(key=lambda x: x['timestamp'])
+    
+    # Analyze gaps between consecutive files
+    gaps = []
+    for i in range(1, len(file_timestamps)):
+        prev_time = file_timestamps[i-1]['timestamp']
+        curr_time = file_timestamps[i]['timestamp']
+        time_diff = curr_time - prev_time
+        
+        # Convert to hours for analysis
+        hours_diff = time_diff.total_seconds() / 3600
+        
+        if hours_diff > 24:  # Gap larger than 1 day
+            gaps.append({
+                'from_file': file_timestamps[i-1]['filename'],
+                'to_file': file_timestamps[i]['filename'],
+                'from_time': prev_time.isoformat(),
+                'to_time': curr_time.isoformat(),
+                'gap_hours': hours_diff,
+                'gap_days': hours_diff / 24,
+                'suspicious': hours_diff > 168  # More than 1 week gap
+            })
+    
+    # Calculate statistics
+    total_files = len(file_timestamps)
+    total_gaps = len(gaps)
+    suspicious_gaps = len([g for g in gaps if g['suspicious']])
+    
+    # Determine overall export health
+    if suspicious_gaps > 0:
+        health_status = "SUSPICIOUS - Large gaps detected"
+    elif total_gaps > total_files * 0.3:  # More than 30% of files have gaps
+        health_status = "PARTIAL - Many gaps detected"
+    else:
+        health_status = "HEALTHY - Minimal gaps detected"
+    
+    return {
+        "total_files_analyzed": total_files,
+        "time_span": {
+            "start": file_timestamps[0]['timestamp'].isoformat(),
+            "end": file_timestamps[-1]['timestamp'].isoformat(),
+            "duration_days": (file_timestamps[-1]['timestamp'] - file_timestamps[0]['timestamp']).days
+        },
+        "gaps_analysis": {
+            "total_gaps": total_gaps,
+            "suspicious_gaps": suspicious_gaps,
+            "gaps": gaps
+        },
+        "export_health": health_status,
+        "recommendations": _get_temporal_recommendations(total_gaps, suspicious_gaps, total_files)
+    }
+
+
+def _get_temporal_recommendations(total_gaps: int, suspicious_gaps: int, total_files: int) -> List[str]:
+    """Generate recommendations based on temporal analysis."""
+    recommendations = []
+    
+    if suspicious_gaps > 0:
+        recommendations.append("Large time gaps detected - investigate missing data")
+    
+    if total_gaps > total_files * 0.5:
+        recommendations.append("Export appears incomplete - many temporal gaps")
+    elif total_gaps > total_files * 0.2:
+        recommendations.append("Some gaps detected - export may be partial")
+    else:
+        recommendations.append("Temporal coverage appears good")
+    
+    if total_gaps == 0:
+        recommendations.append("No temporal gaps - export appears complete")
+    
+    return recommendations
+
+
+def check_conversation_continuity(participant: str, files: List[str]) -> Dict[str, Any]:
+    """
+    Check if conversation files for a participant are continuous and complete.
+    
+    Args:
+        participant: Participant identifier (phone number or name)
+        files: List of HTML filenames for this participant
+        
+    Returns:
+        Dictionary containing conversation continuity analysis
+    """
+    if not files:
+        return {"error": "No files provided for analysis"}
+    
+    # Extract timestamps and analyze patterns
+    timestamp_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z)')
+    conversation_files = []
+    
+    for filename in files:
+        match = timestamp_pattern.search(filename)
+        if match:
+            timestamp_str = match.group(1).replace('_', ':')
+            try:
+                timestamp = dateutil.parser.parse(timestamp_str)
+                conversation_files.append({
+                    'filename': filename,
+                    'timestamp': timestamp,
+                    'timestamp_str': timestamp_str
+                })
+            except Exception as e:
+                logger.debug(f"Failed to parse timestamp from {filename}: {e}")
+    
+    if not conversation_files:
+        return {"error": "No valid timestamps found in conversation files"}
+    
+    # Sort by timestamp
+    conversation_files.sort(key=lambda x: x['timestamp'])
+    
+    # Analyze conversation patterns
+    total_files = len(conversation_files)
+    time_span = conversation_files[-1]['timestamp'] - conversation_files[0]['timestamp']
+    
+    # Check for gaps in conversation
+    gaps = []
+    for i in range(1, len(conversation_files)):
+        prev_time = conversation_files[i-1]['timestamp']
+        curr_time = conversation_files[i]['timestamp']
+        time_diff = curr_time - prev_time
+        
+        # Convert to hours for analysis
+        hours_diff = time_diff.total_seconds() / 3600
+        
+        if hours_diff > 24:  # Gap larger than 1 day
+            gaps.append({
+                'from_time': prev_time.isoformat(),
+                'to_time': curr_time.isoformat(),
+                'gap_hours': hours_diff,
+                'gap_days': hours_diff / 24,
+                'suspicious': hours_diff > 168  # More than 1 week gap
+            })
+    
+    # Analyze conversation density
+    conversation_density = total_files / max(1, time_span.days)  # files per day
+    
+    # Determine conversation health
+    if gaps and any(g['suspicious'] for g in gaps):
+        health_status = "FRAGMENTED - Large gaps in conversation"
+    elif gaps:
+        health_status = "INTERMITTENT - Some gaps in conversation"
+    elif conversation_density < 0.1:  # Less than 1 file per 10 days
+        health_status = "SPARSE - Low conversation frequency"
+    else:
+        health_status = "CONTINUOUS - Good conversation coverage"
+    
+    # Generate recommendations
+    recommendations = []
+    if gaps:
+        if any(g['suspicious'] for g in gaps):
+            recommendations.append("Large conversation gaps detected - investigate missing messages")
+        else:
+            recommendations.append("Some conversation gaps - may indicate normal conversation patterns")
+    
+    if conversation_density < 0.1:
+        recommendations.append("Low conversation frequency - may be legitimate sparse communication")
+    
+    if not gaps and conversation_density >= 0.1:
+        recommendations.append("Conversation appears continuous and complete")
+    
+    return {
+        "participant": participant,
+        "total_conversation_files": total_files,
+        "conversation_timespan": {
+            "start": conversation_files[0]['timestamp'].isoformat(),
+            "end": conversation_files[-1]['timestamp'].isoformat(),
+            "duration_days": time_span.days
+        },
+        "conversation_density": f"{conversation_density:.2f} files/day",
+        "gaps_analysis": {
+            "total_gaps": len(gaps),
+            "suspicious_gaps": len([g for g in gaps if g['suspicious']]),
+            "gaps": gaps
+        },
+        "conversation_health": health_status,
+        "recommendations": recommendations
+    }
+
+
+def generate_export_health_summary() -> Dict[str, Any]:
+    """
+    Generate a comprehensive summary of export health based on processed files.
+    
+    Returns:
+        Dictionary containing export health assessment
+    """
+    try:
+        # Get list of HTML files from the Calls directory
+        calls_directory = PROCESSING_DIRECTORY / "Calls"
+        if not calls_directory.exists():
+            return {"error": "Calls directory not found"}
+        
+        html_files = list(calls_directory.rglob("*.html"))
+        if not html_files:
+            return {"error": "No HTML files found in Calls directory"}
+        
+        # Analyze file patterns
+        low_message_files = []
+        suspicious_files = []
+        total_files = len(html_files)
+        
+        # Sample analysis for performance (analyze up to 100 files)
+        sample_size = min(100, total_files)
+        sample_files = random.sample(html_files, sample_size) if total_files > 100 else html_files
+        
+        for html_file in sample_files:
+            try:
+                # Quick file size check
+                file_size = html_file.stat().st_size
+                file_size_kb = file_size / 1024
+                
+                # Estimate message count based on file size
+                estimated_messages = max(1, int(file_size_kb / 1.75))  # ~1.75 KB per message
+                
+                # Flag suspicious files
+                if file_size_kb < 1.0:
+                    suspicious_files.append({
+                        'filename': html_file.name,
+                        'reason': 'extremely_small_file',
+                        'file_size_kb': file_size_kb
+                    })
+                elif file_size_kb > 50.0 and estimated_messages <= 5:
+                    suspicious_files.append({
+                        'filename': html_file.name,
+                        'reason': 'large_file_few_messages',
+                        'file_size_kb': file_size_kb,
+                        'estimated_messages': estimated_messages
+                    })
+                
+                # Flag potential low message count files
+                if estimated_messages <= 3:
+                    low_message_files.append({
+                        'filename': html_file.name,
+                        'estimated_messages': estimated_messages,
+                        'file_size_kb': file_size_kb
+                    })
+                    
+            except Exception as e:
+                logger.debug(f"Failed to analyze {html_file.name}: {e}")
+                continue
+        
+        # Calculate health metrics
+        suspicious_percentage = (len(suspicious_files) / sample_size) * 100
+        low_message_percentage = (len(low_message_files) / sample_size) * 100
+        
+        # Determine overall status
+        if suspicious_percentage > 10:
+            overall_status = "POOR - High number of suspicious files"
+        elif suspicious_percentage > 5:
+            overall_status = "FAIR - Some suspicious files detected"
+        elif low_message_percentage > 30:
+            overall_status = "GOOD - Some low message count files (may be normal)"
+        else:
+            overall_status = "EXCELLENT - Export appears healthy"
+        
+        # Generate recommendations
+        recommendations = []
+        if suspicious_percentage > 10:
+            recommendations.append("High number of suspicious files - investigate export integrity")
+        elif suspicious_percentage > 5:
+            recommendations.append("Some suspicious files detected - monitor closely")
+        
+        if low_message_percentage > 30:
+            recommendations.append("Many low message count files - verify if this is expected")
+        
+        if suspicious_percentage <= 5 and low_message_percentage <= 20:
+            recommendations.append("Export appears healthy - low message counts likely legitimate")
+        
+        return {
+            "overall_status": overall_status,
+            "total_files": total_files,
+            "files_analyzed": sample_size,
+            "low_message_files": len(low_message_files),
+            "suspicious_files": len(suspicious_files),
+            "suspicious_percentage": f"{suspicious_percentage:.1f}%",
+            "low_message_percentage": f"{low_message_percentage:.1f}%",
+            "sample_analysis": {
+                "low_message_files": low_message_files[:10],  # Show first 10
+                "suspicious_files": suspicious_files[:10]     # Show first 10
+            },
+            "recommendations": recommendations
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to generate export health summary: {e}")
+        return {"error": f"Export health assessment failed: {e}"}
+
+
 def process_sms_mms_file(
     html_file: Path,
     soup: BeautifulSoup,
@@ -2373,9 +2791,26 @@ def process_sms_mms_file(
 
     # ENHANCED LOGGING: Log message count and structure for debugging
     if len(messages_raw) < 5:  # Log details for files with very few messages
+        # Enhanced diagnostic analysis for files with low message counts
+        diagnostic_info = analyze_file_completeness(html_file.name, len(messages_raw), html_file.stat().st_size)
+        
         logger.info(
             f"File {html_file.name} has only {len(messages_raw)} messages - this might indicate missing older messages"
         )
+        
+        # Log diagnostic analysis
+        logger.info(
+            f"📊 File Analysis: {diagnostic_info['message_count']} messages, "
+            f"{diagnostic_info['file_size_kb']:.1f} KB, "
+            f"Expected: {diagnostic_info['expected_size_range']} KB"
+        )
+        
+        if diagnostic_info['size_suspicious']:
+            logger.warning(
+                f"⚠️  File size appears suspicious - may indicate truncation or corruption"
+            )
+        
+        # Log detailed message content
         for i, msg in enumerate(messages_raw):
             msg_text = msg.get_text().strip()[:100]  # First 100 chars
             logger.debug(f"  Message {i+1}: {msg_text}...")
