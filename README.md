@@ -43,7 +43,8 @@ The project has been reorganized for better maintainability and clarity:
 
 ```
 gvoice-sms-takeout-xml/
-├── sms.py                    # Main entry point script
+├── cli.py                    # Main CLI entry point
+├── sms.py                    # Core library module (conversion logic)
 ├── core/                     # Core functionality modules
 │   ├── conversation_manager.py    # Manages conversation files and statistics
 │   ├── phone_lookup.py           # Handles phone number aliases and lookups
@@ -75,7 +76,7 @@ The project uses a smart import system that automatically detects the project ro
 
 **Key Benefits:**
 - **Portable**: Project can be cloned and run from any location
-- **No Installation Required**: Just clone and run `python sms.py`
+- **No Installation Required**: Just clone and run `python cli.py convert`
 - **Self-Contained**: All dependencies are resolved relative to the project root
 - **User-Friendly**: Standard "clone and run" workflow
 
@@ -115,7 +116,7 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 1. Create virtual environment (`python -m venv .venv`)
 1. Activate virtual environment (`.venv\Scripts\activate.bat` or `source .venv/bin/activate`)
 1. Install dependencies (`python -m pip install -r config/requirements.txt`)
-1. Run the converter: `python sms.py`
+1. Run the converter: `python cli.py convert`
 
 
 ## Testing with an emulator:

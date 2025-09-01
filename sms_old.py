@@ -18,7 +18,6 @@ import inspect
 import logging
 import os
 import re
-import sys
 import time
 import threading
 from base64 import b64encode
@@ -7792,3 +7791,653 @@ def write_voicemail_entry(
     except Exception as e:
         logger.error(f"Failed to write voicemail entry: {e}")
 
+
+if __name__ == "__main__":
+    try:
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(
+            description="Convert Google Voice HTML export files to SMS backup XML format",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Examples:
+  # Process files in default directory (../gvoice-convert/) with high-performance defaults
+  python sms.py
+
+  # Process files in specified directory with high-performance defaults
+  python sms.py /path/to/gvoice/data
+
+  # Process files with verbose logging
+  python sms.py /path/to/gvoice/data --verbose
+
+  # Process files with debug logging (most detailed)
+  python sms.py /path/to/gvoice/data --debug
+
+  # Process files with specific log level
+  python sms.py /path/to/gvoice/data --log-level WARNING
+
+  # Process files with phone number alias prompts (interactive)
+  python sms.py /path/to/gvoice/data --phone-prompts
+
+  # Process files with custom performance settings (overriding high-performance defaults)
+  python sms.py /path/to/gvoice/data --buffer-size 16384 --cache-size 25000
+
+  # Process large datasets with optimized settings (using high-performance defaults)
+  python sms.py /path/to/gvoice/data --large-dataset --batch-size 2000
+
+  # Performance tuning for large datasets (50,000+ entries) - using high-performance defaults
+  python sms.py /path/to/gvoice/data --workers 16 --chunk-size 1000 --enable-mmap
+
+  # Memory-efficient processing for very large datasets (overriding high-performance defaults)
+  python sms.py /path/to/gvoice/data --memory-efficient --buffer-size 256
+
+  # Test mode with limited processing (default: 100 entries, auto-enables debug + strict mode)
+  python sms.py /path/to/gvoice/data --test-mode
+
+  # Test mode with custom limit (auto-enables debug + strict mode)
+  python sms.py /path/to/gvoice/data --test-mode --test-limit 50
+
+  # Test mode with custom logging (strict mode still auto-enabled)
+  python sms.py /path/to/gvoice/data --test-mode --test-limit 50 --log-level WARNING
+
+  # Full run mode (process all entries)
+  python sms.py /path/to/gvoice/data --full-run
+
+  # Output in XML format instead of HTML (HTML is now default)
+  python sms.py /path/to/gvoice/data --output-format xml
+
+          # Filtering options
+        python sms.py /path/to/gvoice/data --include-service-codes # # Include service
+                                                                    # codes (default:
+                                                                    # filtered out)
+        python sms.py /path/to/gvoice/data --older-than 2023-01-01 # # Filter out
+                                                                    # messages older
+                                                                    # than 2023
+        python sms.py /path/to/gvoice/data --newer-than 2024-12-31 # # Filter out
+                                                                    # messages newer
+                                                                    # than 2024
+        python sms.py /path/to/gvoice/data --older-than "2023-06-15 14:30:00" # # Filter
+                                                                               # with
+                                                                               # time
+                                                                               # precision
+        python sms.py /path/to/gvoice/data --filter-no-alias # # Only process numbers
+                                                              # with aliases/names
+        python sms.py /path/to/gvoice/data --exclude-no-alias # # Alternative to
+                                                               # --filter-no-alias
+        python sms.py /path/to/gvoice/data --filter-non-phone # # Filter out toll-free
+                                                               # and non-US numbers
+
+  # Default behavior: Service codes (verification codes, alerts) are filtered out for cleaner output
+  # Use --include-service-codes to include all service codes and short codes
+
+  # Enable strict parameter validation (catches errors early)
+  python sms.py /path/to/gvoice/data --strict-mode
+
+  # Create sample configuration file
+  python sms.py --create-config
+
+  # Show help
+  python sms.py --help
+
+Directory Structure:
+  The script expects a directory containing:
+  - Calls/ subdirectory with HTML conversation files
+  - Phones.vcf file with contact information
+  - Any other Google Voice export files
+
+Output:
+  - Creates a 'conversations' subdirectory in the processing directory
+  - Generates separate HTML or XML files for each sender/group conversation (HTML is default)
+  - Messages are sorted chronologically within each conversation file
+  - HTML output: Human-readable table format with styling and attachment indicators (default)
+  - XML output: Standard SMS backup format compatible with SMS backup apps
+  - Phone numbers are mapped to user-friendly aliases (phone prompts disabled by default)
+  - High-performance defaults optimized for large datasets (50,000+ messages)
+  - Optimized file I/O with large buffer sizes (32KB default)
+  - Enhanced caching with large cache sizes (50,000 default)
+  - Batch processing optimized for large datasets (1,000 default)
+  - Memory-efficient data structures and string pooling
+  - Optimized parallel processing with increased workers (16 max) and chunk sizes (1,000 default)
+  - Smart memory mapping for large files (>5MB) with fallback to buffered I/O
+  - String pooling reduces memory allocations and garbage collection pressure
+  - Test mode enabled by default (processes 100 entries for safety)
+  - Configurable test limits and full-run mode available
+  - Logs are written to the processing directory
+            """,
+        )
+
+        parser.add_argument(
+            "processing_dir",
+            nargs="?",
+            default="../gvoice-convert/",
+            help="Directory containing Google Voice export data (Calls/ and Phones.vcf). Defaults to ../gvoice-convert/ directory.",
+        )
+
+        parser.add_argument(
+            "--log",
+            "-l",
+            help="Custom log filename (default: gvoice_converter.log)",
+        )
+
+        parser.add_argument(
+            "--verbose",
+            "-v",
+            action="store_true",
+            help="Enable verbose logging (INFO level)",
+        )
+
+        parser.add_argument(
+            "--debug",
+            "-d",
+            action="store_true",
+            help="Enable debug logging (DEBUG level)",
+        )
+
+        parser.add_argument(
+            "--log-level",
+            choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            default="INFO",
+            help="Set specific log level (default: INFO)",
+        )
+
+        parser.add_argument(
+            "--debug-attachments",
+            action="store_true",
+            help="Enable detailed debugging for attachment matching (shows why attachments fail to match)",
+        )
+        
+        parser.add_argument(
+            "--debug-paths",
+            action="store_true",
+            help="Enable detailed debugging for path resolution and validation",
+        )
+        
+        parser.add_argument(
+            "--validate-paths",
+            action="store_true",
+            help="Enable comprehensive path validation during processing",
+        )
+
+        # Performance optimization arguments
+        parser.add_argument(
+            "--no-parallel",
+            action="store_true",
+            help="Disable parallel processing (use sequential processing instead)",
+        )
+
+        parser.add_argument(
+            "--workers",
+            type=int,
+            default=MAX_WORKERS,
+            help=f"Number of parallel workers (default: {MAX_WORKERS})",
+        )
+
+        parser.add_argument(
+            "--chunk-size",
+            type=int,
+            default=CHUNK_SIZE_OPTIMAL,
+            help=f"Chunk size for parallel processing (default: {CHUNK_SIZE_OPTIMAL})",
+        )
+
+        parser.add_argument(
+            "--memory-threshold",
+            type=int,
+            default=MEMORY_EFFICIENT_THRESHOLD,
+            help=f"Threshold for switching to memory-efficient mode (default: {MEMORY_EFFICIENT_THRESHOLD:,})",
+        )
+
+        parser.add_argument(
+            "--no-streaming",
+            action="store_true",
+            help="Disable streaming file parsing (use traditional approach)",
+        )
+
+        parser.add_argument(
+            "--no-mmap",
+            action="store_true",
+            help="Disable memory mapping for large files",
+        )
+
+        parser.add_argument(
+            "--no-progress",
+            action="store_true",
+            help="Disable progress logging",
+        )
+
+        parser.add_argument(
+            "--no-performance",
+            action="store_true",
+            help="Disable performance monitoring",
+        )
+
+        parser.add_argument(
+            "--strict-mode",
+            action="store_true",
+            help="Enable strict parameter validation (catches parameter mismatches early)",
+        )
+
+        parser.add_argument(
+            "--create-config",
+            action="store_true",
+            help="Create a sample configuration file showing expected directory structure",
+        )
+
+        parser.add_argument(
+            "--phone-prompts",
+            action="store_true",
+            help="Enable interactive phone number alias prompts (disabled by default)",
+        )
+
+        parser.add_argument(
+            "--buffer-size",
+            type=int,
+            default=32768,
+            help="File I/O buffer size in bytes (default: 32768 - optimized for large datasets)",
+        )
+
+        parser.add_argument(
+            "--cache-size",
+            type=int,
+            default=50000,
+            help="LRU cache size for performance optimization (default: 50000 - optimized for large datasets)",
+        )
+
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=1000,
+            help="Batch size for processing large datasets (default: 1000 - optimized for large datasets)",
+        )
+
+        parser.add_argument(
+            "--large-dataset",
+            action="store_true",
+            help="Enable optimizations for datasets with 50,000+ messages",
+        )
+
+        parser.add_argument(
+            "--test-mode",
+            action="store_true",
+            help="Enable testing mode with limited processing (default: 100 entries). Auto-enables debug logging and strict mode for better troubleshooting.",
+        )
+
+        parser.add_argument(
+            "--test-limit",
+            type=int,
+            default=100,
+            help="Number of entries to process in test mode (default: 100)",
+        )
+
+        parser.add_argument(
+            "--full-run",
+            action="store_true",
+            help="Disable test mode and process all entries (overrides --test-mode)",
+        )
+
+        parser.add_argument(
+            "--output-format",
+            "-f",
+            choices=["xml", "html"],
+            default="html",
+            help="Output format for conversation files: html (default) or xml",
+        )
+
+        # Filtering options
+        parser.add_argument(
+            "--include-service-codes",
+            action="store_true",
+            help="Include service codes and short codes in processing (default: False - service codes are filtered out)",
+        )
+
+        parser.add_argument(
+            "--older-than",
+            type=str,
+            help="Filter out messages older than specified date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)",
+        )
+
+        parser.add_argument(
+            "--newer-than",
+            type=str,
+            help="Filter out messages newer than specified date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)",
+        )
+
+        # Phone number filtering options
+        parser.add_argument(
+            "--filter-no-alias",
+            action="store_true",
+            help="Filter out phone numbers that don't have aliases (only process numbers with names/aliases)",
+        )
+
+        parser.add_argument(
+            "--exclude-no-alias",
+            action="store_true",
+            help="Alternative to --filter-no-alias: exclude numbers without aliases",
+        )
+
+        parser.add_argument(
+            "--filter-non-phone",
+            action="store_true",
+            help="Filter out toll-free numbers (800, 877, 888, etc.) and non-US numbers",
+        )
+
+        args = parser.parse_args()
+
+        # Handle create-config option
+        if args.create_config:
+            create_sample_config()
+            sys.exit(0)
+
+        # Configure test mode first (before any other operations)
+        if args.full_run:
+            # Full run mode - process all entries
+            set_test_mode(False, 0)
+        elif args.test_mode:
+            # Explicit test mode with custom limit
+            set_test_mode(True, args.test_limit)
+        else:
+            # Default to test mode for safety (limited processing)
+            set_test_mode(True, 100)
+
+        # Auto-enable debug logging and strict mode for test mode
+        if TEST_MODE:
+            # Only auto-enable debug if user hasn't specified any logging
+            # options
+            if not args.debug and not args.verbose and args.log_level == "INFO":
+                args.debug = True
+                logger.info(
+                    "🧪 TEST MODE: Auto-enabling debug logging for better troubleshooting"
+                )
+            if not args.strict_mode:
+                args.strict_mode = True
+                logger.info(
+                    "🧪 TEST MODE: Auto-enabling strict mode for parameter validation"
+                )
+
+        # Configure logging FIRST before any other operations
+        # Determine log level based on arguments
+        if args.debug:
+            log_level = logging.DEBUG
+        elif args.verbose:
+            log_level = logging.INFO
+        else:
+            # Parse the log level string to logging level constant
+            log_level = getattr(logging, args.log_level.upper())
+
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+
+        # Log the configured log level
+        logger.info(f"📝 Log level set to: {logging.getLevelName(log_level)}")
+
+        # Enable debug logging for attachments if requested
+        if args.debug_attachments:
+            # Set attachment-related loggers to DEBUG level
+            logging.getLogger().setLevel(logging.DEBUG)
+            logger.info(
+                "🔍 Debug attachment logging enabled - will show detailed matching information"
+            )
+
+        # Configure module-specific logging if debug mode is enabled
+        if args.debug:
+            # Set specific modules to DEBUG level for detailed troubleshooting
+            logging.getLogger(__name__).setLevel(logging.DEBUG)
+            logging.getLogger("concurrent.futures").setLevel(
+                logging.INFO
+            )  # Reduce noise from parallel processing
+            logger.info("🐛 Debug mode enabled - detailed logging for all modules")
+        
+        # Enable path debugging if requested
+        if hasattr(args, 'debug_paths') and args.debug_paths:
+            logging.getLogger('pathlib').setLevel(logging.DEBUG)
+            logger.info("🔍 Path debugging enabled - detailed path resolution logging")
+        
+        # Enable path validation if requested
+        if hasattr(args, 'validate_paths') and args.validate_paths:
+            CONFIG['enable_path_validation'] = True
+            CONFIG['enable_runtime_validation'] = True
+            logger.info("✅ Comprehensive path validation enabled")
+
+        # Set up processing paths with strict parameter validation
+        # Default to False (no prompts), True only if --phone-prompts is used
+        enable_phone_prompts = args.phone_prompts
+
+        # Use strict_call to validate parameters
+        strict_call(
+            setup_processing_paths,
+            Path(args.processing_dir),
+            enable_phone_prompts,
+            args.buffer_size,
+            args.batch_size,
+            args.cache_size,  # Use the new high-performance default (50000)
+            False,  # large_dataset with defaults
+            args.output_format,
+        )
+
+        # Override default log filename if specified
+        if args.log:
+            LOG_FILENAME = str(PROCESSING_DIRECTORY / args.log)
+            logger.info(f"Using custom log file: {LOG_FILENAME}")
+
+        # Add file handler after processing paths are set up
+        file_handler = logging.FileHandler(LOG_FILENAME)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        )
+        logging.getLogger().addHandler(file_handler)
+
+        # Configure progress and performance monitoring
+        if args.no_progress:
+            ENABLE_PROGRESS_LOGGING = False
+            logger.info("Progress logging disabled")
+
+        # Apply performance optimization settings from command line
+        if args.no_parallel:
+            ENABLE_PARALLEL_PROCESSING = False
+            logger.info("Parallel processing disabled")
+
+        if args.workers != MAX_WORKERS:
+            MAX_WORKERS = max(
+                1, min(args.workers, 20)
+            )  # Limit to 1-20 workers (increased for high performance)
+            logger.info(f"Parallel workers set to: {MAX_WORKERS}")
+
+        if args.chunk_size != CHUNK_SIZE_OPTIMAL:
+            CHUNK_SIZE_OPTIMAL = max(50, min(args.chunk_size, 2000))  # Limit to 50-2000
+            logger.info(f"Chunk size set to: {CHUNK_SIZE_OPTIMAL}")
+
+        if args.memory_threshold != MEMORY_EFFICIENT_THRESHOLD:
+            MEMORY_EFFICIENT_THRESHOLD = max(
+                100, min(args.memory_threshold, 100000)
+            )  # Limit to 100-100k
+            logger.info(f"Memory threshold set to: {MEMORY_EFFICIENT_THRESHOLD:,}")
+
+        if args.no_streaming:
+            ENABLE_STREAMING_PARSING = False
+            logger.info("Streaming file parsing disabled")
+
+        if args.no_mmap:
+            ENABLE_MMAP_FOR_LARGE_FILES = False
+            logger.info("Memory mapping disabled")
+
+        # Log final performance configuration
+        logger.info("Final Performance Configuration:")
+        logger.info(f"  Parallel processing: {ENABLE_PARALLEL_PROCESSING}")
+        logger.info(f"  Max workers: {MAX_WORKERS}")
+        logger.info(f"  Chunk size: {CHUNK_SIZE_OPTIMAL}")
+        logger.info(f"  Memory threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
+        logger.info(f"  Streaming parsing: {ENABLE_STREAMING_PARSING}")
+        logger.info(f"  Memory mapping: {ENABLE_MMAP_FOR_LARGE_FILES}")
+
+        if args.no_performance:
+            ENABLE_PERFORMANCE_MONITORING = False
+            logger.info("Performance monitoring disabled")
+
+        # Configure strict mode if requested
+        if args.strict_mode:
+            logger.info(
+                "🔒 STRICT MODE ENABLED - All function calls will be validated for parameter correctness"
+            )
+            # Override the strict_call function to always validate
+            globals()["strict_call"] = strict_call
+        else:
+            # In non-strict mode, make strict_call a no-op wrapper
+            globals()["strict_call"] = lambda func, *args, **kwargs: func(
+                *args, **kwargs
+            )
+            logger.info("🔓 Strict mode disabled - function calls will not be validated")
+
+        # Configure filtering options
+        # Set service code filtering
+        INCLUDE_SERVICE_CODES = args.include_service_codes
+        if INCLUDE_SERVICE_CODES:
+            logger.info(
+                "🔓 SERVICE CODE FILTERING DISABLED - Including all service codes and short codes"
+            )
+        else:
+            logger.info(
+                "🔒 SERVICE CODE FILTERING ENABLED - Filtering out service codes and short codes (default)"
+            )
+
+        # Set phone number filtering
+        FILTER_NUMBERS_WITHOUT_ALIASES = args.filter_no_alias or args.exclude_no_alias
+        if FILTER_NUMBERS_WITHOUT_ALIASES:
+            logger.info(
+                "🔒 PHONE FILTERING ENABLED - Only processing numbers with aliases/names"
+            )
+        else:
+            logger.info(
+                "🔓 PHONE FILTERING DISABLED - Processing all phone numbers (default)"
+            )
+
+        # Set non-phone number filtering
+        FILTER_NON_PHONE_NUMBERS = args.filter_non_phone
+        if FILTER_NON_PHONE_NUMBERS:
+            logger.info(
+                "🔒 NON-PHONE FILTERING ENABLED - Filtering out toll-free and non-US numbers"
+            )
+        else:
+            logger.info(
+                "🔓 NON-PHONE FILTERING DISABLED - Processing all numbers including toll-free and international (default)"
+            )
+
+        # Parse and set date filters
+        if args.older_than:
+            try:
+                DATE_FILTER_OLDER_THAN = dateutil.parser.parse(args.older_than)
+                logger.info(
+                    f"📅 DATE FILTER: Excluding messages older than {DATE_FILTER_OLDER_THAN}"
+                )
+            except Exception:
+                logger.error(
+                    f"Invalid --older-than date format: {args.older_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
+                )
+                sys.exit(1)
+
+        if args.newer_than:
+            try:
+                DATE_FILTER_NEWER_THAN = dateutil.parser.parse(args.newer_than)
+                logger.info(
+                    f"📅 DATE FILTER: Excluding messages newer than {DATE_FILTER_NEWER_THAN}"
+                )
+            except Exception:
+                logger.error(
+                    f"Invalid --newer-than date format: {args.newer_than}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
+                )
+                sys.exit(1)
+
+        # Validate date filter logic when both filters are provided
+        if DATE_FILTER_NEWER_THAN is not None and DATE_FILTER_OLDER_THAN is not None:
+            # Calculate the valid date range that WILL be included
+            valid_start = DATE_FILTER_OLDER_THAN
+            valid_end = DATE_FILTER_NEWER_THAN
+
+            # Check if the range is valid (start < end)
+            if valid_start >= valid_end:
+                logger.error(
+                    "❌ INVALID DATE RANGE: The date range excludes ALL messages!"
+                )
+                logger.error(f"   Start date (older_than): {valid_start}")
+                logger.error(f"   End date (newer_than): {valid_end}")
+                logger.error(
+                    "   This creates a negative time range - no messages can fall within these bounds"
+                )
+                logger.error("   Valid ranges require: older_than < newer_than")
+                sys.exit(1)
+
+            # Calculate the time span that will be included
+            time_span = valid_end - valid_start
+            logger.info(
+                f"📅 VALID DATE RANGE: Messages between {valid_start} and {valid_end} will be processed"
+            )
+            logger.info(
+                f"📅 TIME SPAN: {time_span.days} days, {time_span.seconds // 3600} hours"
+            )
+
+            # Warn if the range is very small
+            if time_span.days < 1:
+                logger.warning(
+                    f"⚠️  WARNING: Very narrow date range ({time_span.days} days) - few messages may match"
+                )
+            elif time_span.days < 7:
+                logger.warning(
+                    f"⚠️  WARNING: Narrow date range ({time_span.days} days) - limited messages may match"
+                )
+
+        # Log test mode configuration
+        if args.full_run:
+            logger.info("🚀 FULL RUN MODE ENABLED - Processing all entries")
+        elif args.test_mode:
+            logger.info(
+                f"🧪 TEST MODE ENABLED - Processing limited to {TEST_LIMIT} entries"
+            )
+        else:
+            logger.info(
+                f"🧪 TEST MODE ENABLED BY DEFAULT - Processing limited to "
+                f"{TEST_LIMIT} entries for safety"
+            )
+            logger.info(
+                "Use --full-run to process all entries or --test-limit N for custom limits"
+            )
+
+        # Validate processing directory
+        if not validate_processing_directory(args.processing_dir):
+            logger.error(
+                "Processing directory validation failed. Please check the directory structure."
+            )
+            sys.exit(1)
+
+        # Validate entire configuration if strict mode is enabled
+        if args.strict_mode:
+            if not validate_entire_configuration():
+                logger.error("Configuration validation failed. Please check the setup.")
+                sys.exit(1)
+
+        # Initialize processing paths and global variables
+        logger.info("Initializing processing paths and global variables...")
+        try:
+            setup_processing_paths(
+                args.processing_dir,
+                enable_phone_prompts=args.phone_prompts,
+                buffer_size=args.buffer_size,
+                batch_size=args.batch_size,
+                cache_size=args.cache_size,
+                large_dataset=args.large_dataset,
+                output_format=args.output_format
+            )
+            logger.info("✅ Processing paths initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize processing paths: {e}")
+            logger.error("This is a critical error that prevents the script from running")
+            sys.exit(1)
+
+        # Run the main conversion
+        main()
+
+    except KeyboardInterrupt:
+        logger.info("Conversion interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Conversion failed: {e}")
+        sys.exit(1)
