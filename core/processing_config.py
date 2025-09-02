@@ -53,6 +53,7 @@ class ProcessingConfig:
     # Phone Lookup Settings
     enable_phone_prompts: bool = False
     skip_filtered_contacts: bool = True
+    phone_lookup_file: Optional[Path] = None
     
     # Filtering Settings
     include_service_codes: bool = False
@@ -89,7 +90,9 @@ class ProcessingConfig:
         if self.output_dir is None:
             self.output_dir = self.processing_dir / "conversations"
         
-
+        # Ensure phone_lookup_file is set if not provided
+        if self.phone_lookup_file is None:
+            self.phone_lookup_file = self.processing_dir / "phone_lookup.txt"
         
         # Validate numeric constraints
         self._validate_numeric_constraints()
@@ -142,6 +145,7 @@ class ProcessingConfig:
         logger.debug(f"  Processing Directory: {self.processing_dir}")
         logger.debug(f"  Output Directory: {self.output_dir}")
         logger.debug(f"  Output Format: {self.output_format}")
+        logger.debug(f"  Phone Lookup File: {self.phone_lookup_file}")
         logger.debug(f"  Max Workers: {self.max_workers}")
         logger.debug(f"  Test Mode: {self.test_mode}")
         logger.debug(f"  Phone Prompts: {self.enable_phone_prompts}")
@@ -174,6 +178,9 @@ class ProcessingConfig:
         
         if "output_dir" in config_dict and config_dict["output_dir"]:
             config_dict["output_dir"] = Path(config_dict["output_dir"])
+        
+        if "phone_lookup_file" in config_dict and config_dict["phone_lookup_file"]:
+            config_dict["phone_lookup_file"] = Path(config_dict["phone_lookup_file"])
         
         # Convert string dates back to datetime objects
         if "older_than" in config_dict and config_dict["older_than"]:
@@ -376,6 +383,7 @@ class ConfigurationBuilder:
             'enable_runtime_validation': 'enable_runtime_validation',
             'strict_mode': 'strict_mode',
             'phone_prompts': 'enable_phone_prompts',
+            'phone_lookup_file': 'phone_lookup_file',
             'skip_filtered_contacts': 'skip_filtered_contacts',
             'include_service_codes': 'include_service_codes',
             'filter_numbers_without_aliases': 'filter_numbers_without_aliases',
@@ -451,6 +459,7 @@ class ConfigurationBuilder:
             'strict_mode': os.environ.get('GVOICE_STRICT_MODE', 'false').lower() == 'true',
             'enable_phone_prompts': os.environ.get('GVOICE_ENABLE_PHONE_PROMPTS', 'false').lower() == 'true',
             'skip_filtered_contacts': os.environ.get('GVOICE_SKIP_FILTERED_CONTACTS', 'true').lower() == 'true',
+            'phone_lookup_file': os.environ.get('GVOICE_PHONE_LOOKUP_FILE'),
             'include_service_codes': os.environ.get('GVOICE_INCLUDE_SERVICE_CODES', 'false').lower() == 'true',
             'filter_numbers_without_aliases': os.environ.get('GVOICE_FILTER_NUMBERS_WITHOUT_ALIASES', 'false').lower() == 'true',
             'filter_non_phone_numbers': os.environ.get('GVOICE_FILTER_NON_PHONE_NUMBERS', 'false').lower() == 'true',

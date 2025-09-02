@@ -24,6 +24,7 @@ def setup_processing_paths_with_config(
     cache_size: Optional[int] = None,
     large_dataset: Optional[bool] = None,
     output_format: Optional[str] = None,
+    phone_lookup_file: Optional[Path] = None,
 ) -> None:
     """
     Set up all file paths based on the specified ProcessingConfig.
@@ -46,6 +47,14 @@ def setup_processing_paths_with_config(
     # Set global configuration for other parts of the system
     set_global_configuration(config)
     
+    # Set global phone lookup file path for SMS module compatibility
+    import sms
+    if hasattr(sms, 'PHONE_LOOKUP_FILE_PATH'):
+        sms.PHONE_LOOKUP_FILE_PATH = effective_phone_lookup_file
+    else:
+        # Create the global variable if it doesn't exist
+        sms.PHONE_LOOKUP_FILE_PATH = effective_phone_lookup_file
+    
     # Use override values if provided, otherwise use config values
     effective_phone_prompts = enable_phone_prompts if enable_phone_prompts is not None else config.enable_phone_prompts
     effective_buffer_size = buffer_size if buffer_size is not None else config.buffer_size
@@ -53,6 +62,7 @@ def setup_processing_paths_with_config(
     effective_cache_size = cache_size if cache_size is not None else config.cache_size
     effective_large_dataset = large_dataset if large_dataset is not None else config.large_dataset
     effective_output_format = output_format if output_format is not None else config.output_format
+    effective_phone_lookup_file = phone_lookup_file if phone_lookup_file is not None else config.phone_lookup_file
     
     # Call the original function with the effective values
     from sms import setup_processing_paths

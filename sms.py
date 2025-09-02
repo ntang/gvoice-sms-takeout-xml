@@ -6758,7 +6758,14 @@ def setup_processing_paths(
         False,
         output_format,
     )
-    phone_lookup_file = PROCESSING_DIRECTORY / "phone_lookup.txt"
+    # Use configured phone lookup file path if available, otherwise default to processing directory
+    if 'PHONE_LOOKUP_FILE_PATH' in globals() and PHONE_LOOKUP_FILE_PATH is not None:
+        phone_lookup_file = PHONE_LOOKUP_FILE_PATH
+        logger.info(f"Using configured phone lookup file: {phone_lookup_file}")
+    else:
+        phone_lookup_file = PROCESSING_DIRECTORY / "phone_lookup.txt"
+        logger.info(f"Using default phone lookup file: {phone_lookup_file}")
+    
     PHONE_LOOKUP_MANAGER = strict_call(
         PhoneLookupManager, phone_lookup_file, enable_phone_prompts, SKIP_FILTERED_CONTACTS
     )

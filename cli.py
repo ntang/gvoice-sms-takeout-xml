@@ -330,6 +330,11 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     help="Skip processing filtered contacts by default (except in group messages)"
 )
 @click.option(
+    '--phone-lookup-file',
+    type=click.Path(path_type=Path),
+    help="Path to phone lookup file (default: processing_dir/phone_lookup.txt)"
+)
+@click.option(
     '--preset',
     type=click.Choice(['default', 'test', 'production']),
     default='default',
@@ -567,6 +572,7 @@ def show_config(ctx):
     click.echo(f"Processing directory: {config.processing_dir}")
     click.echo(f"Output directory: {config.output_dir}")
     click.echo(f"Output format: {config.output_format}")
+    click.echo(f"Phone lookup file: {config.phone_lookup_file}")
     click.echo(f"Test mode: {config.test_mode}")
     if config.test_mode:
         click.echo(f"Test limit: {config.test_limit}")

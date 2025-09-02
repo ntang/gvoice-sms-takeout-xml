@@ -128,6 +128,10 @@ class PhoneLookupManager:
         """Save phone number aliases to file."""
         with self._file_lock:
             try:
+                # Create backup if file exists and has data
+                if self.lookup_file.exists() and self.lookup_file.stat().st_size > 0:
+                    self._create_backup()
+                
                 # Ensure the parent directory exists
                 self.lookup_file.parent.mkdir(parents=True, exist_ok=True)
                 
@@ -149,6 +153,24 @@ class PhoneLookupManager:
                 logger.error(f"Failed to save phone aliases: {e}")
                 # In test environments, this might be expected, so don't raise
                 # Just log the error and continue
+
+    def _create_backup(self):
+        """Create a backup of the existing phone lookup file before overwriting."""
+        try:
+            import shutil
+            from datetime import datetime
+            
+            # Create backup filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = self.lookup_file.parent / f"{self.lookup_file.stem}_backup_{timestamp}{self.lookup_file.suffix}"
+            
+            # Copy the file
+            shutil.copy2(self.lookup_file, backup_file)
+            logger.info(f"Created backup of phone lookup file: {backup_file}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to create backup of phone lookup file: {e}")
+            # Don't fail the save operation if backup fails
 
     def save_aliases_batched(self, batch_every: int = 100):
         """Save aliases only every N new entries to reduce disk IO."""
