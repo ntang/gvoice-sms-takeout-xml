@@ -85,6 +85,8 @@ class ProcessingConfig:
         if self.output_dir is None:
             self.output_dir = self.processing_dir / "conversations"
         
+
+        
         # Validate numeric constraints
         self._validate_numeric_constraints()
         
@@ -146,6 +148,10 @@ class ProcessingConfig:
         config_dict = {}
         
         for field_name, field_value in self.__dict__.items():
+            # Skip internal flags
+            if field_name.startswith('_'):
+                continue
+                
             if isinstance(field_value, Path):
                 config_dict[field_name] = str(field_value)
             elif isinstance(field_value, datetime):
@@ -290,40 +296,47 @@ class ConfigurationBuilder:
         if isinstance(processing_dir, str):
             processing_dir = Path(processing_dir)
         
-        # Build configuration with CLI values
-        config_kwargs = {
-            'processing_dir': processing_dir,
-            'output_format': cli_args.get('output_format', 'html'),
-            'max_workers': cli_args.get('max_workers', 16),
-            'chunk_size': cli_args.get('chunk_size', 1000),
-            'batch_size': cli_args.get('batch_size', 1000),
-            'buffer_size': cli_args.get('buffer_size', 32768),
-            'cache_size': cli_args.get('cache_size', 25000),
-            'memory_threshold': cli_args.get('memory_threshold', 10000),
-            'enable_parallel_processing': cli_args.get('enable_parallel_processing', True),
-            'enable_streaming_parsing': cli_args.get('enable_streaming_parsing', True),
-            'enable_mmap_for_large_files': cli_args.get('enable_mmap_for_large_files', True),
-            'enable_performance_monitoring': cli_args.get('enable_performance_monitoring', True),
-            'enable_progress_logging': cli_args.get('enable_progress_logging', True),
-            'enable_path_validation': cli_args.get('enable_path_validation', True),
-            'enable_runtime_validation': cli_args.get('enable_runtime_validation', True),
-            'strict_mode': cli_args.get('strict_mode', False),
-            'enable_phone_prompts': cli_args.get('phone_prompts', False),
-            'skip_filtered_contacts': cli_args.get('skip_filtered_contacts', True),
-            'include_service_codes': cli_args.get('include_service_codes', False),
-            'filter_numbers_without_aliases': cli_args.get('filter_numbers_without_aliases', False),
-            'filter_non_phone_numbers': cli_args.get('filter_non_phone_numbers', False),
-            'test_mode': cli_args.get('test_mode', False),
-            'test_limit': cli_args.get('test_limit', 100),
-            'full_run': cli_args.get('full_run', False),
-            'log_level': cli_args.get('log_level', 'INFO'),
-            'verbose': cli_args.get('verbose', False),
-            'debug': cli_args.get('debug', False),
-            'debug_attachments': cli_args.get('debug_attachments', False),
-            'debug_paths': cli_args.get('debug_paths', False),
-            'large_dataset': cli_args.get('large_dataset', False),
-            'enable_batch_processing': cli_args.get('enable_batch_processing', True),
+        # Build configuration with CLI values - only set explicitly provided values
+        config_kwargs = {'processing_dir': processing_dir}
+        
+        # Map CLI argument names to configuration field names
+        field_mapping = {
+            'output_format': 'output_format',
+            'max_workers': 'max_workers',
+            'chunk_size': 'chunk_size',
+            'batch_size': 'batch_size',
+            'buffer_size': 'buffer_size',
+            'cache_size': 'cache_size',
+            'memory_threshold': 'memory_threshold',
+            'enable_parallel_processing': 'enable_parallel_processing',
+            'enable_streaming_parsing': 'enable_streaming_parsing',
+            'enable_mmap_for_large_files': 'enable_mmap_for_large_files',
+            'enable_performance_monitoring': 'enable_performance_monitoring',
+            'enable_progress_logging': 'enable_progress_logging',
+            'enable_path_validation': 'enable_path_validation',
+            'enable_runtime_validation': 'enable_runtime_validation',
+            'strict_mode': 'strict_mode',
+            'phone_prompts': 'enable_phone_prompts',
+            'skip_filtered_contacts': 'skip_filtered_contacts',
+            'include_service_codes': 'include_service_codes',
+            'filter_numbers_without_aliases': 'filter_numbers_without_aliases',
+            'filter_non_phone_numbers': 'filter_non_phone_numbers',
+            'test_mode': 'test_mode',
+            'test_limit': 'test_limit',
+            'full_run': 'full_run',
+            'log_level': 'log_level',
+            'verbose': 'verbose',
+            'debug': 'debug',
+            'debug_attachments': 'debug_attachments',
+            'debug_paths': 'debug_paths',
+            'large_dataset': 'large_dataset',
+            'enable_batch_processing': 'enable_batch_processing',
         }
+        
+        # Only add CLI values that are explicitly provided
+        for cli_key, config_key in field_mapping.items():
+            if cli_key in cli_args:
+                config_kwargs[config_key] = cli_args[cli_key]
         
         # Handle date filtering
         if cli_args.get('older_than'):
@@ -340,7 +353,10 @@ class ConfigurationBuilder:
             except Exception as e:
                 logger.warning(f"Failed to parse newer_than date: {e}")
         
-        return ProcessingConfig(**config_kwargs)
+        # Store the explicitly set CLI fields for later merging
+        config = ProcessingConfig(**config_kwargs)
+        config._explicit_cli_fields = set(config_kwargs.keys())
+        return config
     
     @classmethod
     def from_environment(cls) -> ProcessingConfig:
@@ -419,8 +435,13 @@ class ConfigurationBuilder:
         for config in configs[1:]:
             config_dict = config.to_dict()
             for key, value in config_dict.items():
-                if value is not None:  # Only override non-None values
+                # Only override if this field was explicitly set in the CLI config
+                if hasattr(config, '_explicit_cli_fields') and key in config._explicit_cli_fields:
                     merged_dict[key] = value
+                elif not hasattr(config, '_explicit_cli_fields'):
+                    # For non-CLI configs, override all non-None values
+                    if value is not None:
+                        merged_dict[key] = value
         
         return ProcessingConfig.from_dict(merged_dict)
     
