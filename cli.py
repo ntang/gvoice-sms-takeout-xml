@@ -405,7 +405,8 @@ def convert(ctx):
             batch_size=config.batch_size,
             cache_size=config.cache_size,
             large_dataset=config.large_dataset,
-            output_format=config.output_format
+            output_format=config.output_format,
+            phone_lookup_file=config.phone_lookup_file
         )
         logger.info("✅ Processing paths initialized successfully")
         

@@ -6636,12 +6636,13 @@ def create_attachment_backup(original_path: Path, backup_dir: Path) -> Optional[
 
 def setup_processing_paths(
     processing_dir: Path,
-            enable_phone_prompts: bool = False,
+    enable_phone_prompts: bool = False,
     buffer_size: int = 8192,
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-            output_format: str = "html",
+    output_format: str = "html",
+    phone_lookup_file: Optional[Path] = None,
 ) -> None:
     """
     Set up all file paths based on the specified processing directory.
@@ -6654,6 +6655,7 @@ def setup_processing_paths(
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
         output_format: Output format ('xml' or 'html')
+        phone_lookup_file: Optional path to phone lookup file
 
     Raises:
         ValueError: If parameters are invalid
@@ -6758,10 +6760,9 @@ def setup_processing_paths(
         False,
         output_format,
     )
-    # Use configured phone lookup file path if available, otherwise default to processing directory
-    if 'PHONE_LOOKUP_FILE_PATH' in globals() and PHONE_LOOKUP_FILE_PATH is not None:
-        phone_lookup_file = PHONE_LOOKUP_FILE_PATH
-        logger.info(f"Using configured phone lookup file: {phone_lookup_file}")
+    # Use provided phone lookup file path or default to processing directory
+    if phone_lookup_file is not None:
+        logger.info(f"Using provided phone lookup file: {phone_lookup_file}")
     else:
         phone_lookup_file = PROCESSING_DIRECTORY / "phone_lookup.txt"
         logger.info(f"Using default phone lookup file: {phone_lookup_file}")

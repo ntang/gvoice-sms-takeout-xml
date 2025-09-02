@@ -74,6 +74,7 @@ def setup_processing_paths_with_config(
         cache_size=effective_cache_size,
         large_dataset=effective_large_dataset,
         output_format=effective_output_format,
+        phone_lookup_file=effective_phone_lookup_file,
     )
     
     logger.info("✅ Processing paths initialized with configuration object")
