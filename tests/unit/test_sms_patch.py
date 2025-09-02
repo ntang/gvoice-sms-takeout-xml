@@ -292,6 +292,11 @@ class TestSMSModulePatcher:
 class TestSMSModulePatchFunctions:
     """Test the main patch functions."""
     
+    def setup_method(self):
+        """Clear patcher registry before each test."""
+        from core.sms_patch import _active_patchers
+        _active_patchers.clear()
+    
     @patch('core.sms_patch.enable_backward_compatibility')
     @patch('core.sms_patch.SMSModulePatcher')
     def test_patch_sms_module(self, mock_patcher_class, mock_enable_compat):
@@ -387,7 +392,7 @@ class TestSMSModulePatchFunctions:
         result = quick_patch_sms_module('/tmp/test', max_workers=32)
         
         # Check that configuration was created
-        mock_builder.create_with_presets.assert_called_once_with('/tmp/test', 'default')
+        mock_builder.create_with_presets.assert_called_once_with(Path('/tmp/test'), 'default')
         
         # Check that configuration was updated with kwargs
         # The to_dict() method is called internally, so we just verify the patch was called
@@ -424,6 +429,11 @@ class TestSMSModulePatchFunctions:
 
 class TestSMSModulePatchIntegration:
     """Test integration between patching components."""
+    
+    def setup_method(self):
+        """Clear patcher registry before each test."""
+        from core.sms_patch import _active_patchers
+        _active_patchers.clear()
     
     def test_patcher_lifecycle(self):
         """Test complete lifecycle of a patcher instance."""

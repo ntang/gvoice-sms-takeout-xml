@@ -22,6 +22,11 @@ from core.processing_config import ProcessingConfig, ConfigurationBuilder
 class TestSMSModulePatchIntegration:
     """Test integration between SMS module patcher and configuration system."""
     
+    def setup_method(self):
+        """Clear patcher registry before each test."""
+        from core.sms_patch import _active_patchers
+        _active_patchers.clear()
+    
     def test_basic_patch_and_unpatch_cycle(self):
         """Test basic patch and unpatch cycle."""
         # Create test configuration
@@ -157,6 +162,11 @@ class TestSMSModulePatchIntegration:
 
 class TestSMSModulePatchRealWorld:
     """Test real-world usage scenarios."""
+    
+    def setup_method(self):
+        """Clear patcher registry before each test."""
+        from core.sms_patch import _active_patchers
+        _active_patchers.clear()
     
     def test_production_configuration_patch(self):
         """Test patching with production-like configuration."""
