@@ -3145,7 +3145,7 @@ def write_sms_messages(
                                 if candidate:
                                     try:
                                         formatted = format_number(
-                                            phonenumbers.parse(candidate, None)
+                                            phonenumbers.parse(candidate, "US")
                                         )
                                         if not own_number or formatted != own_number:
                                             phone_number = formatted
@@ -3164,7 +3164,7 @@ def write_sms_messages(
                     phone_match = re.search(r"(\+\d{1,3}\s?\d{1,14})", file)
                     if phone_match:
                         phone_number = format_number(
-                            phonenumbers.parse(phone_match.group(1), None)
+                            phonenumbers.parse(phone_match.group(1), "US")
                         )
                         participant_raw = create_dummy_participant(phone_number)
                         logger.debug(
@@ -3186,7 +3186,7 @@ def write_sms_messages(
                                 if match:
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(match.group(1), None)
+                                            phonenumbers.parse(match.group(1), "US")
                                         )
                                         if not own_number or phone_number != own_number:
                                             participant_raw = create_dummy_participant(
@@ -3220,7 +3220,7 @@ def write_sms_messages(
                                             try:
                                                 phone_number = format_number(
                                                     phonenumbers.parse(
-                                                        match.group(1), None
+                                                        match.group(1), "US"
                                                     )
                                                 )
                                                 if (
