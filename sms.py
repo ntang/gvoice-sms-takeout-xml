@@ -4018,7 +4018,7 @@ def search_fallback_numbers(
                                 ):
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(number_text, None)
+                                            phonenumbers.parse(number_text, "US")
                                         )
                                         return phone_number
                                     except phonenumbers.phonenumberutil.NumberParseException:
@@ -4276,7 +4276,7 @@ def write_mms_messages(
                                 if match:
                                     try:
                                         phone_number = format_number(
-                                            phonenumbers.parse(match.group(1), None)
+                                            phonenumbers.parse(match.group(1), "US")
                                         )
                                         if phone_number not in all_participants:
                                             all_participants.append(phone_number)
@@ -4307,7 +4307,7 @@ def write_mms_messages(
                         for match in phone_matches:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(match, None)
+                                    phonenumbers.parse(match, "US")
                                 )
                                 if phone_number not in all_participants:
                                     all_participants.append(phone_number)
@@ -4327,7 +4327,7 @@ def write_mms_messages(
                     if phone_match:
                         try:
                             phone_number = format_number(
-                                phonenumbers.parse(phone_match.group(1), None)
+                                phonenumbers.parse(phone_match.group(1), "US")
                             )
                             all_participants.append(phone_number)
                             all_aliases.append(phone_number)
@@ -4366,7 +4366,7 @@ def write_mms_messages(
                         for phone_match in phone_matches:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(phone_match, None)
+                                    phonenumbers.parse(phone_match, "US")
                                 )
                                 if phone_number not in filename_participants:
                                     filename_participants.append(phone_number)
@@ -4399,7 +4399,7 @@ def write_mms_messages(
                                         if len(match) == 2:  # Name +phone format
                                             name, phone = match
                                             phone_number = format_number(
-                                                phonenumbers.parse(phone, None)
+                                                phonenumbers.parse(phone, "US")
                                             )
                                         elif (
                                             len(match) == 4
@@ -4407,7 +4407,7 @@ def write_mms_messages(
                                             name = match[0]
                                             phone = "".join(match[1:])
                                             phone_number = format_number(
-                                                phonenumbers.parse(phone, None)
+                                                phonenumbers.parse(phone, "US")
                                             )
                                         else:
                                             continue
@@ -5645,7 +5645,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
 
                 if number_text:
                     try:
-                        return format_number(phonenumbers.parse(number_text, None))
+                        return format_number(phonenumbers.parse(number_text, "US"))
                     except phonenumbers.phonenumberutil.NumberParseException as e:
                         logger.error(f"Failed to parse phone number {number_text}: {e}")
                         # Continue to fallback methods instead of failing
@@ -5659,7 +5659,7 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
                 number_text = match.group(1) if match else ""
                 if number_text:
                     try:
-                        return format_number(phonenumbers.parse(number_text, None))
+                        return format_number(phonenumbers.parse(number_text, "US"))
                     except phonenumbers.phonenumberutil.NumberParseException:
                         continue
 
@@ -5757,7 +5757,7 @@ def get_first_phone_number(
                     if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
                         try:
                             phone_number = format_number(
-                                phonenumbers.parse(number_text, None)
+                                phonenumbers.parse(number_text, "US")
                             )
                             return phone_number, cite_element
                         except phonenumbers.phonenumberutil.NumberParseException as e:
@@ -5782,7 +5782,7 @@ def get_first_phone_number(
                         if number_text and len(number_text) >= MIN_PHONE_NUMBER_LENGTH:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(number_text, None)
+                                    phonenumbers.parse(number_text, "US")
                                 )
                                 # Create a dummy participant since we don't
                                 # have the original cite
@@ -5809,7 +5809,7 @@ def get_first_phone_number(
                     number_text = phone_match.group(1)
                     try:
                         phone_number = format_number(
-                            phonenumbers.parse(number_text, None)
+                            phonenumbers.parse(number_text, "US")
                         )
                         return phone_number, create_dummy_participant(phone_number)
                     except phonenumbers.phonenumberutil.NumberParseException as e:
@@ -5824,7 +5824,7 @@ def get_first_phone_number(
             try:
                 if isinstance(fallback_number, str):
                     phone_number = format_number(
-                        phonenumbers.parse(fallback_number, None)
+                        phonenumbers.parse(fallback_number, "US")
                     )
                     return phone_number, create_dummy_participant(phone_number)
             except Exception as e:
@@ -6031,7 +6031,7 @@ def extract_phone_and_alias_from_cite(
             return None, ""
 
         try:
-            phone_number = phonenumbers.parse(phonenumber_text, None)
+            phone_number = phonenumbers.parse(phonenumber_text, "US")
             formatted_number = format_number(phone_number)
 
             # Prefer existing alias from phone lookup manager if present
@@ -7306,7 +7306,7 @@ def extract_call_info(
                 if phone_match:
                     try:
                         phone_number = format_number(
-                            phonenumbers.parse(phone_match.group(1), None)
+                            phonenumbers.parse(phone_match.group(1), "US")
                         )
                         logger.info(
                             f"Successfully extracted phone number from filename: {phone_number}"
