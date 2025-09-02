@@ -390,6 +390,20 @@ def convert(ctx):
             logger.error("Setup failed - cannot proceed with conversion")
             sys.exit(1)
         
+        # Initialize processing paths BEFORE patching to avoid recursion
+        logger.info("🔧 Initializing processing paths...")
+        from sms import setup_processing_paths
+        setup_processing_paths(
+            config.processing_dir,
+            enable_phone_prompts=config.enable_phone_prompts,
+            buffer_size=config.buffer_size,
+            batch_size=config.batch_size,
+            cache_size=config.cache_size,
+            large_dataset=config.large_dataset,
+            output_format=config.output_format
+        )
+        logger.info("✅ Processing paths initialized successfully")
+        
         # Patch SMS module with new configuration system
         patcher = patch_sms_module_with_config(config)
         ctx.obj['patcher'] = patcher
