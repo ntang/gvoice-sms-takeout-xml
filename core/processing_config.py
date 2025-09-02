@@ -79,6 +79,10 @@ class ProcessingConfig:
     large_dataset: bool = False
     enable_batch_processing: bool = True
     
+    # Additional CLI Options
+    validation_interval: int = 1000
+    log_filename: Optional[str] = None
+    
     def __post_init__(self):
         """Post-initialization validation and setup."""
         # Ensure output_dir is set if not provided
@@ -209,6 +213,61 @@ class ProcessingConfig:
     def get_output_directory(self) -> Path:
         """Get output directory path."""
         return self.output_dir
+    
+    def get_validation_errors(self) -> List[str]:
+        """Get validation errors for the configuration.
+        
+        Returns:
+            List of validation error messages, empty if valid
+        """
+        errors = []
+        
+        # Check required fields
+        if not self.processing_dir:
+            errors.append("Processing directory is required")
+        
+        # Check processing directory exists and is accessible
+        if self.processing_dir:
+            try:
+                if not self.processing_dir.exists():
+                    errors.append(f"Processing directory does not exist: {self.processing_dir}")
+                elif not self.processing_dir.is_dir():
+                    errors.append(f"Processing path is not a directory: {self.processing_dir}")
+                else:
+                    # Test read access
+                    try:
+                        next(self.processing_dir.iterdir())
+                    except PermissionError:
+                        errors.append(f"No read permission for processing directory: {self.processing_dir}")
+            except Exception as e:
+                errors.append(f"Error accessing processing directory: {e}")
+        
+        # Check numeric fields are positive
+        if self.max_workers <= 0:
+            errors.append("max_workers must be positive")
+        if self.chunk_size <= 0:
+            errors.append("chunk_size must be positive")
+        if self.batch_size <= 0:
+            errors.append("batch_size must be positive")
+        if self.buffer_size <= 0:
+            errors.append("buffer_size must be positive")
+        if self.cache_size <= 0:
+            errors.append("cache_size must be positive")
+        if self.memory_threshold <= 0:
+            errors.append("memory_threshold must be positive")
+        if self.test_limit <= 0:
+            errors.append("test_limit must be positive")
+        
+        # Check output format is valid
+        if self.output_format not in ['html', 'xml']:
+            errors.append(f"Invalid output format: {self.output_format}")
+        
+        # Check log level is valid
+        valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if self.log_level not in valid_log_levels:
+            errors.append(f"Invalid log level: {self.log_level}")
+        
+        return errors
 
 
 class ConfigurationDefaults:

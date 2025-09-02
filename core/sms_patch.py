@@ -469,6 +469,11 @@ def get_active_patchers() -> List['SMSModulePatcher']:
     return _active_patchers.copy()
 
 
+def get_active_patcher_count() -> int:
+    """Get the number of active patchers."""
+    return len(_active_patchers)
+
+
 def register_patcher(patcher: 'SMSModulePatcher') -> None:
     """Register an active patcher."""
     _active_patchers.append(patcher)

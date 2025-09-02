@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass
 
 from .processing_config import ProcessingConfig, ConfigurationBuilder
@@ -278,6 +278,23 @@ class ConfigurationManager:
         """
         config = self.get_effective_config()
         return getattr(config, key, default)
+    
+    def get_active_patchers(self) -> List['SMSModulePatcher']:
+        """
+        Get list of active SMS module patchers.
+        
+        This method provides access to the patcher registry for testing
+        and debugging purposes.
+        
+        Returns:
+            List of active SMSModulePatcher instances
+        """
+        try:
+            from .sms_patch import get_active_patchers
+            return get_active_patchers()
+        except ImportError:
+            logger.warning("SMS patch module not available")
+            return []
     
     def get_phone_prompts_enabled(self) -> bool:
         """Get whether phone prompts are enabled."""
