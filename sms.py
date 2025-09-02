@@ -69,6 +69,12 @@ from utils.improved_file_operations import copy_attachments_sequential, copy_att
 from utils.utils import is_valid_phone_number, generate_unknown_number_hash
 from core.app_config import *
 
+# Enhanced logging and metrics
+from utils.enhanced_logging import (
+    track_processing, log_processing_event, log_risk_factor,
+    get_metrics_collector, ProcessingMetrics
+)
+
 
 # ====================================================================
 # CONFIGURATION CONSTANTS
@@ -809,6 +815,10 @@ def main():
     """Main conversion function with comprehensive progress logging and performance optimization."""
     start_time = time.time()
 
+    # Initialize enhanced logging and metrics
+    metrics_collector = get_metrics_collector()
+    logger.info("📊 Enhanced logging and metrics system initialized")
+
     try:
         logger.info("=" * 60)
         logger.info("Starting Google Voice SMS Takeout XML Conversion")
@@ -1079,6 +1089,35 @@ def main():
                 
         except Exception as e:
             logger.warning(f"⚠️  Export health assessment failed: {e}")
+
+        # Enhanced Processing Metrics Summary
+        try:
+            logger.info("📊 Enhanced Processing Metrics Summary:")
+            metrics_summary = metrics_collector.get_summary()
+            
+            if "error" not in metrics_summary:
+                logger.info(f"  Total Files Processed: {metrics_summary['total_files_processed']}")
+                logger.info(f"  Success Rate: {metrics_summary['success_rate']}")
+                logger.info(f"  Total Processing Time: {metrics_summary['total_processing_time_ms']:.0f} ms")
+                logger.info(f"  Average Processing Time: {metrics_summary['average_processing_time_ms']:.0f} ms per file")
+                logger.info(f"  Total Messages Processed: {metrics_summary['total_messages_processed']}")
+                logger.info(f"  Total Participants Extracted: {metrics_summary['total_participants_extracted']}")
+                
+                if metrics_summary['risk_factor_distribution']:
+                    logger.info("  Risk Factor Distribution:")
+                    for factor, count in metrics_summary['risk_factor_distribution'].items():
+                        logger.info(f"    • {factor}: {count} occurrences")
+                
+                logger.info("  Processing Efficiency:")
+                efficiency = metrics_summary['processing_efficiency']
+                logger.info(f"    • Messages per file: {efficiency['messages_per_file']:.1f}")
+                logger.info(f"    • Participants per file: {efficiency['participants_per_file']:.1f}")
+                logger.info(f"    • Processing time per message: {efficiency['processing_time_per_message']:.1f} ms")
+            else:
+                logger.warning(f"⚠️  Enhanced metrics unavailable: {metrics_summary['error']}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Enhanced metrics summary failed: {e}")
 
         # Throughput metrics
         if "num_sms" in stats and stats["num_sms"] > 0 and elapsed_time > 0:
@@ -2654,6 +2693,15 @@ def process_sms_mms_file(
     phone_lookup_manager: "PhoneLookupManager",
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
+    
+    # Enhanced logging and metrics tracking
+    file_id = html_file.name
+    log_processing_event(
+        logger, "start_processing", file_id, "sms_mms_processing",
+        file_size_bytes=html_file.stat().st_size,
+        file_path=str(html_file)
+    )
+    
     # Strategy 1: Use cached CSS selector for better performance
     messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
 
@@ -2805,9 +2853,27 @@ def process_sms_mms_file(
             f"Expected: {diagnostic_info['expected_size_range']} KB"
         )
         
+        # Enhanced risk factor logging
+        if diagnostic_info['risk_level'] == "HIGH":
+            log_risk_factor(
+                logger, file_id, "high_risk_file", 
+                f"File has {len(diagnostic_info['risk_factors'])} high-risk factors", 
+                "HIGH"
+            )
+            for factor in diagnostic_info['risk_factors']:
+                log_risk_factor(logger, file_id, factor, f"Risk factor: {factor}", "HIGH")
+        elif diagnostic_info['risk_level'] == "MEDIUM":
+            log_risk_factor(
+                logger, file_id, "medium_risk_file",
+                f"File has {len(diagnostic_info['risk_factors'])} medium-risk factors",
+                "MEDIUM"
+            )
+        
         if diagnostic_info['size_suspicious']:
-            logger.warning(
-                f"⚠️  File size appears suspicious - may indicate truncation or corruption"
+            log_risk_factor(
+                logger, file_id, "suspicious_file_size",
+                f"File size {diagnostic_info['file_size_kb']:.1f} KB doesn't match expected range {diagnostic_info['expected_size_range']} KB",
+                "MEDIUM"
             )
         
         # Log detailed message content
@@ -2861,6 +2927,25 @@ def process_sms_mms_file(
     img_count = len(soup.select(img_selector))
     vcf_count = len(soup.select(vcard_selector))
 
+    # Update metrics with processing results
+    metrics = get_metrics_collector().get_metrics(file_id)
+    if metrics:
+        metrics.update_metrics(
+            file_id,
+            messages_processed=len(messages_raw),
+            participants_extracted=len(participants_raw) if participants_raw else 0,
+            attachments_found=img_count + vcf_count,
+            processing_stage="completed"
+        )
+    
+    # Log completion event
+    log_processing_event(
+        logger, "processing_completed", file_id, "sms_mms_processing",
+        messages_processed=len(messages_raw),
+        participants_extracted=len(participants_raw) if participants_raw else 0,
+        attachments_found=img_count + vcf_count
+    )
+    
     return {
         "num_sms": sms_count,
         "num_img": img_count,
