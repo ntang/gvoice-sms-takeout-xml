@@ -1,3 +1,0 @@
-# Phone number lookup file
-# Format: phone_number|alias
-# Lines starting with # are comments
