@@ -7326,7 +7326,7 @@ def extract_call_info(
                         if match:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(match.group(1), None)
+                                    phonenumbers.parse(match.group(1), "US")
                                 )
                                 logger.debug(
                                     f"Extracted phone number from tel link: {phone_number}"
@@ -7358,7 +7358,7 @@ def extract_call_info(
                 if phone_match:
                     try:
                         phone_number = format_number(
-                            phonenumbers.parse(phone_match.group(1), None)
+                            phonenumbers.parse(phone_match.group(1), "US")
                         )
                         logger.info(
                             f"Successfully extracted phone number from HTML content using pattern {pattern}: {phone_number}"
@@ -7495,7 +7495,7 @@ def extract_voicemail_info(
                 if phone_match:
                     try:
                         phone_number = format_number(
-                            phonenumbers.parse(phone_match.group(1), None)
+                            phonenumbers.parse(phone_match.group(1), "US")
                         )
                         logger.info(
                             f"Successfully extracted phone number from filename: {phone_number}"
@@ -7515,7 +7515,7 @@ def extract_voicemail_info(
                         if match:
                             try:
                                 phone_number = format_number(
-                                    phonenumbers.parse(match.group(1), None)
+                                    phonenumbers.parse(match.group(1), "US")
                                 )
                                 logger.debug(
                                     f"Extracted phone number from tel link: {phone_number}"
@@ -7596,7 +7596,7 @@ def extract_voicemail_info(
             if phone_match:
                 try:
                     phone_number = format_number(
-                        phonenumbers.parse(phone_match.group(1), None)
+                        phonenumbers.parse(phone_match.group(1), "US")
                     )
                     logger.debug(
                         f"Extracted phone number from HTML content: {phone_number}"
@@ -7855,7 +7855,7 @@ def extract_phone_from_call(soup: BeautifulSoup, filename: str = None) -> Option
                         # Try to parse and format the phone number
                         try:
                             phone_number = format_number(
-                                phonenumbers.parse(phone_text, None)
+                                phonenumbers.parse(phone_text, "US")
                             )
                             logger.info(
                                 f"Successfully extracted phone number from filename: {phone_number} (pattern: {pattern})"
