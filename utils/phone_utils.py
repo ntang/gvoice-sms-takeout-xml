@@ -5,6 +5,8 @@ Replaces scattered phone number logic throughout the codebase.
 
 import re
 import logging
+import time
+from functools import wraps
 from typing import List, Optional, Dict, Any
 import phonenumbers
 from phonenumbers import PhoneNumberType, PhoneNumberFormat
@@ -12,11 +14,40 @@ from phonenumbers import PhoneNumberType, PhoneNumberFormat
 logger = logging.getLogger(__name__)
 
 
+def monitor_performance(func):
+    """Decorator to monitor function performance."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        
+        if end_time - start_time > 0.1:  # Log if takes more than 100ms
+            logger.warning(f"{func.__name__} took {end_time - start_time:.3f}s")
+        
+        return result
+    return wrapper
+
+
 class PhoneNumberProcessor:
     """Centralized phone number processing using phonenumbers library."""
     
-    def __init__(self, default_region: str = "US"):
+    def __init__(self, default_region: str = "US", 
+                 filter_premium_rate: bool = True,
+                 filter_fictitious: bool = True,
+                 filter_invalid_area_codes: bool = True,
+                 filter_shared_cost: bool = True,
+                 filter_uan: bool = True,
+                 filter_pager: bool = True):
         self.default_region = default_region
+        
+        # Enhanced filtering configuration options
+        self.filter_premium_rate = filter_premium_rate
+        self.filter_fictitious = filter_fictitious
+        self.filter_invalid_area_codes = filter_invalid_area_codes
+        self.filter_shared_cost = filter_shared_cost
+        self.filter_uan = filter_uan
+        self.filter_pager = filter_pager
         
         # Reserved toll-free prefixes not yet in phonenumbers database
         self.reserved_toll_free_prefixes = {
@@ -123,33 +154,78 @@ class PhoneNumberProcessor:
 
         return False
     
+    @monitor_performance
     def _passes_enhanced_filtering(self, phone_number: str) -> bool:
-        """Apply enhanced filtering for non-phone numbers."""
+        """Apply enhanced filtering for non-phone numbers with proper error handling."""
         try:
             parsed = phonenumbers.parse(phone_number, self.default_region)
             
             # Filter out short codes (4-6 digits)
             if phonenumbers.is_possible_short_number(parsed):
+                logger.debug(f"Filtered {phone_number}: short code")
                 return False
             
             # Filter out toll-free numbers
             if self.is_toll_free_number(phone_number):
+                logger.debug(f"Filtered {phone_number}: toll-free")
                 return False
             
             # Filter out non-US numbers
             if not phonenumbers.is_valid_number_for_region(parsed, "US"):
+                logger.debug(f"Filtered {phone_number}: non-US number")
+                return False
+            
+            # Get number type once and reuse
+            try:
+                number_type = phonenumbers.number_type(parsed)
+            except Exception as e:
+                logger.debug(f"Failed to get number type for {phone_number}: {e}")
+                # If we can't determine type, fall back to basic checks
+                return self._basic_filtering_fallback(phone_number)
+            
+            # Filter out premium rate numbers (if enabled)
+            if self.filter_premium_rate and number_type == PhoneNumberType.PREMIUM_RATE:
+                logger.debug(f"Filtered {phone_number}: premium rate")
+                return False
+            
+            # Filter out shared cost numbers (if enabled)
+            if self.filter_shared_cost and number_type == PhoneNumberType.SHARED_COST:
+                logger.debug(f"Filtered {phone_number}: shared cost")
+                return False
+            
+            # Filter out UAN numbers (if enabled)
+            if self.filter_uan and number_type == PhoneNumberType.UAN:
+                logger.debug(f"Filtered {phone_number}: UAN")
+                return False
+            
+            # Filter out pager numbers (if enabled)
+            if self.filter_pager and number_type == PhoneNumberType.PAGER:
+                logger.debug(f"Filtered {phone_number}: pager")
+                return False
+            
+            # Filter out fictitious/test numbers (if enabled)
+            if self.filter_fictitious and self._is_fictitious_number(phone_number):
+                logger.debug(f"Filtered {phone_number}: fictitious/test number")
+                return False
+            
+            # Filter out invalid area codes (if enabled)
+            if self.filter_invalid_area_codes and self._has_invalid_area_code(phone_number):
+                logger.debug(f"Filtered {phone_number}: invalid area code")
                 return False
             
             return True
             
-        except Exception:
-            # If parsing fails, fall back to basic checks
+        except Exception as e:
+            logger.debug(f"Enhanced filtering failed for {phone_number}: {e}")
+            # Fall back to basic filtering
             return self._basic_filtering_fallback(phone_number)
     
+    @monitor_performance
     def _basic_filtering_fallback(self, phone_number: str) -> bool:
         """Basic filtering fallback when phonenumbers parsing fails."""
         # Filter out short codes (4-6 digits)
         if re.match(r"^[0-9]+$", phone_number) and 4 <= len(phone_number) <= 6:
+            logger.debug(f"Filtered {phone_number}: short code (fallback)")
             return False
         
         # Filter out toll-free numbers using regex fallback
@@ -160,10 +236,22 @@ class PhoneNumberProcessor:
         
         for pattern in toll_free_patterns:
             if re.match(pattern, phone_number):
+                logger.debug(f"Filtered {phone_number}: toll-free (fallback)")
                 return False
         
         # Filter out non-US numbers (don't start with +1 or 1)
         if not re.match(r"^\+?1", phone_number):
+            logger.debug(f"Filtered {phone_number}: non-US number (fallback)")
+            return False
+        
+        # Filter out fictitious numbers (if enabled)
+        if self.filter_fictitious and self._is_fictitious_number(phone_number):
+            logger.debug(f"Filtered {phone_number}: fictitious/test number (fallback)")
+            return False
+        
+        # Filter out invalid area codes (if enabled)
+        if self.filter_invalid_area_codes and self._has_invalid_area_code(phone_number):
+            logger.debug(f"Filtered {phone_number}: invalid area code (fallback)")
             return False
         
         return True
@@ -202,6 +290,70 @@ class PhoneNumberProcessor:
         
         # Check if it starts with any reserved prefix
         return any(digits_only.startswith(prefix) for prefix in self.reserved_toll_free_prefixes)
+    
+    def _is_fictitious_number(self, phone_number: str) -> bool:
+        """
+        Check if phone number uses fictitious/test area codes.
+        
+        Args:
+            phone_number: Phone number string to check
+            
+        Returns:
+            bool: True if number uses fictitious area codes
+        """
+        if not phone_number or not isinstance(phone_number, str):
+            return False
+            
+        try:
+            # Remove all non-digits
+            digits_only = re.sub(r"[^0-9]", "", phone_number)
+            
+            # Remove country code if present
+            if digits_only.startswith("1") and len(digits_only) > 10:
+                digits_only = digits_only[1:]
+            
+            # Check for fictitious area codes
+            if len(digits_only) >= 10:
+                area_code = digits_only[:3]
+                fictitious_codes = ["555", "456"]  # Reserved for testing/fiction
+                return area_code in fictitious_codes
+            
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking fictitious number {phone_number}: {e}")
+            return False
+
+    def _has_invalid_area_code(self, phone_number: str) -> bool:
+        """
+        Check if phone number has invalid area codes.
+        
+        Args:
+            phone_number: Phone number string to check
+            
+        Returns:
+            bool: True if number has invalid area code
+        """
+        if not phone_number or not isinstance(phone_number, str):
+            return False
+            
+        try:
+            # Remove all non-digits
+            digits_only = re.sub(r"[^0-9]", "", phone_number)
+            
+            # Remove country code if present
+            if digits_only.startswith("1") and len(digits_only) > 10:
+                digits_only = digits_only[1:]
+            
+            # Check for invalid area codes
+            if len(digits_only) >= 10:
+                area_code = digits_only[:3]
+                invalid_codes = ["000", "111", "222", "333", "444", "555", "666", "777", "888", "999"]
+                return area_code in invalid_codes
+            
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking invalid area code {phone_number}: {e}")
+            return False
     
     def extract_phone_numbers_from_text(self, text: str) -> List[str]:
         """
@@ -393,4 +545,143 @@ def extract_phone_numbers_from_text(text: str) -> List[str]:
         List[str]: List of found phone numbers
     """
     return _global_processor.extract_phone_numbers_from_text(text)
+
+
+# ====================================================================
+# COMPREHENSIVE TEST SUITE
+# ====================================================================
+
+def test_enhanced_filtering():
+    """Test enhanced phone number filtering with various scenarios."""
+    
+    print("🧪 Testing Enhanced Phone Number Filtering")
+    print("=" * 60)
+    
+    # Test cases: (phone_number, should_pass, reason)
+    test_cases = [
+        # Premium rate numbers (should be filtered)
+        ("+19005551234", False, "Premium rate (900)"),
+        ("+19001234567", False, "Premium rate (900)"),
+        
+        # Fictitious numbers (should be filtered)
+        ("+15555551234", False, "Fictitious (555)"),
+        ("+14565551234", False, "Fictitious (456)"),
+        
+        # Invalid area codes (should be filtered)
+        ("+10005551234", False, "Invalid area code (000)"),
+        ("+11115551234", False, "Invalid area code (111)"),
+        ("+12225551234", False, "Invalid area code (222)"),
+        ("+19995551234", False, "Invalid area code (999)"),
+        
+        # Toll-free numbers (should be filtered)
+        ("+18005551234", False, "Toll-free (800)"),
+        ("+18885551234", False, "Toll-free (888)"),
+        
+        # Short codes (should be filtered)
+        ("22891", False, "Short code"),
+        ("91590", False, "Short code"),
+        
+        # Regular numbers (should pass)
+        ("+17187811928", True, "Regular mobile"),
+        ("+12125551234", True, "Regular landline"),
+        ("+13105551234", True, "Regular mobile"),
+        
+        # Edge cases
+        ("", False, "Empty string"),
+        (None, False, "None value"),
+        ("invalid", False, "Invalid format"),
+        ("+1555", False, "Too short"),
+        
+        # Special cases (should pass)
+        ("unknown_123", True, "Special case - unknown"),
+        ("UN_456", True, "Special case - UN_"),
+        ("John Doe", True, "Special case - name"),
+    ]
+    
+    # Test with default configuration (all filters enabled)
+    processor = PhoneNumberProcessor()
+    
+    print("Testing with default configuration (all filters enabled):")
+    print("-" * 50)
+    
+    passed_tests = 0
+    total_tests = len(test_cases)
+    
+    for phone_number, expected_result, reason in test_cases:
+        try:
+            result = processor.is_valid_phone_number(phone_number, filter_non_phone=True)
+            if result == expected_result:
+                print(f"✅ {str(phone_number):15} -> {result:5} ({reason})")
+                passed_tests += 1
+            else:
+                print(f"❌ {str(phone_number):15} -> {result:5} (expected {expected_result}) ({reason})")
+        except Exception as e:
+            print(f"💥 {str(phone_number):15} -> ERROR: {e} ({reason})")
+    
+    print(f"\nTest Results: {passed_tests}/{total_tests} tests passed")
+    
+    # Test with custom configuration (disable some filters)
+    print("\nTesting with custom configuration (premium rate disabled):")
+    print("-" * 50)
+    
+    custom_processor = PhoneNumberProcessor(filter_premium_rate=False)
+    
+    # Test premium rate numbers with disabled filter
+    premium_test_cases = [
+        ("+19005551234", True, "Premium rate (filter disabled)"),
+        # Note: +19001234567 is not a valid premium rate number, so it gets filtered by basic validation
+    ]
+    
+    for phone_number, expected_result, reason in premium_test_cases:
+        try:
+            result = custom_processor.is_valid_phone_number(phone_number, filter_non_phone=True)
+            if result == expected_result:
+                print(f"✅ {str(phone_number):15} -> {result:5} ({reason})")
+            else:
+                print(f"❌ {str(phone_number):15} -> {result:5} (expected {expected_result}) ({reason})")
+        except Exception as e:
+            print(f"💥 {str(phone_number):15} -> ERROR: {e} ({reason})")
+    
+    print("\n🎉 Enhanced filtering test completed!")
+
+
+def test_number_type_detection():
+    """Test number type detection for various phone number categories."""
+    
+    print("\n🔍 Testing Number Type Detection")
+    print("=" * 50)
+    
+    test_numbers = [
+        ("+19005551234", "Premium Rate"),
+        ("+18005551234", "Toll-free"),
+        ("+17187811928", "Regular"),
+        ("+12125551234", "Regular"),
+        ("22891", "Short Code"),
+        ("+15555551234", "Fictitious"),
+    ]
+    
+    processor = PhoneNumberProcessor()
+    
+    for number, expected_type in test_numbers:
+        try:
+            parsed = phonenumbers.parse(number, "US")
+            number_type = phonenumbers.number_type(parsed)
+            
+            # Get type name
+            type_name = "UNKNOWN"
+            for name, value in PhoneNumberType.__dict__.items():
+                if isinstance(value, int) and value == number_type:
+                    type_name = name
+                    break
+            
+            print(f"{number:15} -> {type_name:20} ({expected_type})")
+            
+        except Exception as e:
+            print(f"{number:15} -> ERROR: {e} ({expected_type})")
+
+
+if __name__ == "__main__":
+    # Run tests when script is executed directly
+    test_enhanced_filtering()
+    test_number_type_detection()
 
