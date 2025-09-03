@@ -4079,7 +4079,7 @@ class TestSMSIntegration(unittest.TestCase):
                     if match:
                         try:
                             phone_number = sms.format_number(
-                                sms.phonenumbers.parse(match.group(1), None)
+                                sms.phonenumbers.parse(match.group(1), "US")
                             )
                             sender_phone = phone_number
                         except Exception:
