@@ -3472,11 +3472,15 @@ def write_sms_messages(
                         sms_values["time"],
                         sender=sender_display,
                     )
+                    # Update latest timestamp for this conversation
+                    conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
                 else:
                     # For XML output, use the XML format
                     conversation_manager.write_message(
                         conversation_id, sms_text, sms_values["time"]
                     )
+                    # Update latest timestamp for this conversation
+                    conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
 
                 processed_count += 1
 
@@ -4684,11 +4688,15 @@ def write_mms_messages(
                         get_time_unix(message),
                         sender=sender_display,
                     )
+                    # Update latest timestamp for this conversation
+                    conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
                 else:
                     # For XML output, use the XML format
                     conversation_manager.write_message(
                         conversation_id, mms_xml, get_time_unix(message)
                     )
+                    # Update latest timestamp for this conversation
+                    conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
 
                 processed_count += 1
 
@@ -8190,6 +8198,9 @@ def write_call_entry(
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(conversation_id, sms_text, call_ts)
+        
+        # Update latest timestamp for this conversation
+        CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, call_ts)
 
         # Update conversation statistics
         CONVERSATION_MANAGER.update_stats(conversation_id, {"num_calls": 1})
@@ -8477,6 +8488,9 @@ def write_voicemail_entry(
         else:
             # For XML output, use the XML format
             CONVERSATION_MANAGER.write_message(conversation_id, sms_text, vm_ts)
+        
+        # Update latest timestamp for this conversation
+        CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, vm_ts)
 
         # Update conversation statistics
         CONVERSATION_MANAGER.update_stats(conversation_id, {"num_voicemails": 1})

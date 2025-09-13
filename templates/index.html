@@ -12,10 +12,55 @@
         .stat-card {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #667eea; }}
         .stat-number {{ font-size: 2em; font-weight: bold; color: #667eea; margin-bottom: 5px; }}
         .stat-label {{ color: #666; font-size: 0.9em; }}
-        .conversations-table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-        .conversations-table th, .conversations-table td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
+        .conversations-table {{ width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }}
+        .conversations-table th, .conversations-table td {{ 
+            padding: 12px 8px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd; 
+            word-wrap: break-word; 
+            word-break: break-word; 
+            overflow-wrap: break-word; 
+            max-width: 0; 
+        }}
         .conversations-table th {{ background-color: #667eea; color: white; font-weight: bold; }}
         .conversations-table tr:hover {{ background-color: #f8f9fa; }}
+        
+        /* Column width constraints */
+        .conversations-table th:nth-child(1), .conversations-table td:nth-child(1) {{ width: 25%; }} /* Conversation */
+        .conversations-table th:nth-child(2), .conversations-table td:nth-child(2) {{ width: 8%; }}  /* File Type */
+        .conversations-table th:nth-child(3), .conversations-table td:nth-child(3) {{ width: 10%; }} /* File Size */
+        .conversations-table th:nth-child(4), .conversations-table td:nth-child(4) {{ width: 8%; }}  /* SMS */
+        .conversations-table th:nth-child(5), .conversations-table td:nth-child(5) {{ width: 8%; }}  /* Calls */
+        .conversations-table th:nth-child(6), .conversations-table td:nth-child(6) {{ width: 10%; }} /* Voicemails */
+        .conversations-table th:nth-child(7), .conversations-table td:nth-child(7) {{ width: 10%; }} /* Attachments */
+        .conversations-table th:nth-child(8), .conversations-table td:nth-child(8) {{ width: 21%; }} /* Latest Message */
+        
+        /* Truncate very long conversation names */
+        .conversations-table td:first-child {{
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        
+        /* Ensure phone numbers wrap properly */
+        .conversations-table td:first-child a {{
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        
+        /* Responsive design for mobile */
+        @media (max-width: 768px) {{
+            .conversations-table {{
+                font-size: 0.8em;
+            }}
+            .conversations-table th, .conversations-table td {{
+                padding: 8px 4px;
+            }}
+        }}
+        
         .file-link {{ color: #667eea; text-decoration: none; font-weight: bold; }}
         .file-link:hover {{ text-decoration: underline; }}
         .file-stats {{ font-size: 0.9em; color: #666; }}

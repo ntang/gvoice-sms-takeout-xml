@@ -241,6 +241,8 @@ class ConversationManager:
                     "num_vcf": 0,
                     "num_calls": 0,
                     "num_voicemails": 0,
+                    "latest_timestamp": 0,
+                    "latest_message_time": "No messages"
                 }
 
             file_info = self.conversation_files[conversation_id]
@@ -286,6 +288,8 @@ class ConversationManager:
                     "num_vcf": 0,
                     "num_calls": 0,
                     "num_voicemails": 0,
+                    "latest_timestamp": 0,
+                    "latest_message_time": "No messages"
                 }
 
             file_info = self.conversation_files[conversation_id]
@@ -649,7 +653,7 @@ class ConversationManager:
                     "calls_count": stats.get("num_calls", 0),
                     "voicemails_count": stats.get("num_voicemails", 0),
                     "attachments_count": self._count_real_attachments(stats),
-                    "latest_message_time": "From cache"  # Could enhance this
+                    "latest_message_time": stats.get("latest_message_time", "No messages")
                 }
 
             # Fallback to file parsing if needed
@@ -1093,7 +1097,9 @@ class ConversationManager:
                 "num_vcf": 0,
                 "num_audio": 0,
                 "num_video": 0,
-                "real_attachments": 0
+                "real_attachments": 0,
+                "latest_timestamp": 0,
+                "latest_message_time": "No messages"
             }
         
         # Update individual counts
@@ -1108,6 +1114,36 @@ class ConversationManager:
             self.conversation_stats[conversation_id]["num_video"] +
             self.conversation_stats[conversation_id]["num_audio"]
         )
+
+    def update_latest_timestamp(self, conversation_id: str, timestamp: int):
+        """Update the latest message timestamp for a conversation."""
+        if conversation_id not in self.conversation_stats:
+            # Initialize conversation stats if not exists
+            self.conversation_stats[conversation_id] = {
+                "num_sms": 0,
+                "num_calls": 0,
+                "num_voicemails": 0,
+                "num_img": 0,
+                "num_vcf": 0,
+                "num_audio": 0,
+                "num_video": 0,
+                "real_attachments": 0,
+                "latest_timestamp": 0,
+                "latest_message_time": "No messages"
+            }
+        
+        # Update latest timestamp if this message is newer
+        current_latest = self.conversation_stats[conversation_id].get("latest_timestamp", 0)
+        if timestamp > current_latest:
+            self.conversation_stats[conversation_id]["latest_timestamp"] = timestamp
+            # Format timestamp for display
+            try:
+                from datetime import datetime
+                formatted_time = datetime.fromtimestamp(timestamp / 1000.0).strftime("%Y-%m-%d %H:%M:%S")
+                self.conversation_stats[conversation_id]["latest_message_time"] = formatted_time
+            except Exception as e:
+                logger.warning(f"Failed to format timestamp {timestamp} for conversation {conversation_id}: {e}")
+                self.conversation_stats[conversation_id]["latest_message_time"] = "Invalid timestamp"
 
     def _count_real_attachments(self, stats: Dict[str, int]) -> int:
         """Count only real attachments, not placeholders."""
@@ -1127,7 +1163,7 @@ class ConversationManager:
                 "calls_count": stats.get("num_calls", 0),
                 "voicemails_count": stats.get("num_voicemails", 0),
                 "attachments_count": stats.get("real_attachments", 0),
-                "latest_message_time": "From cache"  # Could enhance this
+                "latest_message_time": stats.get("latest_message_time", "No messages")
             }
         else:
             # Return defaults if no cached stats
@@ -1136,5 +1172,5 @@ class ConversationManager:
                 "calls_count": 0,
                 "voicemails_count": 0,
                 "attachments_count": 0,
-                "latest_message_time": "Unknown"
+                "latest_message_time": "No messages"
             }
