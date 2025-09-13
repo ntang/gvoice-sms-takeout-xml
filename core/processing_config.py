@@ -59,6 +59,7 @@ class ProcessingConfig:
     include_service_codes: bool = False
     filter_numbers_without_aliases: bool = False
     filter_non_phone_numbers: bool = False
+    filter_groups_with_all_filtered: bool = True  # Default: enabled (new behavior)
     
     # Date Filtering
     older_than: Optional[datetime] = None
@@ -388,6 +389,7 @@ class ConfigurationBuilder:
             'include_service_codes': 'include_service_codes',
             'filter_numbers_without_aliases': 'filter_numbers_without_aliases',
             'filter_non_phone_numbers': 'filter_non_phone_numbers',
+            'filter_groups_with_all_filtered': 'filter_groups_with_all_filtered',
             'test_mode': 'test_mode',
             'test_limit': 'test_limit',
             'full_run': 'full_run',

@@ -9,7 +9,7 @@ import logging
 import re
 import threading
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -455,3 +455,88 @@ class PhoneLookupManager:
         logger.info(
             f"Immediately saved exclusion for {phone_number}: {reason} to {self.lookup_file}"
         )
+
+    def should_filter_group_conversation(
+        self, 
+        participants: List[str], 
+        own_number: Optional[str] = None,
+        config: Optional['ProcessingConfig'] = None
+    ) -> bool:
+        """
+        Check if ALL participants (excluding self) are filtered.
+        
+        Args:
+            participants: List of participant phone numbers
+            own_number: User's own number (may be None)
+            config: Processing configuration (for feature flag)
+        
+        Returns:
+            True if entire group should be filtered, False otherwise
+        """
+        # Feature flag check - default to True (new behavior) if config not provided
+        if config is not None and not config.filter_groups_with_all_filtered:
+            return False
+        
+        if not participants or len(participants) <= 1:
+            return False  # Don't filter single-participant groups
+        
+        # Safely determine own number
+        actual_own_number = get_own_number_from_context(participants, own_number)
+        
+        # Remove own number from participants list
+        other_participants = [p for p in participants if p != actual_own_number]
+        
+        if not other_participants:
+            return False  # Only self in group, don't filter
+        
+        # Check if ALL other participants are filtered
+        filtered_count = 0
+        try:
+            for participant in other_participants:
+                if self.is_filtered(participant):
+                    filtered_count += 1
+                else:
+                    # Early exit: if any participant is not filtered, don't filter group
+                    return False
+        except Exception as e:
+            logger.error(f"Error checking if participant is filtered: {e}")
+            return False  # Don't filter on error
+        
+        # If we get here, ALL participants are filtered
+        should_filter = filtered_count == len(other_participants)
+        
+        if should_filter:
+            logger.info(f"Filtering group conversation with {len(other_participants)} filtered participants")
+        
+        return should_filter
+
+
+def get_own_number_from_context(participants: List[str], own_number: Optional[str] = None) -> Optional[str]:
+    """
+    Safely determine the user's own number from context.
+    Handles cases where own_number might not be available or accurate.
+    
+    Args:
+        participants: List of participant phone numbers
+        own_number: User's own number (may be None)
+    
+    Returns:
+        The user's own number if found, None otherwise
+    """
+    if not participants:
+        return None
+    
+    # If own_number is provided and in participants, use it
+    if own_number and own_number in participants:
+        return own_number
+    
+    # Fallback: look for common patterns that might indicate "self"
+    # This is a heuristic and should be logged for debugging
+    for participant in participants:
+        if any(indicator in participant.lower() for indicator in ['me', 'self', 'own']):
+            logger.debug(f"Using heuristic own number detection: {participant}")
+            return participant
+    
+    # If we can't determine own number, return None
+    # The filtering function should handle this gracefully
+    return None

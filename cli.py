@@ -330,6 +330,11 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     help="Skip processing filtered contacts by default (except in group messages)"
 )
 @click.option(
+    '--filter-groups-with-all-filtered/--no-filter-groups-with-all-filtered',
+    default=True,
+    help="Filter out group conversations where ALL participants are marked to filter (default: enabled)"
+)
+@click.option(
     '--phone-lookup-file',
     type=click.Path(path_type=Path),
     help="Path to phone lookup file (default: processing_dir/phone_lookup.txt)"
@@ -416,7 +421,7 @@ def convert(ctx):
         
         # Run the main conversion
         logger.info("🚀 Starting conversion process...")
-        sms_main()
+        sms_main(config)
         
         # Clean up patching
         if patcher:

@@ -27,6 +27,7 @@ def process_single_html_file(
     own_number: Optional[str],
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
     Process a single HTML file and return statistics.
@@ -57,6 +58,7 @@ def process_single_html_file(
                 src_filename_map,
                 conversation_manager,
                 phone_lookup_manager,
+                config,
             )
         elif file_type == "call":
             return process_call_file(

@@ -28,7 +28,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.processing_config import ProcessingConfig
 # ====================================================================
 # PROJECT ROOT DETECTION FOR PORTABLE IMPORTS
 # ====================================================================
@@ -812,7 +815,7 @@ def get_limited_file_list(limit: int) -> List[Path]:
     return html_files
 
 
-def main():
+def main(config: Optional["ProcessingConfig"] = None):
     """Main conversion function with comprehensive progress logging and performance optimization."""
     start_time = time.time()
 
@@ -1002,7 +1005,7 @@ def main():
         # Process HTML files
         logger.info("Processing HTML files...")
         processing_start = time.time()
-        stats = process_html_files(src_filename_map)
+        stats = process_html_files(src_filename_map, config)
         processing_time = time.time() - processing_start
         logger.info(
             f"Processed {stats['num_sms']} SMS, {stats['num_img']} images, {stats['num_vcf']} vCards in {processing_time:.2f}s"
@@ -2137,7 +2140,7 @@ def is_sms_mms_file(filename: str) -> bool:
 # get_file_type function moved to html_processor module
 
 
-def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
+def process_html_files(src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None) -> Dict[str, int]:
     """Process all HTML files and return statistics."""
     stats = {
         "num_sms": 0,
@@ -2199,7 +2202,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
             f"Using batch processing for large dataset ({filtered_files} files)"
         )
         stats = process_html_files_batch(
-            all_files, src_filename_map, batch_size=BATCH_SIZE_OPTIMAL
+            all_files, src_filename_map, batch_size=BATCH_SIZE_OPTIMAL, config=config
         )
     else:
         # Process files individually for smaller datasets
@@ -2215,6 +2218,7 @@ def process_html_files(src_filename_map: Dict[str, str]) -> Dict[str, int]:
                     own_number,
                     CONVERSATION_MANAGER,
                     PHONE_LOOKUP_MANAGER,
+                    config,
                 )
 
                 # Update statistics
@@ -2692,6 +2696,7 @@ def process_sms_mms_file(
     src_filename_map: Dict[str, str],
     conversation_manager: "ConversationManager",
     phone_lookup_manager: "PhoneLookupManager",
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
     
@@ -2919,6 +2924,7 @@ def process_sms_mms_file(
         phone_lookup_manager,
         page_participants_raw=participants_raw,
         soup=soup,
+        config=config,
     )
 
     # NOTE: MMS messages with attachments are forwarded from write_sms_messages
@@ -3023,6 +3029,7 @@ def write_sms_messages(
     phone_lookup_manager: "PhoneLookupManager",
     page_participants_raw: Optional[List] = None,
     soup: Optional[BeautifulSoup] = None,
+    config: Optional["ProcessingConfig"] = None,
 ):
     """
     Write SMS messages to conversation files.
@@ -3102,6 +3109,21 @@ def write_sms_messages(
             logger.error(f"Error during group conversation detection: {group_error}")
             is_group = False
             group_participants = []
+
+        # Check if entire group conversation should be filtered
+        if is_group and group_participants and phone_lookup_manager:
+            try:
+                # Check if entire group should be filtered
+                if phone_lookup_manager.should_filter_group_conversation(
+                    group_participants, 
+                    own_number,
+                    config  # Pass config for feature flag
+                ):
+                    logger.info(f"Skipping entire group conversation - all participants filtered: {group_participants}")
+                    return  # Skip processing this group entirely
+            except Exception as e:
+                logger.warning(f"Error checking group filtering: {e}. Processing group normally.")
+                # Continue processing - don't let filtering errors break the pipeline
 
         # Get the primary phone number for this conversation (for individual conversations or fallback)
         phone_number, participant_raw = get_first_phone_number(
@@ -3334,6 +3356,7 @@ def write_sms_messages(
                         phone_lookup_manager,
                         soup=None,  # No soup available in SMS context
                         conversation_id=conversation_id,  # Pass the conversation ID for consistency
+                        config=config,
                     )
                     processed_count += 1  # Count as processed, not skipped
                     continue
@@ -4088,6 +4111,7 @@ def write_mms_messages(
     phone_lookup_manager: "PhoneLookupManager",
     soup: Optional[BeautifulSoup] = None,
     conversation_id: Optional[str] = None,
+    config: Optional["ProcessingConfig"] = None,
 ):
     """
     Write MMS messages to the backup file.
@@ -4173,6 +4197,19 @@ def write_mms_messages(
             logger.error(f"Error during group conversation detection: {group_error}")
             is_group = False
             group_participants = []
+
+        # Check if entire group conversation should be filtered
+        if is_group and group_participants and phone_lookup_manager:
+            try:
+                # Check if entire group should be filtered
+                if phone_lookup_manager.should_filter_group_conversation(
+                    group_participants, own_number, config
+                ):
+                    logger.info(f"Skipping entire group conversation from {file} - all participants are filtered")
+                    return
+            except Exception as filter_error:
+                logger.error(f"Error during group filtering check: {filter_error}")
+                # Continue processing if filtering check fails
 
         # Extract participant phone numbers and aliases
         (
@@ -6934,6 +6971,7 @@ def process_html_files_batch(
     html_files: List[Path],
     src_filename_map: Dict[str, str],
     batch_size: int = 100,
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, int]:
     """Process HTML files in batches for better memory management."""
     stats = {
@@ -6992,6 +7030,7 @@ def process_html_files_batch(
                     own_number,
                     conversation_manager,
                     phone_lookup_manager,
+                    config,
                 )
 
                 # Update statistics
