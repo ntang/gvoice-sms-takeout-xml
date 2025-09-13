@@ -134,6 +134,63 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 
 * If you need to tweak the script or output and try again, you can either close the emulator and wipe data in Android Studio, then repeat the steps above; or you can delete all messages, either by manually selecting them in your messaging app or by using the Tools option in SMS Backup & Restore to delete them.
 
+## Configuration Options
+
+The converter provides extensive configuration options with sensible defaults. All options show their default values in the help text:
+
+### Basic Options
+- `--processing-dir DIRECTORY` - Directory containing Google Voice export files (default: ../gvoice-convert)
+- `--output-format [html|xml]` - Output format for converted conversations (default: html)
+- `--preset [default|test|production]` - Configuration preset to use as base (default: default)
+
+### Performance Options
+- `--max-workers INTEGER` - Maximum number of worker threads (default: 16)
+- `--chunk-size INTEGER` - Chunk size for processing large files (default: 1000)
+- `--batch-size INTEGER` - Batch size for processing operations (default: 1000)
+- `--buffer-size INTEGER` - Buffer size for file operations (default: 32768)
+- `--cache-size INTEGER` - Cache size for frequently accessed data (default: 50000)
+- `--memory-threshold INTEGER` - Memory threshold for switching to memory-efficient mode (default: 10000)
+
+### Feature Flags (all enabled by default)
+- `--enable-parallel-processing` - Enable parallel processing (default: enabled)
+- `--enable-streaming-parsing` - Enable streaming parsing for large files (default: enabled)
+- `--enable-mmap-for-large-files` - Enable memory mapping for large files (default: enabled)
+- `--enable-performance-monitoring` - Enable performance monitoring (default: enabled)
+- `--enable-progress-logging` - Enable progress logging (default: enabled)
+- `--large-dataset` - Enable optimizations for datasets with 50,000+ messages (default: enabled)
+
+### Validation Options
+- `--enable-path-validation` - Enable path validation (default: enabled)
+- `--enable-runtime-validation` - Enable runtime validation (default: enabled)
+- `--strict-mode` - Enable strict mode for validation (default: disabled)
+- `--validation-interval INTEGER` - Validation interval for runtime checks (default: 1000)
+
+### Logging Options
+- `--log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]` - Logging level (default: INFO)
+- `--log-filename TEXT` - Log filename (default: gvoice_converter.log)
+- `--verbose` - Enable verbose logging (default: disabled)
+- `--debug` - Enable debug logging (default: disabled)
+
+### Filtering Options
+- `--include-service-codes` - Include service codes and short codes in processing (default: disabled)
+- `--filter-numbers-without-aliases` - Filter out phone numbers that don't have aliases (default: disabled)
+- `--filter-non-phone-numbers` - Filter out toll-free numbers and non-US numbers (default: disabled)
+- `--skip-filtered-contacts` - Skip processing filtered contacts by default (default: enabled)
+- `--filter-groups-with-all-filtered` - Filter out group conversations where ALL participants are marked to filter (default: enabled)
+
+### Test Mode Options
+- `--test-mode` - Enable testing mode with limited processing (default: disabled, 100 entries when enabled)
+- `--test-limit INTEGER` - Number of entries to process in test mode (default: 100)
+- `--full-run` - Disable test mode and process all entries (default: disabled)
+
+### Phone Lookup Options
+- `--phone-lookup-file PATH` - Path to phone lookup file (default: processing_dir/phone_lookup.txt)
+- `--enable-phone-prompts` - Enable interactive phone number alias prompts (default: disabled)
+
+### Date Filtering Options
+- `--older-than TEXT` - Filter out messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+- `--newer-than TEXT` - Filter out messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+
 ## Importing to your phone
 1. Copy the file gvoice-all.xml to your phone, then restore from it using SMS Backup and Restore
 1. **IMPORTANT** If you don't see the imported messages in your messaging app, go into the application settings and clear data, then restart it. SMS Backup & Restore has a couple of places where it tells you to do this, but I screwed it up and imported mine multiple times on my first attempt, which created lots of duplicate messages.

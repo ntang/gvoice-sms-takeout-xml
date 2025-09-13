@@ -51,45 +51,45 @@ python3 cli.py create-config
 The new CLI provides **32 configuration options** with explicit definitions for predictable behavior:
 
 #### Processing Options
-- `--processing-dir DIRECTORY` - Directory containing Google Voice export data
-- `--output-format [html|xml]` - Output format for conversation files
-- `--max-workers INTEGER` - Maximum number of parallel workers
-- `--chunk-size INTEGER` - Chunk size for parallel processing
+- `--processing-dir DIRECTORY` - Directory containing Google Voice export data (default: ../gvoice-convert)
+- `--output-format [html|xml]` - Output format for conversation files (default: html)
+- `--max-workers INTEGER` - Maximum number of parallel workers (default: 16)
+- `--chunk-size INTEGER` - Chunk size for parallel processing (default: 1000)
 
 #### Performance Options
-- `--buffer-size INTEGER` - File I/O buffer size in bytes
-- `--cache-size INTEGER` - LRU cache size for performance optimization
-- `--batch-size INTEGER` - Batch size for processing large datasets
-- `--enable-parallel-processing` - Enable parallel processing
-- `--enable-streaming-parsing` - Enable streaming file parsing
-- `--enable-mmap-for-large-files` - Enable memory mapping for large files
+- `--buffer-size INTEGER` - File I/O buffer size in bytes (default: 32768)
+- `--cache-size INTEGER` - LRU cache size for performance optimization (default: 50000)
+- `--batch-size INTEGER` - Batch size for processing large datasets (default: 1000)
+- `--enable-parallel-processing` - Enable parallel processing (default: enabled)
+- `--enable-streaming-parsing` - Enable streaming file parsing (default: enabled)
+- `--enable-mmap-for-large-files` - Enable memory mapping for large files (default: enabled)
 
 #### Validation Options
-- `--enable-path-validation` - Enable comprehensive path validation
-- `--enable-runtime-validation` - Enable runtime validation
-- `--strict-mode` - Enable strict parameter validation
-- `--validation-interval INTEGER` - Runtime validation check interval
+- `--enable-path-validation` - Enable comprehensive path validation (default: enabled)
+- `--enable-runtime-validation` - Enable runtime validation (default: enabled)
+- `--strict-mode` - Enable strict parameter validation (default: disabled)
+- `--validation-interval INTEGER` - Runtime validation check interval (default: 1000)
 
 #### Logging Options
-- `--log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]` - Set specific log level
-- `--log-filename TEXT` - Custom log filename
-- `--verbose` - Enable verbose logging
-- `--debug` - Enable debug logging
-- `--debug-attachments` - Enable attachment debugging
-- `--debug-paths` - Enable path debugging
+- `--log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]` - Set specific log level (default: INFO)
+- `--log-filename TEXT` - Custom log filename (default: gvoice_converter.log)
+- `--verbose` - Enable verbose logging (default: disabled)
+- `--debug` - Enable debug logging (default: disabled)
+- `--debug-attachments` - Enable attachment debugging (default: disabled)
+- `--debug-paths` - Enable path debugging (default: disabled)
 
 #### Test Mode Options
-- `--test-mode` - Enable testing mode with limited processing
-- `--test-limit INTEGER` - Number of entries to process in test mode
-- `--full-run` - Disable test mode and process all entries
+- `--test-mode` - Enable testing mode with limited processing (default: disabled)
+- `--test-limit INTEGER` - Number of entries to process in test mode (default: 100)
+- `--full-run` - Disable test mode and process all entries (default: disabled)
 
 #### Filtering Options
-- `--include-service-codes` - Include service codes and short codes
-- `--filter-numbers-without-aliases` - Filter numbers without aliases
-- `--filter-non-phone-numbers` - Filter toll-free and non-US numbers
-- `--older-than TEXT` - Filter messages older than specified date
-- `--newer-than TEXT` - Filter messages newer than specified date
-- `--phone-prompts` - Enable interactive phone number alias prompts
+- `--include-service-codes` - Include service codes and short codes (default: disabled)
+- `--filter-numbers-without-aliases` - Filter numbers without aliases (default: disabled)
+- `--filter-non-phone-numbers` - Filter toll-free and non-US numbers (default: disabled)
+- `--older-than TEXT` - Filter messages older than specified date (no default)
+- `--newer-than TEXT` - Filter messages newer than specified date (no default)
+- `--phone-prompts` - Enable interactive phone number alias prompts (default: disabled)
 
 ## Conflict Validation
 

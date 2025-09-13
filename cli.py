@@ -151,163 +151,163 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     '--processing-dir',
     type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path),
     default=Path.cwd().parent / "gvoice-convert",
-    help="Directory containing Google Voice export files"
+    help="Directory containing Google Voice export files (default: ../gvoice-convert)"
 )
 @click.option(
     '--output-format',
     type=click.Choice(['html', 'xml']),
     default='html',
-    help="Output format for converted conversations"
+    help="Output format for converted conversations (default: html)"
 )
 @click.option(
     '--max-workers',
     type=int,
     default=16,
-    help="Maximum number of worker threads"
+    help="Maximum number of worker threads (default: 16)"
 )
 @click.option(
     '--chunk-size',
     type=int,
     default=1000,
-    help="Chunk size for processing large files"
+    help="Chunk size for processing large files (default: 1000)"
 )
 @click.option(
     '--memory-threshold',
     type=int,
     default=10000,
-    help="Memory threshold for switching to memory-efficient mode"
+    help="Memory threshold for switching to memory-efficient mode (default: 10000)"
 )
 @click.option(
     '--buffer-size',
     type=int,
     default=32768,
-    help="Buffer size for file operations"
+    help="Buffer size for file operations (default: 32768)"
 )
 @click.option(
     '--cache-size',
     type=int,
     default=50000,
-    help="Cache size for frequently accessed data"
+    help="Cache size for frequently accessed data (default: 50000)"
 )
 @click.option(
     '--batch-size',
     type=int,
     default=1000,
-    help="Batch size for processing operations"
+    help="Batch size for processing operations (default: 1000)"
 )
 @click.option(
     '--enable-parallel-processing/--no-parallel-processing',
     default=True,
-    help="Enable parallel processing"
+    help="Enable parallel processing (default: enabled)"
 )
 @click.option(
     '--enable-streaming-parsing/--no-streaming-parsing',
     default=True,
-    help="Enable streaming parsing for large files"
+    help="Enable streaming parsing for large files (default: enabled)"
 )
 @click.option(
     '--enable-mmap-for-large-files/--no-mmap-for-large-files',
     default=True,
-    help="Enable memory mapping for large files"
+    help="Enable memory mapping for large files (default: enabled)"
 )
 @click.option(
     '--enable-performance-monitoring/--no-performance-monitoring',
     default=True,
-    help="Enable performance monitoring"
+    help="Enable performance monitoring (default: enabled)"
 )
 @click.option(
     '--enable-progress-logging/--no-progress-logging',
     default=True,
-    help="Enable progress logging"
+    help="Enable progress logging (default: enabled)"
 )
 @click.option(
     '--large-dataset/--no-large-dataset',
     default=True,
-    help="Enable optimizations for datasets with 50,000+ messages"
+    help="Enable optimizations for datasets with 50,000+ messages (default: enabled)"
 )
 @click.option(
     '--enable-path-validation/--no-path-validation',
     default=True,
-    help="Enable path validation"
+    help="Enable path validation (default: enabled)"
 )
 @click.option(
     '--enable-runtime-validation/--no-runtime-validation',
     default=True,
-    help="Enable runtime validation"
+    help="Enable runtime validation (default: enabled)"
 )
 @click.option(
     '--validation-interval',
     type=int,
     default=1000,
-    help="Validation interval for runtime checks"
+    help="Validation interval for runtime checks (default: 1000)"
 )
 @click.option(
     '--strict-mode/--no-strict-mode',
     default=False,
-    help="Enable strict mode for validation"
+    help="Enable strict mode for validation (default: disabled)"
 )
 @click.option(
     '--log-level',
     type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
     default='INFO',
-    help="Logging level"
+    help="Logging level (default: INFO)"
 )
 @click.option(
     '--log-filename',
     type=str,
     default='gvoice_converter.log',
-    help="Log filename"
+    help="Log filename (default: gvoice_converter.log)"
 )
 @click.option(
     '--verbose/--no-verbose',
     default=False,
-    help="Enable verbose logging (INFO level)"
+    help="Enable verbose logging (INFO level) (default: disabled)"
 )
 @click.option(
     '--debug/--no-debug',
     default=False,
-    help="Enable debug logging (DEBUG level)"
+    help="Enable debug logging (DEBUG level) (default: disabled)"
 )
 @click.option(
     '--debug-attachments/--no-debug-attachments',
     default=False,
-    help="Enable detailed debugging for attachment matching"
+    help="Enable detailed debugging for attachment matching (default: disabled)"
 )
 @click.option(
     '--debug-paths/--no-debug-paths',
     default=False,
-    help="Enable detailed debugging for path resolution and validation"
+    help="Enable detailed debugging for path resolution and validation (default: disabled)"
 )
 @click.option(
     '--test-mode/--no-test-mode',
     default=False,
-    help="Enable testing mode with limited processing (default: 100 entries)"
+    help="Enable testing mode with limited processing (default: disabled, 100 entries when enabled)"
 )
 @click.option(
     '--test-limit',
     type=int,
     default=100,
-    help="Number of entries to process in test mode"
+    help="Number of entries to process in test mode (default: 100)"
 )
 @click.option(
     '--full-run/--no-full-run',
     default=False,
-    help="Disable test mode and process all entries"
+    help="Disable test mode and process all entries (default: disabled)"
 )
 @click.option(
     '--include-service-codes/--no-include-service-codes',
     default=False,
-    help="Include service codes and short codes in processing"
+    help="Include service codes and short codes in processing (default: disabled)"
 )
 @click.option(
     '--filter-numbers-without-aliases/--no-filter-numbers-without-aliases',
     default=False,
-    help="Filter out phone numbers that don't have aliases"
+    help="Filter out phone numbers that don't have aliases (default: disabled)"
 )
 @click.option(
     '--filter-non-phone-numbers/--no-filter-non-phone-numbers',
     default=False,
-    help="Filter out toll-free numbers and non-US numbers"
+    help="Filter out toll-free numbers and non-US numbers (default: disabled)"
 )
 @click.option(
     '--older-than',
@@ -322,12 +322,12 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
 @click.option(
     '--enable-phone-prompts/--no-enable-phone-prompts',
     default=False,
-    help="Enable interactive phone number alias prompts"
+    help="Enable interactive phone number alias prompts (default: disabled)"
 )
 @click.option(
     '--skip-filtered-contacts/--no-skip-filtered-contacts',
     default=True,
-    help="Skip processing filtered contacts by default (except in group messages)"
+    help="Skip processing filtered contacts by default (except in group messages) (default: enabled)"
 )
 @click.option(
     '--filter-groups-with-all-filtered/--no-filter-groups-with-all-filtered',
@@ -343,7 +343,7 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     '--preset',
     type=click.Choice(['default', 'test', 'production']),
     default='default',
-    help="Configuration preset to use as base"
+    help="Configuration preset to use as base (default: default)"
 )
 @click.pass_context
 def cli(ctx, **kwargs):
