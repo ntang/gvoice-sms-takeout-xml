@@ -6988,7 +6988,7 @@ def process_html_files_batch(
 
     # Use parallel processing for large datasets
     if ENABLE_PARALLEL_PROCESSING and total_files > MEMORY_EFFICIENT_THRESHOLD:
-        return process_html_files_parallel(html_files, src_filename_map, batch_size)
+        return process_html_files_parallel(html_files, src_filename_map, batch_size, config)
 
     # Sequential batch processing for smaller datasets - use generator for
     # memory efficiency
@@ -7074,6 +7074,7 @@ def process_html_files_parallel(
     html_files: List[Path],
     src_filename_map: Dict[str, str],
     batch_size: int = 100,
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, int]:
     """Process HTML files using parallel processing for large datasets."""
     total_files = len(html_files)
@@ -7115,7 +7116,7 @@ def process_html_files_parallel(
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk processing tasks
         future_to_chunk = {
-            executor.submit(process_chunk_parallel, chunk, src_filename_map): chunk
+            executor.submit(process_chunk_parallel, chunk, src_filename_map, config): chunk
             for chunk in chunks
         }
 
@@ -7153,7 +7154,7 @@ def process_html_files_parallel(
 
 
 def process_chunk_parallel(
-    html_files: List[Path], src_filename_map: Dict[str, str]
+    html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None
 ) -> Dict[str, int]:
     """Process a chunk of HTML files for parallel processing."""
     chunk_stats = {
@@ -7178,6 +7179,7 @@ def process_chunk_parallel(
                 None,
                 conversation_manager,
                 phone_lookup_manager,
+                config,
             )
 
             # Update chunk statistics
