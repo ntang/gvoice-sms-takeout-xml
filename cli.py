@@ -19,8 +19,7 @@ from core.processing_config import ProcessingConfig, ConfigurationBuilder
 from core.configuration_manager import get_configuration_manager, set_global_configuration
 from core.sms_patch import patch_sms_module, unpatch_sms_module, is_sms_module_patched
 
-# Import the main conversion logic from sms.py
-from sms import main as sms_main
+# Import the main conversion logic from sms.py - moved to avoid circular import
 
 
 def setup_logging(config: ProcessingConfig) -> None:
@@ -421,7 +420,12 @@ def convert(ctx):
         
         # Run the main conversion
         logger.info("🚀 Starting conversion process...")
-        sms_main(config)
+        from sms import main as sms_main
+        from core.processing_context import create_processing_context
+        
+        # Create processing context
+        context = create_processing_context(config)
+        sms_main(config, context)
         
         # Clean up patching
         if patcher:
