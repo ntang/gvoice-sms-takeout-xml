@@ -7,7 +7,10 @@ and coordinates the extraction and processing of their content.
 
 import logging
 from pathlib import Path
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.processing_context import ProcessingContext
 from bs4 import BeautifulSoup
 
 from .html_processor import (
@@ -28,6 +31,7 @@ def process_single_html_file(
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
     Process a single HTML file and return statistics.
@@ -58,7 +62,7 @@ def process_single_html_file(
                 src_filename_map,
                 conversation_manager,
                 phone_lookup_manager,
-                config,
+                context=context,
             )
         elif file_type == "call":
             return process_call_file(
@@ -108,6 +112,7 @@ def process_sms_mms_file(
     src_filename_map: Dict[str, str],
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
+    context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
     Process SMS/MMS files by calling the appropriate function from sms.py.
@@ -123,6 +128,7 @@ def process_sms_mms_file(
         src_filename_map,
         conversation_manager,
         phone_lookup_manager,
+        context=context,
     )
 
 

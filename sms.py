@@ -835,7 +835,7 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         # Process HTML files
         logger.info("Processing HTML files...")
         processing_start = time.time()
-        stats = process_html_files(src_filename_map, config)
+        stats = process_html_files(src_filename_map, config, context)
         processing_time = time.time() - processing_start
         logger.info(
             f"Processed {stats['num_sms']} SMS, {stats['num_img']} images, {stats['num_vcf']} vCards in {processing_time:.2f}s"
@@ -1970,7 +1970,7 @@ def is_sms_mms_file(filename: str) -> bool:
 # get_file_type function moved to html_processor module
 
 
-def process_html_files(src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None) -> Dict[str, int]:
+def process_html_files(src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None) -> Dict[str, int]:
     """Process all HTML files and return statistics."""
     stats = {
         "num_sms": 0,
@@ -2032,7 +2032,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
             f"Using batch processing for large dataset ({filtered_files} files)"
         )
         stats = process_html_files_batch(
-            all_files, src_filename_map, batch_size=BATCH_SIZE_OPTIMAL, config=config
+            all_files, src_filename_map, batch_size=BATCH_SIZE_OPTIMAL, config=config, context=context
         )
     else:
         # Process files individually for smaller datasets
@@ -2049,6 +2049,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
                     context.conversation_manager,
                     context.phone_lookup_manager,
                     config,
+                    context=context,
                 )
 
                 # Update statistics
@@ -2527,6 +2528,7 @@ def process_sms_mms_file(
     conversation_manager: "ConversationManager",
     phone_lookup_manager: "PhoneLookupManager",
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, Union[int, str]]:
     """Process SMS/MMS files and return statistics."""
     
@@ -2755,6 +2757,7 @@ def process_sms_mms_file(
         page_participants_raw=participants_raw,
         soup=soup,
         config=config,
+        context=context,
     )
 
     # NOTE: MMS messages with attachments are forwarded from write_sms_messages
@@ -2860,6 +2863,7 @@ def write_sms_messages(
     page_participants_raw: Optional[List] = None,
     soup: Optional[BeautifulSoup] = None,
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ):
     """
     Write SMS messages to conversation files.
@@ -3946,6 +3950,7 @@ def write_mms_messages(
     soup: Optional[BeautifulSoup] = None,
     conversation_id: Optional[str] = None,
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ):
     """
     Write MMS messages to the backup file.
@@ -6811,6 +6816,7 @@ def process_html_files_batch(
     src_filename_map: Dict[str, str],
     batch_size: int = 100,
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, int]:
     """Process HTML files in batches for better memory management."""
     stats = {
@@ -6827,7 +6833,7 @@ def process_html_files_batch(
 
     # Use parallel processing for large datasets
     if ENABLE_PARALLEL_PROCESSING and total_files > MEMORY_EFFICIENT_THRESHOLD:
-        return process_html_files_parallel(html_files, src_filename_map, batch_size, config)
+        return process_html_files_parallel(html_files, src_filename_map, batch_size, config, context)
 
     # Sequential batch processing for smaller datasets - use generator for
     # memory efficiency
@@ -6870,6 +6876,7 @@ def process_html_files_batch(
                     conversation_manager,
                     phone_lookup_manager,
                     config,
+                    context=context,
                 )
 
                 # Update statistics
@@ -6914,6 +6921,7 @@ def process_html_files_parallel(
     src_filename_map: Dict[str, str],
     batch_size: int = 100,
     config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, int]:
     """Process HTML files using parallel processing for large datasets."""
     total_files = len(html_files)
@@ -6955,7 +6963,7 @@ def process_html_files_parallel(
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk processing tasks
         future_to_chunk = {
-            executor.submit(process_chunk_parallel, chunk, src_filename_map, config): chunk
+            executor.submit(process_chunk_parallel, chunk, src_filename_map, config, context): chunk
             for chunk in chunks
         }
 
@@ -6993,7 +7001,7 @@ def process_html_files_parallel(
 
 
 def process_chunk_parallel(
-    html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None
+    html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None
 ) -> Dict[str, int]:
     """Process a chunk of HTML files for parallel processing."""
     chunk_stats = {
@@ -7019,6 +7027,7 @@ def process_chunk_parallel(
                 conversation_manager,
                 phone_lookup_manager,
                 config,
+                context=context,
             )
 
             # Update chunk statistics
@@ -7954,6 +7963,7 @@ def write_call_entry(
     call_info: Dict[str, Union[str, int]],
     own_number: Optional[str],
     soup: Optional[BeautifulSoup] = None,
+    context: Optional["ProcessingContext"] = None,
 ):
     """Write a call entry to the conversation."""
     try:
@@ -8250,6 +8260,7 @@ def write_voicemail_entry(
     voicemail_info: Dict[str, Union[str, int]],
     own_number: Optional[str],
     soup: Optional[BeautifulSoup] = None,
+    context: Optional["ProcessingContext"] = None,
 ):
     """Write a voicemail entry to the conversation."""
     try:
