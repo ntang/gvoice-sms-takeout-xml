@@ -7969,7 +7969,12 @@ def write_call_entry(
     try:
         # Get alias for the phone number
         phone_number = str(call_info["phone_number"])
-        alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
+        if context and context.phone_lookup_manager:
+            alias = context.phone_lookup_manager.get_alias(phone_number, soup)
+        else:
+            # Fallback to global for backward compatibility
+            from core.shared_constants import PHONE_LOOKUP_MANAGER
+            alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Extract call details from the already parsed soup if available,
         # otherwise from file
@@ -8266,7 +8271,12 @@ def write_voicemail_entry(
     try:
         # Get alias for the phone number
         phone_number = str(voicemail_info["phone_number"])
-        alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
+        if context and context.phone_lookup_manager:
+            alias = context.phone_lookup_manager.get_alias(phone_number, soup)
+        else:
+            # Fallback to global for backward compatibility
+            from core.shared_constants import PHONE_LOOKUP_MANAGER
+            alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Create voicemail message content
         duration = voicemail_info.get("duration", "")
