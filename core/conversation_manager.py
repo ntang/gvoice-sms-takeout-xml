@@ -195,11 +195,9 @@ class ConversationManager:
                 except (AttributeError, NameError, ImportError):
                     pass
 
-                # Check if contact is filtered
+                # Note: Individual contact filtering is now handled at the conversation level
+                # in sms.py, so this check is no longer needed here
                 if phone_lookup_manager:
-                    # Check if contact should be filtered out
-                    if phone_lookup_manager.is_filtered(phone_number):
-                        return "filtered"
                     alias = phone_lookup_manager.get_alias(phone_number, None)
                 else:
                     alias = phone_number
@@ -555,6 +553,13 @@ class ConversationManager:
                     # Get accurate stats from conversation manager
                     conversation_id = file_path.stem
                     conv_stats = self._get_conversation_stats_accurate(conversation_id)
+
+                    # Skip conversations with no messages (safety net)
+                    total_messages = (conv_stats['sms_count'] + conv_stats['calls_count'] + 
+                                     conv_stats['voicemails_count'])
+                    if total_messages == 0:
+                        logger.debug(f"Skipping empty conversation file: {file_path.name}")
+                        continue
 
                     # Build table row
                     builder.append_line("                <tr>")

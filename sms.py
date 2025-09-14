@@ -3123,6 +3123,11 @@ def write_sms_messages(
             logger.debug(f"Fallback number used: {fallback_number}")
             return
 
+        # INDIVIDUAL FILTERING: Check if contact should be filtered (matching group logic)
+        if not is_group and phone_lookup_manager and phone_lookup_manager.is_filtered(str(phone_number)):
+            logger.info(f"Skipping individual conversation - contact is filtered: {phone_number}")
+            return  # Skip processing this conversation entirely
+
         # Get total message count for progress tracking
         total_messages = len(messages_raw)
         if total_messages == 0:
@@ -3241,13 +3246,8 @@ def write_sms_messages(
                         skipped_count += 1
                         continue
 
-                # Check if contact is filtered (skip unless it's a group message)
-                if phone_lookup_manager.is_filtered(str(phone_number)) and not is_group:
-                    logger.debug(
-                        f"Skipping message from {phone_number} - contact is filtered"
-                    )
-                    skipped_count += 1
-                    continue
+                # Note: Individual contact filtering is now handled at the conversation level
+                # (before message processing), so this check is no longer needed here
 
                 # Get alias for the phone number, with filename-based fallback
                 alias = phone_lookup_manager.get_alias(str(phone_number), None)
