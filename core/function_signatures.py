@@ -47,14 +47,6 @@ def setup_processing_paths_with_config(
     # Set global configuration for other parts of the system
     set_global_configuration(config)
     
-    # Set global phone lookup file path for SMS module compatibility
-    import sms
-    if hasattr(sms, 'PHONE_LOOKUP_FILE_PATH'):
-        sms.PHONE_LOOKUP_FILE_PATH = effective_phone_lookup_file
-    else:
-        # Create the global variable if it doesn't exist
-        sms.PHONE_LOOKUP_FILE_PATH = effective_phone_lookup_file
-    
     # Use override values if provided, otherwise use config values
     effective_phone_prompts = enable_phone_prompts if enable_phone_prompts is not None else config.enable_phone_prompts
     effective_buffer_size = buffer_size if buffer_size is not None else config.buffer_size

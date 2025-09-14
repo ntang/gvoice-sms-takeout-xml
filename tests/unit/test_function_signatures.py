@@ -176,7 +176,8 @@ class TestSetupProcessingPaths:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml'
+            output_format='xml',
+            phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
     @patch('core.function_signatures.setup_processing_paths_with_config')
@@ -347,7 +348,8 @@ class TestConfigurationOverrides:
             batch_size=1000,  # Default from config
             cache_size=25000,  # Default from config
             large_dataset=False,  # Default from config
-            output_format='xml'  # Override value
+            output_format='xml',  # Override value
+            phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
     @patch('core.function_signatures.set_global_configuration')
@@ -378,7 +380,8 @@ class TestConfigurationOverrides:
             batch_size=500,  # From config
             cache_size=50000,  # From config
             large_dataset=True,  # From config
-            output_format='xml'  # From config
+            output_format='xml',  # From config
+            phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
 
 
