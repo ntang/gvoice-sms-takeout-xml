@@ -1,0 +1,9 @@
+# Phone number lookup file
+# Format: phone_number|alias[|filter]
+# Lines starting with # are comments
+# Filter examples: filter, filter=spam, filter=blocked
+# Legacy EXCLUDE: format is automatically converted
++1234567890|Alice|filter=spam
++1234567891|Bob|filter=spam
++1234567892|Charlie
++1234567893|David

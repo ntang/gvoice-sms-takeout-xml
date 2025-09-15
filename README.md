@@ -33,7 +33,69 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 * Text formatting may be improved. For example, there is support for `<br>` tags now. It's possible there are also some text output regressions from my changes.
 * The header creation uses much less memory. My environment choked on header creation with a 1.5GB output file without my improvements.
 * Should work pretty reliably without the (Optional) steps below. I put in a bunch of stuff to work around issues with missing phone numbers.
+* **Hash-based fallback system**: When phone numbers cannot be extracted from filenames or content, the system now generates unique, consistent identifiers using the `UN_` prefix followed by a Base64-encoded MD5 hash. This ensures that conversations without phone numbers can still be processed and organized consistently.
 * Tested on my 1.5GB archive of 75000 messages. There are a lot of corner cases handled now. It runs completely autonomously on my archive without any hacking or workarounds.
+
+## Technical Details
+
+### Project Structure
+The project has been reorganized for better maintainability and clarity:
+
+```
+gvoice-sms-takeout-xml/
+├── cli.py                    # Main CLI entry point
+├── sms.py                    # Core library module (conversion logic)
+├── core/                     # Core functionality modules
+│   ├── conversation_manager.py    # Manages conversation files and statistics
+│   ├── phone_lookup.py           # Handles phone number aliases and lookups
+│   ├── attachment_manager.py     # Manages file attachments and copying
+│   └── app_config.py             # Configuration constants and settings
+├── processors/               # File processing logic
+│   ├── file_processor.py         # Main file processing orchestration
+│   └── html_processor.py        # HTML parsing and processing utilities
+├── utils/                    # Utility functions and helpers
+│   ├── improved_utils.py         # Enhanced utility functions
+│   ├── improved_file_operations.py # File operation utilities
+│   ├── phone_utils.py            # Phone number processing utilities
+│   └── utils.py                  # General utility functions
+├── tests/                    # Comprehensive test suite
+│   ├── unit/                      # Unit tests for individual modules
+│   ├── integration/               # Integration tests for full workflows
+│   └── utils/                     # Test utilities and runners
+├── templates/                # HTML output templates
+├── config/                   # Configuration files
+├── docs/                     # Implementation documentation
+├── archive/                  # Deprecated/orphaned files
+├── .temp/                    # Temporary outputs (test results, logs, generated conversations)
+├── .gitignore               # Git ignore patterns
+└── README.md                # This documentation
+```
+
+### Smart Import System
+The project uses a smart import system that automatically detects the project root and adds it to the Python path. This ensures the project can be moved anywhere on the filesystem and still work correctly.
+
+**Key Benefits:**
+- **Portable**: Project can be cloned and run from any location
+- **No Installation Required**: Just clone and run `python cli.py convert`
+- **Self-Contained**: All dependencies are resolved relative to the project root
+- **User-Friendly**: Standard "clone and run" workflow
+
+### Hash-Based Fallback System
+The converter now uses a sophisticated hash-based fallback system for handling conversations without phone numbers:
+
+* **Format**: `UN_{22_character_base64_hash}` (25 characters total)
+* **Algorithm**: MD5 hash of the input string (filename, conversation identifier, etc.)
+* **Encoding**: Base64 URL-safe encoding for maximum compatibility
+* **Uniqueness**: Full 128-bit MD5 ensures no hash collisions
+* **Consistency**: Same input always produces the same hash
+* **URL Safety**: No special characters that could cause issues in file systems or URLs
+
+**Examples**:
+- `UN_E7GCre66q93-hk4l3wGubA` - Generated from a filename
+- `UN_32Y7VxNu6Run-Dn-80XD4A` - Generated from a conversation name
+- `UN_VDpoE0f3gVKPYqyIJcrBbg` - Generated from a timestamp
+
+This system replaces the old 6-8 digit hash system and provides much better reliability and consistency.
 
 ## Issues
 * For dual or multi-SIM users, SMS Backup & Restore does not support setting SIM identity through the "sub_id" value on Android 14. I asked Synctech about this, and they said it is an Android 14 issue that they have not been able to figure out how to work around. Just know that all of your texts will show up as being associated with your primary SIM.
@@ -46,15 +108,15 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 1. (Optional) Delete all Google Contacts (this is causes numbers show up for each thread, otherwise Takeout will sometimes only have names. If you want to skip this step, you can, but some messages won't be linked to the right thread if you do. Note that this may remove Contact Photos on iOS if you don't pause syncing on your iOS device)
 1. Get Google Voice Takeout and download
 1. (Optional) Restore contacts to your account
-1. Clone this repo to your computer. Downloading sms.py and requirements.txt should also work.
+1. Clone this repo to your computer: `git clone <repository-url>`
 1. Extract Google Voice Takeout and move the folder into the same folder as this script
 1. Open terminal
 1. Install python
 1. Install pip
 1. Create virtual environment (`python -m venv .venv`)
 1. Activate virtual environment (`.venv\Scripts\activate.bat` or `source .venv/bin/activate`)
-1. Install dependencies (`python -m pip install -r requirements.txt`)
-1. `python sms.py`
+1. Install dependencies (`python -m pip install -r config/requirements.txt`)
+1. Run the converter: `python cli.py convert`
 
 
 ## Testing with an emulator:
@@ -71,6 +133,63 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 1. Inspect your output to make sure if appears how you want it. I recommend searching for images and contact cards to make sure those all imported in the output file. Unfortunately the emulator may not catch all errors with MMS messages because it doesn't have the same phone number as your actual device.
 
 * If you need to tweak the script or output and try again, you can either close the emulator and wipe data in Android Studio, then repeat the steps above; or you can delete all messages, either by manually selecting them in your messaging app or by using the Tools option in SMS Backup & Restore to delete them.
+
+## Configuration Options
+
+The converter provides extensive configuration options with sensible defaults. All options show their default values in the help text:
+
+### Basic Options
+- `--processing-dir DIRECTORY` - Directory containing Google Voice export files (default: ../gvoice-convert)
+- `--output-format [html|xml]` - Output format for converted conversations (default: html)
+- `--preset [default|test|production]` - Configuration preset to use as base (default: default)
+
+### Performance Options
+- `--max-workers INTEGER` - Maximum number of worker threads (default: 16)
+- `--chunk-size INTEGER` - Chunk size for processing large files (default: 1000)
+- `--batch-size INTEGER` - Batch size for processing operations (default: 1000)
+- `--buffer-size INTEGER` - Buffer size for file operations (default: 32768)
+- `--cache-size INTEGER` - Cache size for frequently accessed data (default: 50000)
+- `--memory-threshold INTEGER` - Memory threshold for switching to memory-efficient mode (default: 10000)
+
+### Feature Flags (all enabled by default)
+- `--enable-parallel-processing` - Enable parallel processing (default: enabled)
+- `--enable-streaming-parsing` - Enable streaming parsing for large files (default: enabled)
+- `--enable-mmap-for-large-files` - Enable memory mapping for large files (default: enabled)
+- `--enable-performance-monitoring` - Enable performance monitoring (default: enabled)
+- `--enable-progress-logging` - Enable progress logging (default: enabled)
+- `--large-dataset` - Enable optimizations for datasets with 50,000+ messages (default: enabled)
+
+### Validation Options
+- `--enable-path-validation` - Enable path validation (default: enabled)
+- `--enable-runtime-validation` - Enable runtime validation (default: enabled)
+- `--strict-mode` - Enable strict mode for validation (default: disabled)
+- `--validation-interval INTEGER` - Validation interval for runtime checks (default: 1000)
+
+### Logging Options
+- `--log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]` - Logging level (default: INFO)
+- `--log-filename TEXT` - Log filename (default: gvoice_converter.log)
+- `--verbose` - Enable verbose logging (default: disabled)
+- `--debug` - Enable debug logging (default: disabled)
+
+### Filtering Options
+- `--include-service-codes` - Include service codes and short codes in processing (default: disabled)
+- `--filter-numbers-without-aliases` - Filter out phone numbers that don't have aliases (default: disabled)
+- `--filter-non-phone-numbers` - Filter out toll-free numbers and non-US numbers (default: disabled)
+- `--skip-filtered-contacts` - Skip processing filtered contacts by default (default: enabled)
+- `--filter-groups-with-all-filtered` - Filter out group conversations where ALL participants are marked to filter (default: enabled)
+
+### Test Mode Options
+- `--test-mode` - Enable testing mode with limited processing (default: disabled, 100 entries when enabled)
+- `--test-limit INTEGER` - Number of entries to process in test mode (default: 100)
+- `--full-run` - Disable test mode and process all entries (default: disabled)
+
+### Phone Lookup Options
+- `--phone-lookup-file PATH` - Path to phone lookup file (default: processing_dir/phone_lookup.txt)
+- `--enable-phone-prompts` - Enable interactive phone number alias prompts (default: disabled)
+
+### Date Filtering Options
+- `--older-than TEXT` - Filter out messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+- `--newer-than TEXT` - Filter out messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
 
 ## Importing to your phone
 1. Copy the file gvoice-all.xml to your phone, then restore from it using SMS Backup and Restore

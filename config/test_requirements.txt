@@ -1,0 +1,7 @@
+# Test dependencies for sms.py unit tests
+pytest>=6.0.0
+pytest-cov>=2.10.0
+pytest-mock>=3.6.0
+beautifulsoup4>=4.9.0
+phonenumbers>=8.12.0
+python-dateutil>=2.8.0

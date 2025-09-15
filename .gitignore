@@ -1,2 +1,83 @@
+# Google Voice SMS Takeout XML Converter - Git Ignore File
+
+# Main output directories
 sms/
 gvoice-all.xml
+conversations/
+
+# Log files
+*.log
+gvoice_converter.log
+
+# Python cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environment
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Patch and bundle files (git handles these)
+*.patch
+*.bundle
+
+# Backup files (git handles versioning)
+backups/
+
+# Generated output files
+output/
+results/
+exports/
+
+# Phone lookup and configuration files (may contain sensitive data)
+phone_lookup.txt
+sms-converter-config.txt
+
+# Test artifacts
+test_output/
+test_results/
+
+# Temporary directories (gitignored)
+.temp/
+.temp/*
+temp/
+temp/*
+
+# Runtime generated files
+conversations/
+gvoice_converter.log
+phone_lookup.txt

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>SMS Conversation - {conversation_id}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background-color: #f2f2f2; font-weight: bold; }}
+        tr:nth-child(even) {{ background-color: #f9f9f9; }}
+        .timestamp {{ font-size: 0.9em; color: #666; }}
+        .message {{ max-width: 400px; word-wrap: break-word; }}
+        .attachment {{ color: #0066cc; text-decoration: none; }}
+        .attachment:hover {{ text-decoration: underline; }}
+        .header {{ background-color: #e6f3ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>SMS Conversation: {conversation_id}</h1>
+        <p>Total Messages: {total_messages}</p>
+        <p><em>Converted from Google Voice Takeout data</em></p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Message</th>
+                <th>Attachments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {message_rows}
+        </tbody>
+    </table>
+</body>
+</html>
