@@ -209,34 +209,39 @@ class ConversationManager:
         """Get the filename for a conversation."""
         return self.output_dir / f"{conversation_id}.{self.output_format}"
 
+    def _open_conversation_file(self, conversation_id: str):
+        """Open a conversation file for writing."""
+        if conversation_id not in self.conversation_files:
+            # Create new conversation file with optimized buffer size
+            filename = self.get_conversation_filename(conversation_id)
+            file_handle = open(
+                filename, "w", encoding="utf-8", buffering=self.write_buffer_size
+            )
+
+            self.conversation_files[conversation_id] = {
+                "file": file_handle,
+                "messages": [],
+                "buffer_size": 0,
+                "max_buffer_size": self.write_buffer_size
+                * 2,  # Allow buffer to grow up to 2x
+            }
+
+            # Initialize conversation stats
+            self.conversation_stats[conversation_id] = {
+                "sms_count": 0,
+                "calls_count": 0,
+                "voicemails_count": 0,
+                "attachments_count": 0,
+                "latest_timestamp": 0,
+                "latest_message_time": "No messages"
+            }
+
     def write_message(self, conversation_id: str, message_content: str, timestamp: int):
         """Write a message to the conversation file with optimized buffering."""
         with self._lock:
+            # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
-                # Create new conversation file with optimized buffer size
-                filename = self.get_conversation_filename(conversation_id)
-                file_handle = open(
-                    filename, "w", encoding="utf-8", buffering=self.write_buffer_size
-                )
-
-                self.conversation_files[conversation_id] = {
-                    "file": file_handle,
-                    "messages": [],
-                    "buffer_size": 0,
-                    "max_buffer_size": self.write_buffer_size
-                    * 2,  # Allow buffer to grow up to 2x
-                }
-
-                # Initialize conversation statistics
-                self.conversation_stats[conversation_id] = {
-                    "num_sms": 0,
-                    "num_img": 0,
-                    "num_vcf": 0,
-                    "num_calls": 0,
-                    "num_voicemails": 0,
-                    "latest_timestamp": 0,
-                    "latest_message_time": "No messages"
-                }
+                self._open_conversation_file(conversation_id)
 
             file_info = self.conversation_files[conversation_id]
 
@@ -252,55 +257,56 @@ class ConversationManager:
     def write_message_with_content(
         self,
         conversation_id: str,
-        message_text: str,
-        attachments: list,
-        timestamp: int,
-        sender: Optional[str] = None,
+        formatted_time: str,
+        sender: str,
+        message: str,
+        attachments: list = None,  # Add for backward compatibility
     ):
-        """Write a message with pre-extracted text and attachment information for HTML output."""
+        """Write a message to a conversation file with content."""
         with self._lock:
+            # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
-                # Create new conversation file with optimized buffer size
-                filename = self.get_conversation_filename(conversation_id)
-                file_handle = open(
-                    filename, "w", encoding="utf-8", buffering=self.write_buffer_size
-                )
+                # This case should ideally not be hit if get_conversation_id is always called first
+                self._open_conversation_file(conversation_id)
 
-                self.conversation_files[conversation_id] = {
-                    "file": file_handle,
-                    "messages": [],
-                    "buffer_size": 0,
-                    "max_buffer_size": self.write_buffer_size
-                    * 2,  # Allow buffer to grow up to 2x
-                }
+            file_info = self.conversation_files.get(conversation_id)
+            if not file_info:
+                logger.error(f"Failed to get file_info for {conversation_id} after opening.")
+                return
 
-                # Initialize conversation statistics
-                self.conversation_stats[conversation_id] = {
-                    "num_sms": 0,
-                    "num_img": 0,
-                    "num_vcf": 0,
-                    "num_calls": 0,
-                    "num_voicemails": 0,
-                    "latest_timestamp": 0,
-                    "latest_message_time": "No messages"
-                }
-
-            file_info = self.conversation_files[conversation_id]
-
-            # Store message with pre-extracted content for HTML output
+            # Append the message to the internal buffer
             message_data = {
-                "text": message_text,
-                "attachments": attachments,
-                "sender": sender or "-",
+                "text": message,
+                "attachments": [],
+                "sender": sender,
                 "raw_content": None,  # Not needed for HTML output
             }
-            file_info["messages"].append((timestamp, message_data))
-            file_info["buffer_size"] += len(message_text)
+            file_info["messages"].append((0, message_data)) # Placeholder timestamp for now
+            file_info["buffer_size"] += len(message)
 
             # Flush buffer if it gets too large
-            if file_info["buffer_size"] > file_info["max_buffer_size"]:
-                file_info["file"].flush()
-                file_info["buffer_size"] = 0
+            if file_info["buffer_size"] > self.write_buffer_size:
+                self._flush_buffer_to_file(conversation_id)
+
+    def _flush_buffer_to_file(self, conversation_id: str):
+        """Flush buffered messages to the conversation file."""
+        file_info = self.conversation_files.get(conversation_id)
+        if not file_info:
+            return
+
+        # Write all buffered messages to the file
+        for timestamp, message_data in file_info["messages"]:
+            if isinstance(message_data, dict):
+                # Extract text from message data dictionary
+                message_text = message_data.get("text", "")
+                file_info["file"].write(message_text)
+            else:
+                # Handle legacy string format
+                file_info["file"].write(str(message_data))
+        
+        # Clear the buffer
+        file_info["messages"].clear()
+        file_info["buffer_size"] = 0
 
     def finalize_conversation_files(self):
         """Finalize all conversation files by writing headers and closing tags."""
@@ -806,122 +812,58 @@ class ConversationManager:
         self, file_info: dict, sorted_messages: list, conversation_id: str
     ):
         """Finalize an HTML conversation file."""
-        # Use StringBuilder for efficient HTML generation
-        builder = StringBuilder()
-
-        # Build HTML header efficiently
-        builder.append_line("<!DOCTYPE html>")
-        builder.append_line("<html lang='en'>")
-        builder.append_line("<head>")
-        builder.append_line("    <meta charset='UTF-8'>")
-        builder.append_line(
-            "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-        )
-        builder.append_line(f"    <title>SMS Conversation - {conversation_id}</title>")
-        builder.append_line("    <style>")
-        builder.append_line(
-            "        body { font-family: Arial, sans-serif; margin: 20px; }"
-        )
-        builder.append_line(
-            "        table { border-collapse: collapse; width: 100%; margin-top: 20px; }"
-        )
-        builder.append_line(
-            "        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }"
-        )
-        builder.append_line(
-            "        th { background-color: #f2f2f2; font-weight: bold; }"
-        )
-        builder.append_line("        tr:nth-child(even) { background-color: #f9f9f9; }")
-        builder.append_line("        .timestamp { font-size: 0.9em; color: #666; }")
-        builder.append_line(
-            "        .message { max-width: 400px; word-wrap: break-word; }"
-        )
-        builder.append_line(
-            "        .attachment { color: #0066cc; text-decoration: none; }"
-        )
-        builder.append_line("        .attachment:hover { text-decoration: underline; }")
-        builder.append_line(
-            "        .header { background-color: #e6f3ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; }"
-        )
-        builder.append_line("    </style>")
-        builder.append_line("</head>")
-        builder.append_line("<body>")
-
-        # Build header section
-        builder.append_line("    <div class='header'>")
-        builder.append_line(f"        <h1>SMS Conversation: {conversation_id}</h1>")
-        builder.append_line(f"        <p>Total Messages: {len(sorted_messages)}</p>")
-        builder.append_line(
-            "        <p><em>Converted from Google Voice Takeout data</em></p>"
-        )
-        builder.append_line("    </div>")
-
-        # Build table header
-        builder.append_line("    <table>")
-        builder.append_line("        <thead>")
-        builder.append_line("            <tr>")
-        builder.append_line("                <th>Timestamp</th>")
-        builder.append_line("                <th>Sender</th>")
-        builder.append_line("                <th>Message</th>")
-        builder.append_line("                <th>Attachments</th>")
-        builder.append_line("            </tr>")
-        builder.append_line("        </thead>")
-        builder.append_line("        <tbody>")
-
-        # Build table rows efficiently
-        for timestamp, message_content in sorted_messages:
-            # Handle both old format (raw XML content) and new format (pre-extracted content)
-            if isinstance(message_content, dict) and "text" in message_content:
-                # New format: pre-extracted content
-                message_text = message_content["text"]
-                # Join attachments and preserve HTML formatting
-                if message_content["attachments"]:
-                    attachments = " ".join(message_content["attachments"])
-                else:
-                    attachments = "-"
-                sender_display = message_content.get("sender", "-")
-            else:
-                # Old format: raw XML content - extract message text and attachments
-                message_text, attachments = self._extract_message_content(
-                    message_content
-                )
-                # Best-effort sender extraction from raw content
-                sender_display = self._extract_sender_from_raw(message_content)
-
-            # Format timestamp
-            formatted_time = self._format_timestamp(timestamp)
-
-            # Build table row efficiently
-            builder.append_line("            <tr>")
-            builder.append_line(
-                f"                <td class='timestamp'>{formatted_time}</td>"
+        try:
+            from templates.loader import format_conversation_template
+            
+            # Build message rows from sorted messages
+            message_rows = []
+            for timestamp, message_data in sorted_messages:
+                if isinstance(message_data, dict):
+                    # Extract message content
+                    text = message_data.get('text', '')
+                    attachments = message_data.get('attachments', [])
+                    sender = message_data.get('sender', 'Unknown')
+                    
+                    # Format timestamp
+                    formatted_time = self._format_timestamp(timestamp)
+                    
+                    # Build attachments HTML
+                    attachments_html = ""
+                    if attachments:
+                        attachment_links = []
+                        for attachment in attachments:
+                            if isinstance(attachment, dict) and 'filename' in attachment:
+                                attachment_links.append(f'<a href="{attachment["filename"]}" class="attachment">{attachment["filename"]}</a>')
+                        if attachment_links:
+                            attachments_html = "<br>".join(attachment_links)
+                    
+                    # Create message row
+                    row = f"""
+                    <tr>
+                        <td class="timestamp">{formatted_time}</td>
+                        <td class="message">{text}</td>
+                        <td class="attachments">{attachments_html}</td>
+                    </tr>"""
+                    message_rows.append(row)
+            
+            # Build HTML header efficiently
+            header = format_conversation_template(
+                conversation_id=conversation_id,
+                total_messages=len(sorted_messages),
+                message_rows="\n".join(message_rows)
             )
-            builder.append_line(
-                f"                <td class='sender'>{sender_display}</td>"
-            )
-            builder.append_line(
-                f"                <td class='message'>{message_text}</td>"
-            )
-            builder.append_line(f"                <td>{attachments}</td>")
-            builder.append_line("            </tr>")
-
-        # Build HTML footer
-        builder.append_line("        </tbody>")
-        builder.append_line("    </table>")
-        builder.append_line("</body>")
-        builder.append_line("</html>")
-
-        # Write the complete HTML content efficiently
-        file_info["file"].write(builder.build())
-        file_info["file"].close()
-
-        # Clear builder to free memory
-        builder.clear()
-
-        logger.info(
-            f"Finalized HTML conversation file: {self.get_conversation_filename(conversation_id)} "
-            f"with {len(sorted_messages)} messages"
-        )
+            # The template already includes the complete HTML structure
+            final_content = header
+            
+            file_info["file"].write(final_content)
+            file_info["file"].close()
+            
+        except Exception as e:
+            logger.error(f"ERROR: Failed to finalize HTML file for {conversation_id}: {e}")
+            # Write a minimal error page
+            error_content = f"<html><body><h1>Error</h1><p>Failed to generate conversation: {e}</p></body></html>"
+            file_info["file"].write(error_content)
+            file_info["file"].close()
 
     def _extract_message_content(self, message_content: str) -> tuple[str, str]:
         """Extract message text and attachments from XML content."""

@@ -1,0 +1,3 @@
+# Test phone lookup file
++1234567890|TestContact
++1112223333|AnotherContact|filter

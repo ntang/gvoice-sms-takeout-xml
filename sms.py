@@ -639,8 +639,6 @@ def get_limited_file_list(limit: int) -> List[Path]:
     
     logger.info(f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
     return html_files
-
-
 def main(config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None):
     """Main conversion function with comprehensive progress logging and performance optimization."""
     start_time = time.time()
@@ -844,13 +842,13 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         # Finalize conversation files
         logger.info("Finalizing conversation files...")
         finalize_start = time.time()
-        context.conversation_manager.finalize_conversation_files()
+        CONVERSATION_MANAGER.finalize_conversation_files()
         finalize_time = time.time() - finalize_start
 
         # Calculate elapsed time and generate index
         elapsed_time = time.time() - start_time
         index_start = time.time()
-        context.conversation_manager.generate_index_html(stats, elapsed_time)
+        CONVERSATION_MANAGER.generate_index_html(stats, elapsed_time)
         index_time = time.time() - index_start
 
         # Display final results
@@ -2194,8 +2192,6 @@ def _get_file_recommendation(risk_level: str, risk_factors: List[str]) -> str:
         return "Monitor closely - may indicate partial export"
     else:
         return "Appears normal - single message likely legitimate"
-
-
 def analyze_temporal_patterns(files: List[str]) -> Dict[str, Any]:
     """
     Analyze temporal patterns across conversation files to detect potential gaps.
@@ -3300,11 +3296,10 @@ def write_sms_messages(
                         # Use existing logic for individual conversations
                         sender_display = "Me" if sms_values.get("type") == 2 else alias
                     conversation_manager.write_message_with_content(
-                        conversation_id,
-                        message_text,
-                        attachments,
-                        sms_values["time"],
+                        conversation_id=conversation_id,
+                        formatted_time=sms_values["time"],
                         sender=sender_display,
+                        message=message_text,
                     )
                     # Update latest timestamp for this conversation
                     conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
@@ -3603,8 +3598,6 @@ def should_skip_file(filename: str) -> bool:
     # Don't skip files that start with names, numbers (when enabled), or "Group Conversation"
     # These are legitimate conversation files that should be processed
     return False
-
-
 def clean_corrupted_filename(filename: str) -> str:
     """
     Attempt to clean corrupted Google Voice filenames by removing extra parts.
@@ -4517,11 +4510,11 @@ def write_mms_messages(
                     except Exception:
                         pass
                     conversation_manager.write_message_with_content(
-                        conversation_id,
-                        message_text,
-                        attachments,
-                        get_time_unix(message),
+                        conversation_id=conversation_id,
+                        formatted_time=get_time_formatted(message),
                         sender=sender_display,
+                        message=message_text,
+                        attachments=attachments,
                     )
                     # Update latest timestamp for this conversation
                     conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
@@ -4665,8 +4658,6 @@ def process_attachments(
                         )
 
     return parts, extracted_url
-
-
 def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
     """
     Build XML parts for image attachments in an MMS message.
@@ -5445,8 +5436,6 @@ def get_enhanced_sender_for_group(message: BeautifulSoup, group_participants: Li
     except Exception as e:
         logger.debug(f"Enhanced sender detection failed: {e}")
         return "Me"  # Fallback to maintain existing behavior
-
-
 def get_message_text(message: BeautifulSoup) -> str:
     """
     Extract and clean message text from HTML.
@@ -5987,7 +5976,26 @@ def parse_timestamp_cached(ymdhms: str) -> datetime:
         datetime: Parsed datetime object
     """
     return dateutil.parser.isoparse(ymdhms)
-
+def get_time_formatted(message: BeautifulSoup, filename: str = "unknown") -> str:
+    """
+    Extract and format message timestamp for display.
+    
+    Args:
+        message: Message element from HTML
+        filename: Filename for better error logging
+        
+    Returns:
+        str: Formatted timestamp string
+    """
+    try:
+        timestamp = get_time_unix(message, filename)
+        if timestamp:
+            dt = datetime.fromtimestamp(timestamp / 1000)  # Convert from milliseconds
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            return "Unknown"
+    except Exception:
+        return "Unknown"
 
 def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
     """
@@ -6779,7 +6787,6 @@ def create_sample_config():
     """Create a sample configuration file for reference."""
     config_content = """# Google Voice SMS Converter Configuration
 # This file shows the expected directory structure
-
 # Expected directory structure:
 # /path/to/your/data/
 # ├── Calls/
@@ -7530,8 +7537,6 @@ def extract_voicemail_info(
     except Exception as e:
         logger.error(f"Failed to extract voicemail info: {e}")
         return None
-
-
 def is_valid_phone_extraction(phone_candidate: str) -> bool:
     """
     Validate that a phone number candidate is not part of a log message or other inappropriate content.
@@ -8035,11 +8040,10 @@ def write_call_entry(
             message_text = call_details["message_text"]
             attachments = []
             CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id,
-                message_text,
-                attachments,
-                call_ts,
+                conversation_id=conversation_id,
+                formatted_time=call_ts,
                 sender=alias,
+                message=message_text,
             )
         else:
             # For XML output, use the XML format
@@ -8331,11 +8335,10 @@ def write_voicemail_entry(
                 message_text = "[Voicemail entry]"
             attachments = []
             CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id,
-                message_text,
-                attachments,
-                vm_ts,
+                conversation_id=conversation_id,
+                formatted_time=vm_ts,
                 sender=alias,
+                message=message_text,
             )
         else:
             # For XML output, use the XML format
@@ -8351,4 +8354,3 @@ def write_voicemail_entry(
 
     except Exception as e:
         logger.error(f"Failed to write voicemail entry: {e}")
-
