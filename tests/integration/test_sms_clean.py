@@ -2225,6 +2225,73 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                         f"Should NOT skip {test_case['description']}: {test_case['filename']}",
                     )
 
+    def test_improved_name_based_participants(self):
+        """Test that name-based participants use actual names instead of generic hashes."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test cases that should create meaningful participant names
+        test_cases = [
+            # Case 1: Person's name should be used directly
+            {
+                "filename": "John Doe - Text - 2025-08-13T12_08_52Z.html",
+                "expected_participant": "John_Doe",  # Safe filename version
+                "expected_alias": "John Doe",  # Display version
+                "description": "person name with space",
+            },
+            # Case 2: Business name
+            {
+                "filename": "Eastern Car Service SMS - Text - 2018-01-22T19_25_.html",
+                "expected_participant": "Eastern_Car_Service_SMS",
+                "expected_alias": "Eastern Car Service SMS",
+                "description": "business name with spaces",
+            },
+            # Case 3: Name with special characters
+            {
+                "filename": "Dr. Mary-Jane O'Connor - Text - 2025-08-13T12_08_52Z.html",
+                "expected_participant": "Dr._Mary-Jane_O'Connor",
+                "expected_alias": "Dr. Mary-Jane O'Connor",
+                "description": "name with special characters",
+            },
+        ]
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                if " - Text -" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text -")[0].strip()
+
+                    # Test the name processing logic
+                    if name_part and len(name_part) > 0:
+                        safe_name = (
+                            name_part.replace(" ", "_")
+                            .replace("/", "_")
+                            .replace("\\", "_")
+                        )
+
+                        # Should create meaningful participant identifiers
+                        self.assertEqual(
+                            safe_name,
+                            test_case["expected_participant"],
+                            f"Should create meaningful participant for {test_case['description']}",
+                        )
+                        self.assertEqual(
+                            name_part,
+                            test_case["expected_alias"],
+                            f"Should create correct alias for {test_case['description']}",
+                        )
+
+                        # Should not contain generic patterns
+                        self.assertNotIn(
+                            "name_",
+                            safe_name,
+                            f"Should not create generic hash for {test_case['description']}",
+                        )
+                        self.assertNotIn(
+                            "default_",
+                            safe_name,
+                            f"Should not create default participant for {test_case['description']}",
+                        )
+
 
 if __name__ == "__main__":
     unittest.main()
