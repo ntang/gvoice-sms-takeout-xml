@@ -6084,7 +6084,13 @@ def setup_processing_paths(
     try:
         from core.path_manager import PathManager
         # Use test mode if we're in a test environment
-        test_mode = 'pytest' in sys.modules or 'unittest' in sys.modules
+        # Check for test modules or temporary directories (common in tests)
+        test_mode = (
+            'pytest' in sys.modules or 
+            'unittest' in sys.modules or
+            '/tmp' in str(processing_dir) or
+            'tmp' in str(processing_dir).lower()
+        )
         PATH_MANAGER = PathManager(processing_dir, test_mode=test_mode)
         PATH_MANAGER.ensure_output_directories()
         logger.info("✅ PathManager initialized successfully")
