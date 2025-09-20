@@ -195,7 +195,7 @@ class SMSModulePatcher:
                 batch_size: int = 1000,
                 cache_size: int = 25000,
                 large_dataset: bool = False,
-                output_format: str = "html",
+                phone_lookup_file: Optional[Path] = None,
             ) -> None:
                 """Patched version of setup_processing_paths that uses configuration."""
                 # Get the current configuration
@@ -214,13 +214,14 @@ class SMSModulePatcher:
                     if original_func:
                         original_func(
                             processing_dir, enable_phone_prompts, buffer_size,
-                            batch_size, cache_size, large_dataset, output_format
+                            batch_size, cache_size, large_dataset, phone_lookup_file
                         )
                     else:
                         logger.error("❌ Original function not available")
                         raise RuntimeError("Original setup_processing_paths function not available")
             
             # Replace the function
+            patched_setup_processing_paths._is_patched = True
             sms.setup_processing_paths = patched_setup_processing_paths
             self._patched_functions.add('setup_processing_paths')
             logger.debug("Patched setup_processing_paths function")
@@ -410,8 +411,8 @@ def is_sms_module_patched() -> bool:
         # Check if key functions have been replaced
         if hasattr(sms, 'setup_processing_paths'):
             func = getattr(sms, 'setup_processing_paths')
-            # Check if it's our patched version by looking for a specific attribute
-            return hasattr(func, '__name__') and 'patched' in func.__name__
+            # Check if it's our patched version by looking for the patched attribute
+            return hasattr(func, '_is_patched') and func._is_patched
         
         return False
     except ImportError:
