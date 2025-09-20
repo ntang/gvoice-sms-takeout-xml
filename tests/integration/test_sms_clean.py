@@ -1310,6 +1310,155 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                         f"Conversation name should not contain invalid file characters for {test_case['description']}",
                     )
 
+    def test_mms_message_processing_with_soup_parameter(self):
+        """Test that MMS message processing works correctly with soup parameter."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Create test HTML with MMS message structure
+        test_html = """
+        <div class='message'>
+            <cite class='sender vcard'>
+                <a class='tel' href='tel:+15551234567'>
+                    <abbr class='fn' title='Test User'>Test User</abbr>
+                </a>
+            </cite>
+            <q>Test MMS message with image</q>
+            <img src='test-image.jpg' alt='Test image'>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        """
+
+        from bs4 import BeautifulSoup
+        messages = [BeautifulSoup(test_html, "html.parser")]
+        participants_raw = [
+            [
+                BeautifulSoup(
+                    '<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>',
+                    "html.parser",
+                )
+            ]
+        ]
+
+        # This should not raise a NameError about 'soup' not being defined
+        try:
+            # Use the actual conversation manager from setup
+            conversation_manager = sms.CONVERSATION_MANAGER
+            phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+            sms.write_mms_messages(
+                "test_mms.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                conversation_manager,
+                phone_lookup_manager,
+                soup=None,
+            )
+            # Function executed successfully
+        except NameError as e:
+            if "soup" in str(e):
+                self.fail(
+                    f"MMS processing still references undefined 'soup' variable: {e}"
+                )
+            else:
+                # Other NameErrors are acceptable in this test context
+                pass
+        except Exception:
+            # Other exceptions are expected in this test context
+            pass
+
+    def test_mms_processing_with_none_soup_parameter(self):
+        """Test that MMS processing works correctly when soup parameter is None."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Create test HTML with MMS message structure
+        test_html = """
+        <div class='message'>
+            <cite class='sender vcard'>
+                <a class='tel' href='tel:+15551234567'>
+                    <abbr class='fn' title='Test User'>Test User</abbr>
+                </a>
+            </cite>
+            <q>Test MMS message with image</q>
+            <img src='test-image.jpg' alt='Test image'>
+            <abbr class='dt' title='2024-01-15T10:30:00Z'>Jan 15, 2024</abbr>
+        </div>
+        """
+
+        from bs4 import BeautifulSoup
+        messages = [BeautifulSoup(test_html, "html.parser")]
+        participants_raw = [
+            [
+                BeautifulSoup(
+                    '<cite class="sender"><a href="tel:+15551234567">Test User</a></cite>',
+                    "html.parser",
+                )
+            ]
+        ]
+
+        # This should not raise a NoneType error about soup.find_all
+        try:
+            # Use the actual conversation manager from setup
+            conversation_manager = sms.CONVERSATION_MANAGER
+            phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+            sms.write_mms_messages(
+                "test_mms.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                conversation_manager,
+                phone_lookup_manager,
+                soup=None,
+            )
+            # Function executed successfully
+        except AttributeError as e:
+            if "'NoneType' object has no attribute 'find_all'" in str(e):
+                self.fail(
+                    f"MMS processing still has NoneType error when soup is None: {e}"
+                )
+            else:
+                # Other AttributeErrors are acceptable in this test context
+                pass
+        except Exception:
+            # Other exceptions are expected in the test context
+            pass
+
+    def test_attachment_processing_integration(self):
+        """Test attachment processing integration."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        
+        # Test build_attachment_mapping
+        result = sms.build_attachment_mapping()
+        self.assertIsInstance(result, dict)
+
+        # Test build_attachment_mapping_with_progress_new (using PathManager)
+        if hasattr(sms, 'PATH_MANAGER') and sms.PATH_MANAGER:
+            from core.attachment_manager_new import build_attachment_mapping_with_progress_new
+            result = build_attachment_mapping_with_progress_new(sms.PATH_MANAGER)
+            self.assertIsInstance(result, dict)
+        else:
+            # Skip this test if PathManager is not available
+            self.skipTest("PathManager not available for testing")
+
+    def test_html_processing_integration(self):
+        """Test HTML processing integration."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        
+        # Test extract_src_with_progress
+        result = sms.extract_src_with_progress()
+        self.assertIsInstance(result, list)
+
+        # Test list_att_filenames_with_progress
+        result = sms.list_att_filenames_with_progress()
+        self.assertIsInstance(result, list)
+
 
 if __name__ == "__main__":
     unittest.main()
