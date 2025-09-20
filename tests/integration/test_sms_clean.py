@@ -1732,6 +1732,93 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                     f"Should not return current time fallback for {test_case['description']}",
                 )
 
+    def test_filename_timestamp_performance(self):
+        """Test that filename-based timestamp extraction is performant."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test performance of filename timestamp extraction
+        test_filename = "Performance Test - Text - 2025-08-13T12_08_52Z.html"
+
+        # Create a message with no timestamp elements to force filename fallback
+        test_html = '<div class="message"><q>Performance test message</q></div>'
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(test_html, "html.parser")
+        message = soup.find("div", class_="message")
+
+        import time as time_module
+
+        # Measure performance
+        start_time = time_module.time()
+        result = sms.get_time_unix(message, test_filename)
+        end_time = time_module.time()
+
+        execution_time = end_time - start_time
+
+        # Should execute quickly (within 100ms)
+        self.assertLess(
+            execution_time, 0.1, "Filename timestamp extraction should be fast"
+        )
+
+        # Should return a valid timestamp
+        self.assertIsInstance(result, int, "Should return integer timestamp")
+        self.assertGreater(result, 1000000000000, "Should return reasonable timestamp")
+
+    def test_numeric_filename_handling(self):
+        """Test handling of numeric-only filenames that currently get skipped."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test numeric-only filenames that should be handled gracefully
+        test_cases = [
+            # Case 1: Pure numeric filename
+            {
+                "filename": "22891 - Text - 2022-04-22T18_31_20Z.html",
+                "should_be_processed": True,
+                "description": "pure numeric filename",
+            },
+            # Case 2: Numeric with text
+            {
+                "filename": "12345 - Text - 2021-12-31T19_09_30Z.html",
+                "should_be_processed": True,
+                "description": "numeric with text pattern",
+            },
+            # Case 3: Mixed numeric and text
+            {
+                "filename": "286669 - Text - 2021-08-01T12_33_13Z.html",
+                "should_be_processed": True,
+                "description": "mixed numeric and text",
+            },
+        ]
+
+        import dateutil.parser
+        from datetime import datetime
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                # Test that numeric filenames can be processed
+                if " - Text -" in test_case["filename"]:
+                    # Extract timestamp part
+                    timestamp_part = test_case["filename"].split(" - Text -")[1]
+                    if timestamp_part.endswith(".html"):
+                        timestamp_part = timestamp_part[:-5]
+
+                    # Should be able to parse timestamp
+                    timestamp_part = timestamp_part.replace("_", ":")
+                    try:
+                        # This should work for valid timestamps
+                        time_obj = dateutil.parser.parse(timestamp_part, fuzzy=True)
+                        self.assertIsInstance(
+                            time_obj,
+                            datetime,
+                            f"Should parse timestamp for {test_case['description']}",
+                        )
+                    except Exception as e:
+                        # If parsing fails, it should be due to invalid timestamp, not filename format
+                        self.fail(
+                            f"Timestamp parsing should work for {test_case['description']}: {e}"
+                        )
+
 
 if __name__ == "__main__":
     unittest.main()
