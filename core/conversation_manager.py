@@ -780,16 +780,10 @@ class ConversationManager:
             # Build message rows from sorted messages
             message_rows = []
             for timestamp, message_data in sorted_messages:
-                if isinstance(message_data, dict):
-                    # Extract message content from dictionary
-                    text = message_data.get('text', '')
-                    attachments = message_data.get('attachments', [])
-                    sender = message_data.get('sender', 'Unknown')
-                else:
-                    # Parse raw XML string
-                    text, attachments_str = self._extract_message_content(message_data)
-                    attachments = [attachments_str] if attachments_str else []
-                    sender = 'Unknown'  # Default sender for XML messages
+                # Extract message content from dictionary (HTML output only)
+                text = message_data.get('text', '')
+                attachments = message_data.get('attachments', [])
+                sender = message_data.get('sender', 'Unknown')
                 
                 # Format timestamp
                 formatted_time = self._format_timestamp(timestamp)
@@ -835,129 +829,9 @@ class ConversationManager:
             file_info["file"].write(error_content)
             file_info["file"].close()
 
-    def _extract_message_content(self, message_content: str) -> tuple[str, str]:
-        """Extract message text and attachments from XML content."""
-        # Parse the XML content to extract message text and attachments
-        try:
-            # Simple parsing - look for text content and attachments
-            message_text = ""
-            attachments = []
+    # _extract_message_content function removed - only HTML output supported
 
-            # First try to extract SMS message content from body attribute
-            import re
-
-            body_match = re.search(r'body="([^"]*)"', message_content)
-            if body_match:
-                message_text = body_match.group(1)
-                # Unescape XML entities
-                message_text = (
-                    message_text.replace("&apos;", "'")
-                    .replace("&quot;", '"')
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">")
-                    .replace("&amp;", "&")
-                )
-            else:
-                # Try to extract MMS message content from part text
-                part_text_match = re.search(r'text="([^"]*)"', message_content)
-                if part_text_match:
-                    message_text = part_text_match.group(1)
-                    # Unescape XML entities
-                    message_text = (
-                        message_text.replace("&apos;", "'")
-                        .replace("&quot;", '"')
-                        .replace("&lt;", "<")
-                        .replace("&gt;", ">")
-                        .replace("&amp;", "&")
-                    )
-                else:
-                    # Fallback: look for content between tags
-                    text_match = re.search(r"<text>([^<]*)</text>", message_content)
-                    if text_match:
-                        message_text = text_match.group(1)
-                    else:
-                        # Last resort: look for content between tags
-                        content_match = re.search(r">([^<]+)<", message_content)
-                        if content_match:
-                            message_text = content_match.group(1)
-
-            # Extract attachments
-            # Check for MMS image parts first (more specific)
-            if re.search(r'ct="image/[^"]*"', message_content):
-                attachments.append("📷 Image")
-            # Check for traditional HTML img tags
-            elif re.search(r"<img", message_content):
-                attachments.append("📷 Image")
-            # Check for vCard attachments
-            if re.search(r'<a[^>]*class=[\'"]vcard[\'"][^>]*>', message_content):
-                attachments.append("📇 vCard")
-            # Check for audio attachments
-            if re.search(r'ct="audio/[^"]*"', message_content):
-                attachments.append("🎵 Audio")
-            elif re.search(r"<audio", message_content):
-                attachments.append("🎵 Audio")
-            # Check for video attachments
-            if re.search(r'ct="video/[^"]*"', message_content):
-                attachments.append("🎬 Video")
-            elif re.search(r"<video", message_content):
-                attachments.append("🎬 Video")
-
-            # Clean up message text
-            message_text = message_text.strip()
-            if not message_text:
-                message_text = "[No text content]"
-
-            # Join attachments efficiently
-            attachments_str = " ".join(attachments) if attachments else "-"
-
-            return message_text, attachments_str
-
-        except Exception as e:
-            # Log the specific error and the content that caused it for debugging
-            logger.error(f"Failed to extract message content: {e}")
-            logger.debug(f"Problematic content: {message_content[:200]}...")
-
-            # Try to extract any readable text as a last resort
-            try:
-                # Strip HTML tags and extract any remaining text
-                import re
-
-                text_only = re.sub(r"<[^>]+>", "", message_content)
-                text_only = re.sub(r"&[^;]+;", " ", text_only)  # Replace HTML entities
-                text_only = re.sub(
-                    r"\s+", " ", text_only
-                ).strip()  # Normalize whitespace
-
-                if text_only and len(text_only) > 5:
-                    return (
-                        f"[Partial content: {text_only[:100]}{'...' if len(text_only) > 100 else ''}]",
-                        "-",
-                    )
-            except Exception:
-                pass
-
-            return "[Error parsing message]", "-"
-
-    def _extract_sender_from_raw(self, message_content: str) -> str:
-        """Best-effort sender extraction from raw XML/HTML content for legacy writes."""
-        try:
-            import re
-
-            # Look for addr entries in MMS XML
-            m = re.search(
-                r'<addr[^>]*address="([^"]+)"[^>]*type="137"', message_content
-            )
-            if m:
-                return m.group(1)
-            # Look for tel: links
-            tel_pattern = re.compile(r"tel:([+\d\s\-\(\)]+)")
-            m = tel_pattern.search(message_content)
-            if m:
-                return m.group(1)
-            # Fallback
-            return "-"
-        except Exception:
-            return "-"
+    # _extract_sender_from_raw function removed - only HTML output supported
 
     def _format_timestamp(self, timestamp: int) -> str:
         """Format timestamp for display."""

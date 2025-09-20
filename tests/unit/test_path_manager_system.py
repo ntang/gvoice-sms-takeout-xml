@@ -484,7 +484,7 @@ class TestPathManagerIntegration(unittest.TestCase):
         attachments = [
             "+16462728914 - Text - 2024-10-20T14_50_55Z-6-1.jpg",
             "John Doe - Text - 2024-02-09T15_30_51Z-12-.jpg",  # Note: missing "1" at end
-            "+15551234567 - Placed - 2019-05-01T19_10_12Z.html"
+            "+15551234567 - Placed - 2019-05-01T19_10_12Z.jpg"  # Changed to .jpg for realistic attachment
         ]
         
         for att_name in attachments:
@@ -517,7 +517,7 @@ class TestPathManagerIntegration(unittest.TestCase):
         self.assertEqual(john_mapping[0], "John Doe - Text - 2024-02-09T15_30_51Z-12-.jpg")
         
         jane_mapping = mapping["Jane Smith - Placed - 2019-05-01T19_10_12Z"]
-        self.assertEqual(jane_mapping[0], "+15551234567 - Placed - 2019-05-01T19_10_12Z.html")
+        self.assertEqual(jane_mapping[0], "+15551234567 - Placed - 2019-05-01T19_10_12Z.jpg")
         
         # Verify source paths are correct
         for src, (filename, source_path) in mapping.items():

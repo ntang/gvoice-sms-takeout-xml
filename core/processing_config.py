@@ -266,8 +266,8 @@ class ProcessingConfig:
         if self.test_limit <= 0:
             errors.append("test_limit must be positive")
         
-        # Check output format is valid
-        if self.output_format not in ['html', 'xml']:
+        # Check output format is valid (HTML only)
+        if self.output_format != 'html':
             errors.append(f"Invalid output format: {self.output_format}")
         
         # Check log level is valid

@@ -31,6 +31,17 @@ class TestThreadSafety(unittest.TestCase):
 
         # Create mock managers
         self.conversation_manager = Mock(spec=ConversationManager)
+        # Configure get_total_stats to return a proper dictionary
+        self.conversation_manager.get_total_stats.return_value = {
+            "num_sms": 0,
+            "num_img": 0,
+            "num_vcf": 0,
+            "num_calls": 0,
+            "num_voicemails": 0,
+            "num_audio": 0,
+            "num_video": 0,
+            "real_attachments": 0,
+        }
         self.phone_lookup_manager = Mock(spec=PhoneLookupManager)
 
         # Set up global variables for testing
@@ -41,6 +52,44 @@ class TestThreadSafety(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test environment."""
+        # Reset SMS module global variables to allow fresh setup in next test
+        import sms
+        from core import shared_constants
+        # Reset all global variables
+        shared_constants.PROCESSING_DIRECTORY = None
+        shared_constants.OUTPUT_DIRECTORY = None
+        shared_constants.LOG_FILENAME = None
+        shared_constants.CONVERSATION_MANAGER = None
+        shared_constants.PHONE_LOOKUP_MANAGER = None
+        shared_constants.PATH_MANAGER = None
+        shared_constants.LIMITED_HTML_FILES = None
+        # Reset filtering configuration
+        shared_constants.DATE_FILTER_OLDER_THAN = None
+        shared_constants.DATE_FILTER_NEWER_THAN = None
+        shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = False
+        shared_constants.FILTER_NON_PHONE_NUMBERS = False
+        shared_constants.FULL_RUN = False
+        shared_constants.TEST_MODE = False
+        shared_constants.TEST_LIMIT = 100
+        
+        # Clear all LRU caches to prevent test interference
+        sms.extract_src_cached.cache_clear()
+        sms.list_att_filenames_cached.cache_clear()
+        sms.normalize_filename.cache_clear()
+        sms.src_to_filename_mapping_cached.cache_clear()
+        sms.build_attachment_mapping_cached.cache_clear()
+        sms.count_attachments_in_file_cached.cache_clear()
+        sms.extract_fallback_number_cached.cache_clear()
+        sms.search_fallback_numbers_cached.cache_clear()
+        sms.get_message_type_cached.cache_clear()
+        sms.get_mms_sender_cached.cache_clear()
+        sms.get_first_phone_number_cached.cache_clear()
+        sms.get_participant_phone_numbers_cached.cache_clear()
+        sms.parse_timestamp_cached.cache_clear()
+        sms.build_attachment_xml_part_cached.cache_clear()
+        sms.get_image_type.cache_clear()
+        sms.encode_file_content.cache_clear()
+        
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_thread_safe_stats_aggregator(self):
@@ -329,6 +378,44 @@ class TestMultiprocessSafety(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test environment."""
+        # Reset SMS module global variables to allow fresh setup in next test
+        import sms
+        from core import shared_constants
+        # Reset all global variables
+        shared_constants.PROCESSING_DIRECTORY = None
+        shared_constants.OUTPUT_DIRECTORY = None
+        shared_constants.LOG_FILENAME = None
+        shared_constants.CONVERSATION_MANAGER = None
+        shared_constants.PHONE_LOOKUP_MANAGER = None
+        shared_constants.PATH_MANAGER = None
+        shared_constants.LIMITED_HTML_FILES = None
+        # Reset filtering configuration
+        shared_constants.DATE_FILTER_OLDER_THAN = None
+        shared_constants.DATE_FILTER_NEWER_THAN = None
+        shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = False
+        shared_constants.FILTER_NON_PHONE_NUMBERS = False
+        shared_constants.FULL_RUN = False
+        shared_constants.TEST_MODE = False
+        shared_constants.TEST_LIMIT = 100
+        
+        # Clear all LRU caches to prevent test interference
+        sms.extract_src_cached.cache_clear()
+        sms.list_att_filenames_cached.cache_clear()
+        sms.normalize_filename.cache_clear()
+        sms.src_to_filename_mapping_cached.cache_clear()
+        sms.build_attachment_mapping_cached.cache_clear()
+        sms.count_attachments_in_file_cached.cache_clear()
+        sms.extract_fallback_number_cached.cache_clear()
+        sms.search_fallback_numbers_cached.cache_clear()
+        sms.get_message_type_cached.cache_clear()
+        sms.get_mms_sender_cached.cache_clear()
+        sms.get_first_phone_number_cached.cache_clear()
+        sms.get_participant_phone_numbers_cached.cache_clear()
+        sms.parse_timestamp_cached.cache_clear()
+        sms.build_attachment_xml_part_cached.cache_clear()
+        sms.get_image_type.cache_clear()
+        sms.encode_file_content.cache_clear()
+        
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_global_variables_initialization(self):
@@ -350,7 +437,6 @@ class TestMultiprocessSafety(unittest.TestCase):
             batch_size=1000,
             cache_size=25000,
             large_dataset=False,
-            output_format="html",
         )
 
         # Verify global variables are set
