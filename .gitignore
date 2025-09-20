@@ -57,6 +57,7 @@ Thumbs.db
 
 # Backup files (git handles versioning)
 backups/
+backup/
 
 # Generated output files
 output/
