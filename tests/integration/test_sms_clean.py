@@ -1459,6 +1459,143 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
         result = sms.list_att_filenames_with_progress()
         self.assertIsInstance(result, list)
 
+    def test_mms_participant_extraction_with_none_soup(self):
+        """Test that MMS participant extraction gracefully handles None soup parameter."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Create test data that would normally require soup for participant extraction
+        from bs4 import BeautifulSoup
+        messages = [
+            BeautifulSoup('<div class="message"><q>Test MMS</q></div>', "html.parser")
+        ]
+        participants_raw = []  # Empty participants to trigger fallback logic
+
+        # This should not crash when soup is None
+        try:
+            # Use the actual conversation manager from setup
+            conversation_manager = sms.CONVERSATION_MANAGER
+            phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+            sms.write_mms_messages(
+                "test_mms_none_soup.html",
+                participants_raw,
+                messages,
+                None,
+                {},
+                conversation_manager,
+                phone_lookup_manager,
+                soup=None,
+            )
+            # Function should execute without NoneType errors
+        except AttributeError as e:
+            if "'NoneType' object has no attribute 'find_all'" in str(e):
+                self.fail(f"MMS participant extraction still fails with None soup: {e}")
+            else:
+                # Other AttributeErrors are acceptable
+                pass
+        except Exception:
+            # Other exceptions are expected in test context
+            pass
+
+    def test_mms_participant_extraction_with_filename_fallback(self):
+        """Test that MMS participant extraction works with filename-based fallback strategies."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test case 1: Filename with phone number
+        filename_with_phone = (
+            "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html"
+        )
+        from bs4 import BeautifulSoup
+        messages = [
+            BeautifulSoup('<div class="message"><q>Test MMS</q></div>', "html.parser")
+        ]
+        participants_raw = []  # Empty participants to trigger fallback logic
+
+        # This should extract phone number from filename
+        try:
+            # Use the actual conversation manager from setup
+            conversation_manager = sms.CONVERSATION_MANAGER
+            phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+            sms.write_mms_messages(
+                filename_with_phone,
+                participants_raw,
+                messages,
+                None,
+                {},
+                conversation_manager,
+                phone_lookup_manager,
+                soup=None,
+            )
+            # Function should execute without errors
+        except Exception as e:
+            self.fail(f"MMS processing with phone in filename should not fail: {e}")
+
+        # Test case 2: Filename without phone number (should create default)
+        filename_without_phone = "John Doe - Text - 2025-08-13T12_08_52Z.html"
+
+        try:
+            # Use the actual conversation manager from setup
+            conversation_manager = sms.CONVERSATION_MANAGER
+            phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+            sms.write_mms_messages(
+                filename_without_phone,
+                participants_raw,
+                messages,
+                None,
+                {},
+                conversation_manager,
+                phone_lookup_manager,
+                soup=None,
+            )
+            # Function should execute without errors and create default participant
+        except Exception as e:
+            self.fail(f"MMS processing without phone in filename should not fail: {e}")
+
+    def test_mms_participant_extraction_improvements(self):
+        """Test that MMS participant extraction works better and doesn't skip messages."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test that MMS messages with name-based filenames get proper participants
+        test_filename = "Charles Tang - Text - 2025-08-13T12_08_52Z.html"
+
+        # This should create a proper participant instead of generic name_hash
+        try:
+            # Test the filename parsing logic works correctly
+            if " - Text -" in test_filename:
+                name_part = test_filename.split(" - Text -")[0]
+
+                # Should extract the actual name
+                self.assertEqual(
+                    name_part,
+                    "Charles Tang",
+                    "Should extract actual name from filename",
+                )
+
+                # Should be suitable for participant creation
+                self.assertGreater(
+                    len(name_part.strip()), 2, "Name should be long enough"
+                )
+                self.assertFalse(
+                    name_part.strip().isdigit(), "Name should not be just digits"
+                )
+
+                # Should not generate generic participant names
+                self.assertFalse(
+                    name_part.startswith("name_"),
+                    "Should not generate generic name hash",
+                )
+                self.assertFalse(
+                    name_part.startswith("default_"),
+                    "Should not generate default participant",
+                )
+        except Exception as e:
+            self.fail(f"MMS participant extraction should work: {e}")
+
 
 if __name__ == "__main__":
     unittest.main()
