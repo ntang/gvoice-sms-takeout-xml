@@ -1992,6 +1992,75 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                         f"MMS processing with {test_case['description']} should not fail: {e}"
                     )
 
+    def test_edge_case_timestamp_extraction(self):
+        """Test timestamp extraction with extreme edge cases and malformed HTML."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test extreme edge cases
+        edge_cases = [
+            # Case 1: Empty message with only whitespace
+            {
+                "html": '<div class="message">   </div>',
+                "filename": "empty_whitespace.html",
+                "should_fail": True,
+            },
+            # Case 2: Message with only punctuation
+            {
+                "html": '<div class="message">!@#$%^&*()</div>',
+                "filename": "only_punctuation.html",
+                "should_fail": True,
+            },
+            # Case 3: Message with very short text
+            {
+                "html": '<div class="message">Hi</div>',
+                "filename": "very_short.html",
+                "should_fail": True,
+            },
+            # Case 4: Message with malformed HTML
+            {
+                "html": '<div class="message"><unclosed_tag>Test</div>',
+                "filename": "malformed_html.html",
+                "should_fail": True,
+            },
+            # Case 5: Message with nested malformed elements
+            {
+                "html": '<div class="message"><span><div>Test</span></div>',
+                "filename": "nested_malformed.html",
+                "should_fail": True,
+            },
+        ]
+
+        import time
+        from bs4 import BeautifulSoup
+
+        for i, test_case in enumerate(edge_cases):
+            with self.subTest(i=i, case=test_case["filename"]):
+                soup = BeautifulSoup(test_case["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+
+                if test_case["should_fail"]:
+                    # Should fall back to current time
+                    result = sms.get_time_unix(message, test_case["filename"])
+                    current_time = int(time.time() * 1000)
+                    # Allow for small timing differences (within 1 second)
+                    self.assertLess(
+                        abs(result - current_time),
+                        1000,
+                        f"Edge case {i} should fall back to current time",
+                    )
+                else:
+                    # Should extract valid timestamp
+                    result = sms.get_time_unix(message, test_case["filename"])
+                    self.assertIsInstance(
+                        result, int, f"Edge case {i} should return valid timestamp"
+                    )
+                    self.assertGreater(
+                        result, 0, f"Edge case {i} should return positive timestamp"
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
