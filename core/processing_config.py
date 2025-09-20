@@ -30,20 +30,9 @@ class ProcessingConfig:
     output_dir: Optional[Path] = None
     output_format: Literal["html"] = "html"
     
-    # Performance Settings
-    max_workers: int = 16
-    chunk_size: int = 1000
-    batch_size: int = 1000
-    buffer_size: int = 32768
-    cache_size: int = 25000
-    memory_threshold: int = 10000
-    
-    # Feature Flags
-    enable_parallel_processing: bool = True
-    enable_streaming_parsing: bool = True
-    enable_mmap_for_large_files: bool = True
-    enable_performance_monitoring: bool = True
-    enable_progress_logging: bool = True
+    # Performance Settings (optimized defaults - no configuration needed)
+    # max_workers, batch_size, buffer_size, etc. are now hardcoded in shared_constants.py
+    # for optimal performance on high-end systems (16GB+ RAM, 8+ cores, 20-50k files)
     
     # Validation Settings
     enable_path_validation: bool = True
@@ -77,9 +66,8 @@ class ProcessingConfig:
     debug_attachments: bool = False
     debug_paths: bool = False
     
-    # Large Dataset Optimizations
+    # Large Dataset Optimizations (now handled automatically by shared_constants.py)
     large_dataset: bool = False
-    enable_batch_processing: bool = True
     
     # Additional CLI Options
     validation_interval: int = 1000
@@ -109,23 +97,7 @@ class ProcessingConfig:
     
     def _validate_numeric_constraints(self) -> None:
         """Validate numeric configuration values."""
-        if self.max_workers < 1:
-            raise ValueError(f"max_workers must be >= 1, got {self.max_workers}")
-        
-        if self.chunk_size < 1:
-            raise ValueError(f"chunk_size must be >= 1, got {self.chunk_size}")
-        
-        if self.batch_size < 1:
-            raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
-        
-        if self.buffer_size < 1024:
-            raise ValueError(f"buffer_size must be >= 1024, got {self.buffer_size}")
-        
-        if self.cache_size < 100:
-            raise ValueError(f"cache_size must be >= 100, got {self.cache_size}")
-        
-        if self.memory_threshold < 100:
-            raise ValueError(f"memory_threshold must be >= 100, got {self.memory_threshold}")
+        # Performance settings are now hardcoded in shared_constants.py for optimal defaults
     
     def _validate_date_ranges(self) -> None:
         """Validate date filtering logic."""
@@ -147,7 +119,7 @@ class ProcessingConfig:
         logger.debug(f"  Output Directory: {self.output_dir}")
         logger.debug(f"  Output Format: {self.output_format}")
         logger.debug(f"  Phone Lookup File: {self.phone_lookup_file}")
-        logger.debug(f"  Max Workers: {self.max_workers}")
+        # Performance settings are now hardcoded
         logger.debug(f"  Test Mode: {self.test_mode}")
         logger.debug(f"  Phone Prompts: {self.enable_phone_prompts}")
         logger.debug(f"  Strict Mode: {self.strict_mode}")
@@ -251,18 +223,7 @@ class ProcessingConfig:
                 errors.append(f"Error accessing processing directory: {e}")
         
         # Check numeric fields are positive
-        if self.max_workers <= 0:
-            errors.append("max_workers must be positive")
-        if self.chunk_size <= 0:
-            errors.append("chunk_size must be positive")
-        if self.batch_size <= 0:
-            errors.append("batch_size must be positive")
-        if self.buffer_size <= 0:
-            errors.append("buffer_size must be positive")
-        if self.cache_size <= 0:
-            errors.append("cache_size must be positive")
-        if self.memory_threshold <= 0:
-            errors.append("memory_threshold must be positive")
+        # Performance settings are now hardcoded in shared_constants.py
         if self.test_limit <= 0:
             errors.append("test_limit must be positive")
         
@@ -285,17 +246,8 @@ class ConfigurationDefaults:
     def get_defaults() -> Dict[str, Any]:
         """Get default configuration values."""
         return {
-            "max_workers": 16,
-            "chunk_size": 1000,
-            "batch_size": 1000,
-            "buffer_size": 32768,
-            "cache_size": 25000,
-            "memory_threshold": 10000,
-            "enable_parallel_processing": True,
-            "enable_streaming_parsing": True,
-            "enable_mmap_for_large_files": True,
-            "enable_performance_monitoring": True,
-            "enable_progress_logging": True,
+            # Performance settings are now hardcoded in shared_constants.py
+            # Performance features are now always enabled
             "enable_path_validation": True,
             "enable_runtime_validation": True,
             "strict_mode": False,
@@ -369,17 +321,8 @@ class ConfigurationBuilder:
         # Map CLI argument names to configuration field names
         field_mapping = {
             'output_format': 'output_format',
-            'max_workers': 'max_workers',
-            'chunk_size': 'chunk_size',
-            'batch_size': 'batch_size',
-            'buffer_size': 'buffer_size',
-            'cache_size': 'cache_size',
-            'memory_threshold': 'memory_threshold',
-            'enable_parallel_processing': 'enable_parallel_processing',
-            'enable_streaming_parsing': 'enable_streaming_parsing',
-            'enable_mmap_for_large_files': 'enable_mmap_for_large_files',
-            'enable_performance_monitoring': 'enable_performance_monitoring',
-            'enable_progress_logging': 'enable_progress_logging',
+            # Performance settings are now hardcoded
+            # Performance features are now always enabled
             'enable_path_validation': 'enable_path_validation',
             'enable_runtime_validation': 'enable_runtime_validation',
             'strict_mode': 'strict_mode',
@@ -445,17 +388,8 @@ class ConfigurationBuilder:
         config_kwargs = {
             'processing_dir': Path(processing_dir),
             'output_format': os.environ.get('GVOICE_OUTPUT_FORMAT', 'html'),
-            'max_workers': int(os.environ.get('GVOICE_MAX_WORKERS', '16')),
-            'chunk_size': int(os.environ.get('GVOICE_CHUNK_SIZE', '1000')),
-            'batch_size': int(os.environ.get('GVOICE_BATCH_SIZE', '1000')),
-            'buffer_size': int(os.environ.get('GVOICE_BUFFER_SIZE', '32768')),
-            'cache_size': int(os.environ.get('GVOICE_CACHE_SIZE', '25000')),
-            'memory_threshold': int(os.environ.get('GVOICE_MEMORY_THRESHOLD', '10000')),
-            'enable_parallel_processing': os.environ.get('GVOICE_ENABLE_PARALLEL', 'true').lower() == 'true',
-            'enable_streaming_parsing': os.environ.get('GVOICE_ENABLE_STREAMING', 'true').lower() == 'true',
-            'enable_mmap_for_large_files': os.environ.get('GVOICE_ENABLE_MMAP', 'true').lower() == 'true',
-            'enable_performance_monitoring': os.environ.get('GVOICE_ENABLE_MONITORING', 'true').lower() == 'true',
-            'enable_progress_logging': os.environ.get('GVOICE_ENABLE_PROGRESS', 'true').lower() == 'true',
+            # Performance settings are now hardcoded in shared_constants.py
+            # Performance features are now always enabled for optimal defaults
             'enable_path_validation': os.environ.get('GVOICE_ENABLE_PATH_VALIDATION', 'true').lower() == 'true',
             'enable_runtime_validation': os.environ.get('GVOICE_ENABLE_RUNTIME_VALIDATION', 'true').lower() == 'true',
             'strict_mode': os.environ.get('GVOICE_STRICT_MODE', 'false').lower() == 'true',
@@ -474,7 +408,7 @@ class ConfigurationBuilder:
             'debug_attachments': os.environ.get('GVOICE_DEBUG_ATTACHMENTS', 'false').lower() == 'true',
             'debug_paths': os.environ.get('GVOICE_DEBUG_PATHS', 'false').lower() == 'true',
             'large_dataset': os.environ.get('GVOICE_LARGE_DATASET', 'false').lower() == 'true',
-            'enable_batch_processing': os.environ.get('GVOICE_ENABLE_BATCH_PROCESSING', 'true').lower() == 'true',
+            # Batch processing is now always enabled
         }
         
         return ProcessingConfig(**config_kwargs)

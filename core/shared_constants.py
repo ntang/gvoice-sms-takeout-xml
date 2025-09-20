@@ -63,33 +63,33 @@ PERFORMANCE_LOG_INTERVAL = 1000  # milliseconds or operation count, depending on
 TEST_MODE = False
 TEST_LIMIT = 100
 
-# Performance configuration - Optimized for large datasets by default
-ENABLE_BATCH_PROCESSING = True
+# Performance configuration - Optimized for high-end systems (16GB+ RAM, 8+ cores, 20-50k files)
+# All performance optimizations are enabled by default for maximum throughput
 LARGE_DATASET_THRESHOLD = 5000  # Files (increased for better large dataset handling)
-BATCH_SIZE_OPTIMAL = 1000  # Files per batch (increased for better efficiency)
-BUFFER_SIZE_OPTIMAL = 32768  # Bytes (32KB - increased for better I/O performance)
+BATCH_SIZE_OPTIMAL = 1000  # Files per batch (optimized for large datasets)
+BUFFER_SIZE_OPTIMAL = 65536  # 64KB buffer (doubled for better I/O performance)
 
-# Advanced performance configuration for large datasets (50,000+ files) -
-# High performance defaults
-ENABLE_PARALLEL_PROCESSING = True
-MAX_WORKERS = min(
-    16, os.cpu_count() or 8
-)  # Increased to 16 workers max for better parallelization
-# Files per chunk for parallel processing (optimized for large datasets)
-CHUNK_SIZE_OPTIMAL = 1000
-MEMORY_EFFICIENT_THRESHOLD = 10000  # Increased threshold for memory-efficient mode
-ENABLE_STREAMING_PARSING = True  # Use streaming for very large files
-STREAMING_CHUNK_SIZE = (
-    2 * 1024 * 1024
-)  # 2MB chunks for streaming (increased for better performance)
+# High-performance parallel processing - optimized for multi-core systems
+MAX_WORKERS = 16  # Fixed at 16 workers for high-end systems (8+ cores)
+CHUNK_SIZE_OPTIMAL = 1000  # Files per chunk for parallel processing
+MEMORY_EFFICIENT_THRESHOLD = 10000  # Threshold for memory-efficient mode
 
-# File I/O optimization - High performance defaults
-FILE_READ_BUFFER_SIZE = (
-    262144  # 256KB buffer for file reading (doubled for better performance)
-)
-# Memory mapping enabled by default for better performance on large files
-ENABLE_MMAP_FOR_LARGE_FILES = True  # Use memory mapping for files > 5MB
+# High-performance streaming and I/O - optimized for 16GB+ RAM systems
+STREAMING_CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks (doubled for better performance)
+FILE_READ_BUFFER_SIZE = 512 * 1024  # 512KB buffer (doubled for better I/O)
+
+# Memory mapping for large files - enabled by default for performance
 MMAP_THRESHOLD = 5 * 1024 * 1024  # 5MB threshold for mmap
+
+# Single emergency disable flag for troubleshooting
+DISABLE_OPTIMIZATIONS = os.environ.get('GVOICE_DISABLE_OPTIMIZATIONS', 'false').lower() == 'true'
+if DISABLE_OPTIMIZATIONS:
+    # Fall back to safe settings for troubleshooting
+    MAX_WORKERS = 1
+    BATCH_SIZE_OPTIMAL = 100
+    BUFFER_SIZE_OPTIMAL = 8192
+    STREAMING_CHUNK_SIZE = 1024 * 1024  # 1MB
+    FILE_READ_BUFFER_SIZE = 8192  # 8KB
 
 # Configuration management
 def get_config_path() -> Optional[Path]:

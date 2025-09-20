@@ -645,10 +645,10 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
 
         # Performance configuration logging
         logger.info("Performance Configuration:")
-        logger.info(f"  Parallel processing: {ENABLE_PARALLEL_PROCESSING}")
+        logger.info(f"  Parallel processing: enabled (16 workers)")
         logger.info(f"  Max workers: {MAX_WORKERS}")
         logger.info(f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
-        logger.info(f"  Streaming parsing: {ENABLE_STREAMING_PARSING}")
+        logger.info(f"  Streaming parsing: enabled")
         logger.info(f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB")
         
         # Initialize memory monitoring
@@ -1539,19 +1539,17 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
 
     try:
         # Use more efficient file discovery for large directories
-        if ENABLE_STREAMING_PARSING:
-            # Use generator-based approach to avoid loading all files into
-            # memory
-            file_generator = Path(directory).rglob("*")
-            total_files = 0
-            processed_files = 0
+        # Use generator-based approach to avoid loading all files into memory
+        file_generator = Path(directory).rglob("*")
+        total_files = 0
+        processed_files = 0
 
-            logger.info(f"Starting streaming attachment scan in {directory}")
+        logger.info(f"Starting streaming attachment scan in {directory}")
 
-            attachment_filenames = []
-            attachment_count = 0
+        attachment_filenames = []
+        attachment_count = 0
 
-            for file_path in file_generator:
+        for file_path in file_generator:
                 total_files += 1
                 processed_files += 1
 
@@ -1922,7 +1920,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
             from utils.memory_monitor import monitor_memory_usage
             monitor_memory_usage("html_processing_start", {
                 "src_filename_map_size": len(src_filename_map),
-                "processing_mode": "sequential" if not ENABLE_BATCH_PROCESSING else "batch"
+                "processing_mode": "batch"
             })
         except Exception as e:
             logger.debug(f"Memory monitoring for HTML processing start failed: {e}")
@@ -1962,7 +1960,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
     )
 
     # Use batch processing for large datasets
-    if filtered_files > LARGE_DATASET_THRESHOLD and ENABLE_BATCH_PROCESSING:
+    if filtered_files > LARGE_DATASET_THRESHOLD:
         logger.info(
             f"Using batch processing for large dataset ({filtered_files} files)"
         )
@@ -2051,7 +2049,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
             monitor_memory_usage("html_processing_complete", {
                 "processed_files": filtered_files,
                 "final_stats": stats,
-                "processing_mode": "sequential" if not ENABLE_BATCH_PROCESSING else "batch"
+                "processing_mode": "batch"
             })
         except Exception as e:
             logger.debug(f"Memory monitoring for HTML processing completion failed: {e}")
@@ -6263,7 +6261,7 @@ def process_html_files_batch(
     logger.info(f"Processing {total_files} files in batches of {batch_size}")
 
     # Use parallel processing for large datasets
-    if ENABLE_PARALLEL_PROCESSING and total_files > MEMORY_EFFICIENT_THRESHOLD:
+    if total_files > MEMORY_EFFICIENT_THRESHOLD:
         return process_html_files_parallel(html_files, src_filename_map, batch_size, config, context)
 
     # Sequential batch processing for smaller datasets - use generator for

@@ -128,12 +128,7 @@ class TestSMSModulePatcher:
         mock_sms.MEMORY_EFFICIENT_THRESHOLD = 10000
         mock_sms.BUFFER_SIZE_OPTIMAL = 8192
         mock_sms.CACHE_SIZE_OPTIMAL = 25000
-        mock_sms.BATCH_SIZE_OPTIMAL = 1000
-        mock_sms.ENABLE_PARALLEL_PROCESSING = False
-        mock_sms.ENABLE_STREAMING_PARSING = False
-        mock_sms.ENABLE_MMAP_FOR_LARGE_FILES = False
-        mock_sms.ENABLE_PERFORMANCE_MONITORING = False
-        mock_sms.ENABLE_PROGRESS_LOGGING = False
+        # Performance settings are now hardcoded in shared_constants.py
         mock_sms.ENABLE_PATH_VALIDATION = False
         mock_sms.ENABLE_RUNTIME_VALIDATION = False
         mock_sms.TEST_MODE = False
@@ -154,10 +149,7 @@ class TestSMSModulePatcher:
         assert mock_sms.MEMORY_EFFICIENT_THRESHOLD == 20000
         assert mock_sms.BUFFER_SIZE_OPTIMAL == 16384
         assert mock_sms.CACHE_SIZE_OPTIMAL == 50000
-        assert mock_sms.BATCH_SIZE_OPTIMAL == 2000
-        assert mock_sms.ENABLE_PARALLEL_PROCESSING is True
-        assert mock_sms.ENABLE_STREAMING_PARSING is True
-        assert mock_sms.ENABLE_MMAP_FOR_LARGE_FILES is True
+        # Performance settings are now hardcoded
         assert mock_sms.ENABLE_PERFORMANCE_MONITORING is True
         assert mock_sms.ENABLE_PROGRESS_LOGGING is True
         assert mock_sms.ENABLE_PATH_VALIDATION is True

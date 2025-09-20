@@ -68,61 +68,7 @@ class SMSModulePatcher:
             logger.debug(f"Patched OUTPUT_DIRECTORY: {config.output_dir}")
         
         # Patch performance variables
-        if hasattr(sms, 'MAX_WORKERS'):
-            sms.MAX_WORKERS = config.max_workers
-            self._patched_globals.add('MAX_WORKERS')
-            logger.debug(f"Patched MAX_WORKERS: {config.max_workers}")
-        
-        if hasattr(sms, 'CHUNK_SIZE_OPTIMAL'):
-            sms.CHUNK_SIZE_OPTIMAL = config.chunk_size
-            self._patched_globals.add('CHUNK_SIZE_OPTIMAL')
-            logger.debug(f"Patched CHUNK_SIZE_OPTIMAL: {config.chunk_size}")
-        
-        if hasattr(sms, 'MEMORY_EFFICIENT_THRESHOLD'):
-            sms.MEMORY_EFFICIENT_THRESHOLD = config.memory_threshold
-            self._patched_globals.add('MEMORY_EFFICIENT_THRESHOLD')
-            logger.debug(f"Patched MEMORY_EFFICIENT_THRESHOLD: {config.memory_threshold}")
-        
-        if hasattr(sms, 'BUFFER_SIZE_OPTIMAL'):
-            sms.BUFFER_SIZE_OPTIMAL = config.buffer_size
-            self._patched_globals.add('BUFFER_SIZE_OPTIMAL')
-            logger.debug(f"Patched BUFFER_SIZE_OPTIMAL: {config.buffer_size}")
-        
-        if hasattr(sms, 'CACHE_SIZE_OPTIMAL'):
-            sms.CACHE_SIZE_OPTIMAL = config.cache_size
-            self._patched_globals.add('CACHE_SIZE_OPTIMAL')
-            logger.debug(f"Patched CACHE_SIZE_OPTIMAL: {config.cache_size}")
-        
-        if hasattr(sms, 'BATCH_SIZE_OPTIMAL'):
-            sms.BATCH_SIZE_OPTIMAL = config.batch_size
-            self._patched_globals.add('BATCH_SIZE_OPTIMAL')
-            logger.debug(f"Patched BATCH_SIZE_OPTIMAL: {config.batch_size}")
-        
-        # Patch feature flags
-        if hasattr(sms, 'ENABLE_PARALLEL_PROCESSING'):
-            sms.ENABLE_PARALLEL_PROCESSING = config.enable_parallel_processing
-            self._patched_globals.add('ENABLE_PARALLEL_PROCESSING')
-            logger.debug(f"Patched ENABLE_PARALLEL_PROCESSING: {config.enable_parallel_processing}")
-        
-        if hasattr(sms, 'ENABLE_STREAMING_PARSING'):
-            sms.ENABLE_STREAMING_PARSING = config.enable_streaming_parsing
-            self._patched_globals.add('ENABLE_STREAMING_PARSING')
-            logger.debug(f"Patched ENABLE_STREAMING_PARSING: {config.enable_streaming_parsing}")
-        
-        if hasattr(sms, 'ENABLE_MMAP_FOR_LARGE_FILES'):
-            sms.ENABLE_MMAP_FOR_LARGE_FILES = config.enable_mmap_for_large_files
-            self._patched_globals.add('ENABLE_MMAP_FOR_LARGE_FILES')
-            logger.debug(f"Patched ENABLE_MMAP_FOR_LARGE_FILES: {config.enable_mmap_for_large_files}")
-        
-        if hasattr(sms, 'ENABLE_PERFORMANCE_MONITORING'):
-            sms.ENABLE_PERFORMANCE_MONITORING = config.enable_performance_monitoring
-            self._patched_globals.add('ENABLE_PERFORMANCE_MONITORING')
-            logger.debug(f"Patched ENABLE_PERFORMANCE_MONITORING: {config.enable_performance_monitoring}")
-        
-        if hasattr(sms, 'ENABLE_PROGRESS_LOGGING'):
-            sms.ENABLE_PROGRESS_LOGGING = config.enable_progress_logging
-            self._patched_globals.add('ENABLE_PROGRESS_LOGGING')
-            logger.debug(f"Patched ENABLE_PROGRESS_LOGGING: {config.enable_progress_logging}")
+        # Performance settings are now hardcoded in shared_constants.py for optimal defaults
         
         # Patch validation flags
         if hasattr(sms, 'ENABLE_PATH_VALIDATION'):
