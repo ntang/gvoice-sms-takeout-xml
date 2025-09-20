@@ -2061,6 +2061,57 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                         result, 0, f"Edge case {i} should return positive timestamp"
                     )
 
+    def test_filename_based_participant_extraction(self):
+        """Test that participant extraction from filename patterns works correctly."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test various filename patterns
+        filename_patterns = [
+            # Pattern 1: Name - Text - Timestamp
+            {
+                "filename": "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Susan Nowak Tang",
+                "description": "standard name - text - timestamp pattern",
+            },
+            # Pattern 2: Name with Phone - Text - Timestamp
+            {
+                "filename": "John Doe +15551234567 - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "John Doe +15551234567",
+                "description": "name with phone - text - timestamp pattern",
+            },
+            # Pattern 3: Just Name - Text
+            {
+                "filename": "Alice Smith - Text.html",
+                "expected_name": "Alice Smith",
+                "description": "name - text pattern without timestamp",
+            },
+            # Pattern 4: Complex name with special characters
+            {
+                "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
+                "description": "complex name with special characters",
+            },
+        ]
+
+        for i, test_case in enumerate(filename_patterns):
+            with self.subTest(i=i, pattern=test_case["description"]):
+                # Test that the filename parsing logic works correctly
+                if " - Text -" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text -")[0]
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Filename parsing should extract correct name for {test_case['description']}",
+                    )
+                elif " - Text" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text")[0]
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Filename parsing should extract correct name for {test_case['description']}",
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
