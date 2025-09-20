@@ -53,7 +53,6 @@ class BackwardCompatibilityManager:
         batch_size: int = 1000,
         cache_size: int = 25000,
         large_dataset: bool = False,
-        output_format: str = "html",
         phone_lookup_file: Optional[Path] = None,
     ) -> None:
         """
@@ -76,7 +75,6 @@ class BackwardCompatibilityManager:
             batch_size=batch_size,
             cache_size=cache_size,
             large_dataset=large_dataset,
-            output_format=output_format,
         )
         
         # Set phone_lookup_file if provided
@@ -122,7 +120,6 @@ class BackwardCompatibilityManager:
         batch_size: int = 1000,
         cache_size: int = 25000,
         large_dataset: bool = False,
-        output_format: str = "html",
         preset: str = "default"
     ) -> ProcessingConfig:
         """
@@ -135,7 +132,7 @@ class BackwardCompatibilityManager:
             batch_size: Batch size for processing
             cache_size: Cache size for optimization
             large_dataset: Whether this is a large dataset
-            output_format: Output format ('xml' or 'html')
+            output_format: Output format ('html')
             preset: Configuration preset to use
             
         Returns:
@@ -156,7 +153,6 @@ class BackwardCompatibilityManager:
             'batch_size': batch_size,
             'cache_size': cache_size,
             'large_dataset': large_dataset,
-            'output_format': output_format,
         })
         
         # Create final configuration
@@ -253,7 +249,7 @@ def setup_processing_paths_legacy_compat(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('xml' or 'html')
+            output_format: Output format ('html')
     """
     manager = get_backward_compatibility_manager()
     manager._setup_processing_paths_legacy_wrapper(
@@ -263,7 +259,6 @@ def setup_processing_paths_legacy_compat(
         batch_size=batch_size,
         cache_size=cache_size,
         large_dataset=large_dataset,
-        output_format=output_format,
     )
 
 
@@ -307,7 +302,7 @@ def create_legacy_compatibility_config(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('xml' or 'html')
+            output_format: Output format ('html')
         preset: Configuration preset to use
         
     Returns:
@@ -321,7 +316,6 @@ def create_legacy_compatibility_config(
         batch_size=batch_size,
         cache_size=cache_size,
         large_dataset=large_dataset,
-        output_format=output_format,
         preset=preset
     )
 

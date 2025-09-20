@@ -92,10 +92,8 @@ class ConversationManager:
             )
         if not isinstance(batch_size, int) or batch_size <= 0:
             raise ValueError(f"batch_size must be a positive integer, got {batch_size}")
-        if not isinstance(output_format, str) or output_format not in ["xml", "html"]:
-            raise ValueError(
-                f"output_format must be 'xml' or 'html', got {output_format}"
-            )
+        if not isinstance(output_format, str) or output_format != "html":
+            raise ValueError(f"output_format must be 'html', got {output_format}")
 
         self.output_dir = output_dir
         # Create output directory if it doesn't exist
@@ -207,7 +205,7 @@ class ConversationManager:
 
     def get_conversation_filename(self, conversation_id: str) -> Path:
         """Get the filename for a conversation."""
-        return self.output_dir / f"{conversation_id}.{self.output_format}"
+        return self.output_dir / f"{conversation_id}.html"
 
     def _open_conversation_file(self, conversation_id: str):
         """Open a conversation file for writing."""
@@ -316,17 +314,9 @@ class ConversationManager:
                     # Sort messages by timestamp (using tuple unpacking for better performance)
                     sorted_messages = sorted(file_info["messages"], key=lambda x: x[0])
 
-                    if self.output_format == "xml":
-                        self._finalize_xml_file(
-                            file_info, sorted_messages, conversation_id
-                        )
-                    elif self.output_format == "html":
-                        self._finalize_html_file(
-                            file_info, sorted_messages, conversation_id
-                        )
-                    else:
-                        logger.error(f"Unknown output format: {self.output_format}")
-                        continue
+                    self._finalize_html_file(
+                        file_info, sorted_messages, conversation_id
+                    )
 
                 except Exception as e:
                     logger.error(
@@ -343,7 +333,7 @@ class ConversationManager:
         try:
             # Get all conversation files in the output directory
             conversation_files = []
-            for file_path in self.output_dir.glob(f"*.{self.output_format}"):
+            for file_path in self.output_dir.glob("*.html"):
                 if file_path.name != "index.html":  # Exclude index.html itself
                     conversation_files.append(file_path)
 
@@ -689,21 +679,9 @@ class ConversationManager:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Determine parser based on file extension
-            if file_path.suffix.lower() == ".xml":
-                # Try to use XML parser for XML files to avoid warnings
-                try:
-                    from bs4 import BeautifulSoup
-
-                    soup = BeautifulSoup(content, "xml")
-                except Exception:
-                    # Fall back to HTML parser if XML parser is not available
-                    soup = BeautifulSoup(content, "html.parser")
-            else:
-                # Use HTML parser for HTML files
-                from bs4 import BeautifulSoup
-
-                soup = BeautifulSoup(content, "html.parser")
+            # Use HTML parser for HTML files
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(content, "html.parser")
 
             # Initialize counters
             sms_count = 0
@@ -791,36 +769,6 @@ class ConversationManager:
             "latest_message_time": "Error",
         }
 
-    def _finalize_xml_file(
-        self, file_info: dict, sorted_messages: list, conversation_id: str
-    ):
-        """Finalize an XML conversation file."""
-        # Pre-allocate header lines to avoid repeated string operations
-        header_lines = [
-            "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>",
-            "<!--Converted from GV Takeout data -->",
-            f'<smses count="{len(sorted_messages)}">',
-        ]
-
-        # Write header efficiently
-        file_info["file"].write("\n".join(header_lines) + "\n")
-
-        # Write sorted messages in optimized batches
-        batch_size = self._batch_size
-        for i in range(0, len(sorted_messages), batch_size):
-            batch = sorted_messages[i : i + batch_size]
-            # Use generator expression for memory efficiency
-            batch_content = "".join(xml_content for _, xml_content in batch)
-            file_info["file"].write(batch_content)
-
-        # Write closing tag
-        file_info["file"].write("</smses>")
-        file_info["file"].close()
-
-        logger.info(
-            f"Finalized XML conversation file: {self.get_conversation_filename(conversation_id)} "
-            f"with {len(sorted_messages)} messages"
-        )
 
     def _finalize_html_file(
         self, file_info: dict, sorted_messages: list, conversation_id: str

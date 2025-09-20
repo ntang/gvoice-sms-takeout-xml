@@ -6478,7 +6478,7 @@ def setup_processing_paths(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('xml' or 'html')
+        output_format: Output format ('html')
         phone_lookup_file: Optional path to phone lookup file
 
     Raises:
@@ -6558,11 +6558,8 @@ def setup_processing_paths(
     
     if not isinstance(cache_size, int) or cache_size <= 0:
         raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
-    if not isinstance(output_format, str) or output_format not in [
-        "xml",
-        "html",
-    ]:
-        raise ValueError(f"output_format must be 'xml' or 'html', got {output_format}")
+    if not isinstance(output_format, str) or output_format != "html":
+        raise ValueError(f"output_format must be 'html', got {output_format}")
 
     logger.info("🔧 Initializing processing paths and global variables...")
 
@@ -6706,7 +6703,7 @@ def validate_entire_configuration() -> bool:
             return False
 
         # Validate output format
-        if CONVERSATION_MANAGER.output_format not in ["xml", "html"]:
+        if CONVERSATION_MANAGER.output_format != "html":
             logger.error(f"Invalid output format: {CONVERSATION_MANAGER.output_format}")
             return False
 

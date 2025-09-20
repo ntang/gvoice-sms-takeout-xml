@@ -125,7 +125,7 @@ def run_quick_validation():
         else:
             print(f"⚠️  Configuration validation had issues: {result.stderr}")
             # Fall back to direct call for basic validation
-            sms.setup_processing_paths(Path.cwd(), output_format="xml")
+            sms.setup_processing_paths(Path.cwd(), output_format="html")
             sms.validate_configuration()
             print("✅ Configuration validation passes (fallback)")
 

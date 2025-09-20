@@ -43,20 +43,20 @@ class TestConfigurationIntegration:
         cli_args = {
             'processing_dir': str(current_dir),
             'phone_prompts': True,
-            'output_format': 'xml'
+            'output_format': 'html'
         }
         
         cli_config = ConfigurationBuilder.from_cli_args(cli_args)
         assert cli_config.processing_dir == current_dir
         assert cli_config.enable_phone_prompts is True
-        assert cli_config.output_format == "xml"
+        assert cli_config.output_format == "html"
     
     def test_configuration_serialization_roundtrip(self):
         """Test that configuration can be serialized and deserialized correctly."""
         processing_dir = Path("/tmp/test")
         config = ProcessingConfig(
             processing_dir=processing_dir,
-            output_format="xml",
+            output_format="html",
             max_workers=8,
             enable_phone_prompts=True,
             strict_mode=True
@@ -67,7 +67,7 @@ class TestConfigurationIntegration:
         
         # Verify serialization
         assert config_dict["processing_dir"] == "/tmp/test"
-        assert config_dict["output_format"] == "xml"
+        assert config_dict["output_format"] == "html"
         assert config_dict["max_workers"] == 8
         assert config_dict["enable_phone_prompts"] is True
         assert config_dict["strict_mode"] is True

@@ -84,7 +84,7 @@ class TestSMSModulePatchIntegration:
             test_mode=True,
             test_limit=500,
             enable_phone_prompts=True,
-            output_format='xml'
+            output_format='html'
         )
         
         # Patch the module
@@ -224,7 +224,7 @@ class TestSMSModulePatchRealWorld:
             test_mode=True,
             test_limit=50,
             enable_phone_prompts=True,
-            output_format='xml',
+            output_format='html',
             large_dataset=False
         )
         

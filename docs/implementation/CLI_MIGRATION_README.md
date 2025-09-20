@@ -52,7 +52,6 @@ The new CLI provides **32 configuration options** with explicit definitions for 
 
 #### Processing Options
 - `--processing-dir DIRECTORY` - Directory containing Google Voice export data (default: ../gvoice-convert)
-- `--output-format [html|xml]` - Output format for conversation files (default: html)
 - `--max-workers INTEGER` - Maximum number of parallel workers (default: 16)
 - `--chunk-size INTEGER` - Chunk size for parallel processing (default: 1000)
 
@@ -121,12 +120,12 @@ Configuration error: 1 validation error for AppConfig
 
 ### Old Command
 ```bash
-python3 sms.py /path/to/gvoice/data --verbose --test-mode --test-limit 50 --output-format xml
+python3 sms.py /path/to/gvoice/data --verbose --test-mode --test-limit 50
 ```
 
 ### New Command
 ```bash
-python3 cli.py --processing-dir /path/to/gvoice/data --verbose --test-mode --test-limit 50 --output-format xml convert
+python3 cli.py --processing-dir /path/to/gvoice/data --verbose --test-mode --test-limit 50 convert
 ```
 
 ### Old Command
@@ -148,7 +147,7 @@ The new system automatically loads configuration from environment variables with
 export GVOICE_PROCESSING_DIR=/path/to/gvoice/data
 export GVOICE_MAX_WORKERS=8
 export GVOICE_TEST_LIMIT=100
-export GVOICE_OUTPUT_FORMAT=xml
+# Output format is now fixed to HTML
 ```
 
 ### .env Files

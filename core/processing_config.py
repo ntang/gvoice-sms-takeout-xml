@@ -28,7 +28,7 @@ class ProcessingConfig:
     # Core Processing Settings
     processing_dir: Path
     output_dir: Optional[Path] = None
-    output_format: Literal["html", "xml"] = "html"
+    output_format: Literal["html"] = "html"
     
     # Performance Settings
     max_workers: int = 16
@@ -137,8 +137,8 @@ class ProcessingConfig:
     
     def _validate_output_format(self) -> None:
         """Validate output format setting."""
-        if self.output_format not in ["html", "xml"]:
-            raise ValueError(f"output_format must be 'html' or 'xml', got {self.output_format}")
+        if self.output_format != "html":
+            raise ValueError(f"output_format must be 'html', got {self.output_format}")
     
     def _log_configuration_summary(self) -> None:
         """Log a summary of the configuration for debugging."""

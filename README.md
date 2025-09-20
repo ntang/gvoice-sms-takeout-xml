@@ -1,5 +1,5 @@
-# gvoice-sms-takeout-xml
-Convert Google Voice SMS data from Takeout to .xml suitable for use with SMS Backup and Restore.
+# gvoice-sms-takeout-html
+Convert Google Voice SMS data from Takeout to HTML format for viewing and archiving conversations.
 Input data is a folder of .html, image, and vCard files from Google Takeout.
 
 Working as of September 21, 2024.
@@ -125,9 +125,9 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 1. Install SMS Backup & Restore.
   * I did this by downloading the APK from [SyncTech](https://www.synctech.com.au/sms-backup-restore/) then installing using ADB: i.e. ` adb install .\SMSBackupRestore-freeProductionRelease-10.20.002.apk`.
   * Alternatively you can use an emulator system image that includes Google Play Store, connect to your Googe account, and install SMS Backup & Restore from the Play Store.
-1. Push the file `gvoice-all.xml` to your emulator using ADB, i.e. `adb push .\gvoice-all.xml /sdcard/Documents`.
-1. Open SMS Backup & Restore on the emulator.
-1. Use the Restore option to import the `gvoice-all.xml` file. When prompted, set SMS Backup & Restore as the default app for SMS messages.
+1. Push the file `index.html` to your emulator using ADB, i.e. `adb push .\index.html /sdcard/Documents`.
+1. Open a web browser on the emulator.
+1. Navigate to the `index.html` file to view your converted conversations.
 1. Open your messagine app and set as default when prompted.
   ** I recommend using the messaging app without an account for this. For instance, Google Messages asks me if I want to connect it to my Google account or use it without an account. I selected "Use Messages without an account" so that it would not sync the imported messages to my Google account from the emulator.
 1. Inspect your output to make sure if appears how you want it. I recommend searching for images and contact cards to make sure those all imported in the output file. Unfortunately the emulator may not catch all errors with MMS messages because it doesn't have the same phone number as your actual device.
@@ -140,7 +140,6 @@ The converter provides extensive configuration options with sensible defaults. A
 
 ### Basic Options
 - `--processing-dir DIRECTORY` - Directory containing Google Voice export files (default: ../gvoice-convert)
-- `--output-format [html|xml]` - Output format for converted conversations (default: html)
 - `--preset [default|test|production]` - Configuration preset to use as base (default: default)
 
 ### Performance Options
@@ -191,6 +190,7 @@ The converter provides extensive configuration options with sensible defaults. A
 - `--older-than TEXT` - Filter out messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
 - `--newer-than TEXT` - Filter out messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
 
-## Importing to your phone
-1. Copy the file gvoice-all.xml to your phone, then restore from it using SMS Backup and Restore
+## Viewing your converted conversations
+1. Copy the `index.html` file and the `conversations/` directory to your phone or computer
+2. Open `index.html` in a web browser to view your converted conversations
 1. **IMPORTANT** If you don't see the imported messages in your messaging app, go into the application settings and clear data, then restart it. SMS Backup & Restore has a couple of places where it tells you to do this, but I screwed it up and imported mine multiple times on my first attempt, which created lots of duplicate messages.

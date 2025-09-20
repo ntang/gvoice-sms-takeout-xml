@@ -582,7 +582,7 @@ class TestSMSBasic(unittest.TestCase):
     def test_batched_alias_saving(self):
         """Ensure alias saving can be batched without error."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         mgr = sms.PHONE_LOOKUP_MANAGER
         # Add several aliases and ensure no exception; then force a save
         for i in range(150):
@@ -737,7 +737,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_setup_processing_paths(self):
         """Test processing path setup."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         # Check that paths were set
         self.assertEqual(sms.PROCESSING_DIRECTORY.resolve(), test_dir.resolve())
@@ -757,7 +757,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_conversation_manager(self):
         """Test conversation manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -782,7 +782,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_phone_lookup_manager(self):
         """Test phone lookup manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -847,7 +847,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_index_html_generation(self):
         """Test index.html generation functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -856,8 +856,8 @@ class TestSMSIntegration(unittest.TestCase):
         conversation_id2 = "test_conversation_2"
 
         # Create actual files for testing
-        file1 = manager.output_dir / f"{conversation_id1}.xml"
-        file2 = manager.output_dir / f"{conversation_id2}.xml"
+        file1 = manager.output_dir / f"{conversation_id1}.html"
+        file2 = manager.output_dir / f"{conversation_id2}.html"
 
         # Ensure output directory exists
         manager.output_dir.mkdir(parents=True, exist_ok=True)
@@ -907,7 +907,7 @@ class TestSMSIntegration(unittest.TestCase):
             content = f.read()
             self.assertIn("Google Voice Conversations", content)
             self.assertIn("Processing completed in 1.5", content)
-            self.assertIn("Output format: XML", content)
+            self.assertIn("Output format: HTML", content)
             self.assertIn("Total conversations: 2", content)
             self.assertIn("SMS Messages", content)
             self.assertIn("Call Logs", content)
@@ -920,7 +920,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_group_conversation_handling(self):
         """Test group conversation handling including participant extraction and filename generation."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         # Test participant extraction from group conversation HTML
         test_html = """
@@ -1024,7 +1024,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_automatic_alias_extraction(self):
         """Test automatic alias extraction from HTML when prompts are disabled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -1283,15 +1283,15 @@ class TestSMSIntegration(unittest.TestCase):
     def test_index_generation_regression(self):
         """Regression test for index generation with missing conversation stats."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         manager = sms.CONVERSATION_MANAGER
 
         # Create conversation files manually (simulating the scenario from the failing test)
         conversation_id1 = "manual_conversation_1"
         conversation_id2 = "manual_conversation_2"
 
-        file1 = manager.output_dir / f"{conversation_id1}.xml"
-        file2 = manager.output_dir / f"{conversation_id2}.xml"
+        file1 = manager.output_dir / f"{conversation_id1}.html"
+        file2 = manager.output_dir / f"{conversation_id2}.html"
 
         # Ensure output directory exists
         manager.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1335,7 +1335,7 @@ class TestSMSIntegration(unittest.TestCase):
             content = f.read()
             self.assertIn("Google Voice Conversations", content)
             self.assertIn("Processing completed in 1.5", content)
-            self.assertIn("Output format: XML", content)
+            self.assertIn("Output format: HTML", content)
             self.assertIn("Total conversations: 2", content)
             self.assertIn("SMS Messages", content)
             self.assertIn("Call Logs", content)
@@ -1346,7 +1346,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_call_voicemail_timestamp_parsing(self):
         """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         # Create a call file with a specific timestamp in HTML
         calls_dir = test_dir / "Calls"
@@ -1942,7 +1942,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_calls_and_voicemails_processed(self):
         """Ensure calls and voicemails are captured and timestamps vary."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
         manager = sms.CONVERSATION_MANAGER
 
         # Create synthetic call and voicemail files with proper Google Voice naming patterns
@@ -4073,7 +4073,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_group_conversation_message_grouping_fix(self):
         """Test that all messages in a group conversation are properly grouped together."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
 
         # Create a test HTML file that simulates the reported issue
         # This represents a group conversation where messages from different participants

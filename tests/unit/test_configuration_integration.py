@@ -103,14 +103,14 @@ class TestConfigurationManager:
         cli_args = {
             'processing_dir': '/tmp/test',
             'phone_prompts': True,
-            'output_format': 'xml'
+            'output_format': 'html'
         }
         
         config = manager.build_config_from_cli(cli_args)
         
         assert config.processing_dir == Path("/tmp/test")
         assert config.enable_phone_prompts is True
-        assert config.output_format == "xml"
+        assert config.output_format == "html"
     
     def test_merge_configurations(self):
         """Test merging multiple configurations."""
@@ -193,7 +193,7 @@ class TestConfigurationHooks:
         validator = ConfigurationValidator()
         
         assert validator.validate_output_format("html") is True
-        assert validator.validate_output_format("xml") is True
+        assert validator.validate_output_format("html") is True
         assert validator.validate_output_format("json") is False
     
     def test_validate_max_workers(self):
@@ -301,7 +301,7 @@ class TestConfigurationIntegration:
         # Create a simple object with some global variables (not MagicMock)
         class MockModule:
             ENABLE_PHONE_PROMPTS = True
-            OUTPUT_FORMAT = "xml"
+            OUTPUT_FORMAT = "html"
         
         mock_module = MockModule()
         
@@ -310,7 +310,7 @@ class TestConfigurationIntegration:
         
         # Check that global values were migrated
         assert config.enable_phone_prompts is True
-        assert config.output_format == "xml"
+        assert config.output_format == "html"
         
         # Set as current configuration
         manager.set_current_config(config)
@@ -331,7 +331,7 @@ class TestConfigurationIntegration:
         cli_args = {
             'processing_dir': '/tmp/test',
             'phone_prompts': True,
-            'output_format': 'xml'
+            'output_format': 'html'
         }
         
         config = manager.build_complete_configuration(
@@ -359,7 +359,7 @@ class TestConfigurationIntegration:
         
         # Test configuration values
         assert current_config.enable_phone_prompts is True
-        assert current_config.output_format == "xml"
+        assert current_config.output_format == "html"
         assert current_config.test_mode is True
 
 

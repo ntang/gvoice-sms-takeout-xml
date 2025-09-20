@@ -32,13 +32,13 @@ class TestProcessingConfig:
         """Test configuration creation with custom values."""
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
-            output_format="xml",
+            output_format="html",
             max_workers=8,
             enable_phone_prompts=True,
             strict_mode=True
         )
         
-        assert config.output_format == "xml"
+        assert config.output_format == "html"
         assert config.max_workers == 8
         assert config.enable_phone_prompts is True
         assert config.strict_mode is True
@@ -103,12 +103,12 @@ class TestProcessingConfig:
         """Test output format validation."""
         # Test valid formats
         config1 = ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="html")
-        config2 = ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="xml")
+        config2 = ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="html")
         assert config1.output_format == "html"
-        assert config2.output_format == "xml"
+        assert config2.output_format == "html"
         
         # Test invalid format
-        with pytest.raises(ValueError, match="output_format must be 'html' or 'xml'"):
+        with pytest.raises(ValueError, match="output_format must be 'html'"):
             ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="json")
     
     def test_effective_value_methods(self):
@@ -118,13 +118,13 @@ class TestProcessingConfig:
             test_mode=True,
             test_limit=50,
             enable_phone_prompts=True,
-            output_format="xml"
+            output_format="html"
         )
         
         assert config.is_test_mode() is True
         assert config.get_test_limit() == 50
         assert config.should_enable_phone_prompts() is False  # Disabled in test mode
-        assert config.get_output_format() == "xml"
+        assert config.get_output_format() == "html"
         assert config.get_processing_directory() == Path("/tmp/test")
         assert config.get_output_directory() == Path("/tmp/test/conversations")
     
@@ -132,7 +132,7 @@ class TestProcessingConfig:
         """Test configuration serialization and deserialization."""
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
-            output_format="xml",
+            output_format="html",
             max_workers=8,
             enable_phone_prompts=True
         )
@@ -141,7 +141,7 @@ class TestProcessingConfig:
         config_dict = config.to_dict()
         assert isinstance(config_dict, dict)
         assert config_dict["processing_dir"] == "/tmp/test"
-        assert config_dict["output_format"] == "xml"
+        assert config_dict["output_format"] == "html"
         assert config_dict["max_workers"] == 8
         assert config_dict["enable_phone_prompts"] is True
         
@@ -195,7 +195,7 @@ class TestConfigurationBuilder:
         """Test building configuration from basic CLI arguments."""
         cli_args = {
             'processing_dir': '/tmp/test',
-            'output_format': 'xml',
+            'output_format': 'html',
             'max_workers': 8,
             'phone_prompts': True
         }
@@ -203,14 +203,14 @@ class TestConfigurationBuilder:
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
         assert config.processing_dir == Path("/tmp/test")
-        assert config.output_format == "xml"
+        assert config.output_format == "html"
         assert config.max_workers == 8
         assert config.enable_phone_prompts is True
     
     def test_from_cli_args_missing_required(self):
         """Test that missing processing_dir raises error."""
         cli_args = {
-            'output_format': 'xml'
+            'output_format': 'html'
         }
         
         with pytest.raises(ValueError, match="processing_dir is required"):
@@ -308,7 +308,7 @@ class TestConfigurationIntegration:
         # Simulate CLI arguments
         cli_args = {
             'processing_dir': '/tmp/test',
-            'output_format': 'xml',
+            'output_format': 'html',
             'phone_prompts': True,
             'strict_mode': True,
             'test_mode': False
@@ -318,7 +318,7 @@ class TestConfigurationIntegration:
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
         # Verify configuration
-        assert config.get_output_format() == "xml"
+        assert config.get_output_format() == "html"
         assert config.should_enable_phone_prompts() is True
         assert config.strict_mode is True
         assert config.is_test_mode() is False
@@ -340,7 +340,7 @@ class TestConfigurationIntegration:
         cli_args = {
             'processing_dir': '/tmp/test',
             'phone_prompts': True,  # Override preset
-            'output_format': 'xml'  # Override preset
+            'output_format': 'html'  # Override preset
         }
         
         cli_config = ConfigurationBuilder.from_cli_args(cli_args)
@@ -352,7 +352,7 @@ class TestConfigurationIntegration:
         assert final_config.test_mode is True  # From preset
         assert final_config.strict_mode is True  # From preset
         assert final_config.enable_phone_prompts is True  # From CLI override
-        assert final_config.output_format == "xml"  # From CLI override
+        assert final_config.output_format == "html"  # From CLI override
 
 
 if __name__ == "__main__":
