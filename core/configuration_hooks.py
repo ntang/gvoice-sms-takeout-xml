@@ -216,9 +216,9 @@ class ConfigurationIntegrator:
             return {
                 'max_workers': config.max_workers,
                 'chunk_size': config.chunk_size,
-                'batch_size': config.batch_size,
-                'buffer_size': config.buffer_size,
-                'cache_size': config.cache_size,
+                # batch_size is now hardcoded in shared_constants.py
+                # buffer_size is now hardcoded in shared_constants.py
+                # cache_size is now hardcoded in shared_constants.py
                 'memory_threshold': config.memory_threshold,
                 'enable_parallel_processing': config.enable_parallel_processing,
                 'enable_streaming_parsing': config.enable_streaming_parsing,

@@ -11,6 +11,7 @@ from typing import Optional, Union
 
 from .processing_config import ProcessingConfig
 from .configuration_manager import get_configuration_manager, set_global_configuration
+from .shared_constants import BUFFER_SIZE_OPTIMAL, BATCH_SIZE_OPTIMAL
 from .configuration_migration import migrate_module_to_configuration
 
 logger = logging.getLogger(__name__)
@@ -47,9 +48,9 @@ def setup_processing_paths_with_config(
     
     # Use override values if provided, otherwise use config values
     effective_phone_prompts = enable_phone_prompts if enable_phone_prompts is not None else config.enable_phone_prompts
-    effective_buffer_size = buffer_size if buffer_size is not None else config.buffer_size
-    effective_batch_size = batch_size if batch_size is not None else config.batch_size
-    effective_cache_size = cache_size if cache_size is not None else config.cache_size
+    effective_buffer_size = buffer_size if buffer_size is not None else BUFFER_SIZE_OPTIMAL
+    effective_batch_size = batch_size if batch_size is not None else BATCH_SIZE_OPTIMAL
+    effective_cache_size = cache_size if cache_size is not None else 25000  # Default cache size
     effective_large_dataset = large_dataset if large_dataset is not None else config.large_dataset
     effective_phone_lookup_file = phone_lookup_file if phone_lookup_file is not None else config.phone_lookup_file
     

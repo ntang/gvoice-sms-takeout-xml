@@ -18,6 +18,7 @@ import dateutil.parser
 from core.processing_config import ProcessingConfig, ConfigurationBuilder
 from core.configuration_manager import get_configuration_manager, set_global_configuration
 from core.sms_patch import patch_sms_module, unpatch_sms_module, is_sms_module_patched
+from core.shared_constants import BUFFER_SIZE_OPTIMAL, BATCH_SIZE_OPTIMAL
 
 # Import the main conversion logic from sms.py - moved to avoid circular import
 
@@ -152,72 +153,8 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     default=Path.cwd().parent / "gvoice-convert",
     help="Directory containing Google Voice export files (default: ../gvoice-convert)"
 )
-@click.option(
-    '--max-workers',
-    type=int,
-    default=16,
-    help="Maximum number of worker threads (default: 16)"
-)
-@click.option(
-    '--chunk-size',
-    type=int,
-    default=1000,
-    help="Chunk size for processing large files (default: 1000)"
-)
-@click.option(
-    '--memory-threshold',
-    type=int,
-    default=10000,
-    help="Memory threshold for switching to memory-efficient mode (default: 10000)"
-)
-@click.option(
-    '--buffer-size',
-    type=int,
-    default=32768,
-    help="Buffer size for file operations (default: 32768)"
-)
-@click.option(
-    '--cache-size',
-    type=int,
-    default=50000,
-    help="Cache size for frequently accessed data (default: 50000)"
-)
-@click.option(
-    '--batch-size',
-    type=int,
-    default=1000,
-    help="Batch size for processing operations (default: 1000)"
-)
-@click.option(
-    '--enable-parallel-processing/--no-parallel-processing',
-    default=True,
-    help="Enable parallel processing (default: enabled)"
-)
-@click.option(
-    '--enable-streaming-parsing/--no-streaming-parsing',
-    default=True,
-    help="Enable streaming parsing for large files (default: enabled)"
-)
-@click.option(
-    '--enable-mmap-for-large-files/--no-mmap-for-large-files',
-    default=True,
-    help="Enable memory mapping for large files (default: enabled)"
-)
-@click.option(
-    '--enable-performance-monitoring/--no-performance-monitoring',
-    default=True,
-    help="Enable performance monitoring (default: enabled)"
-)
-@click.option(
-    '--enable-progress-logging/--no-progress-logging',
-    default=True,
-    help="Enable progress logging (default: enabled)"
-)
-@click.option(
-    '--large-dataset/--no-large-dataset',
-    default=True,
-    help="Enable optimizations for datasets with 50,000+ messages (default: enabled)"
-)
+# Performance options removed - now hardcoded in shared_constants.py
+# All performance options removed - now hardcoded in shared_constants.py for optimal defaults
 @click.option(
     '--enable-path-validation/--no-path-validation',
     default=True,
@@ -399,9 +336,9 @@ def convert(ctx):
         setup_processing_paths(
             config.processing_dir,
             enable_phone_prompts=config.enable_phone_prompts,
-            buffer_size=config.buffer_size,
-            batch_size=config.batch_size,
-            cache_size=config.cache_size,
+            # buffer_size is now hardcoded in shared_constants.py
+            # batch_size is now hardcoded in shared_constants.py
+            # cache_size is now hardcoded in shared_constants.py
             large_dataset=config.large_dataset,
             phone_lookup_file=config.phone_lookup_file
         )
@@ -581,9 +518,9 @@ def show_config(ctx):
         click.echo(f"Test limit: {config.test_limit}")
     click.echo(f"Max workers: {config.max_workers}")
     click.echo(f"Chunk size: {config.chunk_size}")
-    click.echo(f"Buffer size: {config.buffer_size}")
-    click.echo(f"Cache size: {config.cache_size}")
-    click.echo(f"Batch size: {config.batch_size}")
+    click.echo(f"Buffer size: {BUFFER_SIZE_OPTIMAL} (hardcoded)")
+    click.echo(f"Cache size: N/A (removed during performance optimization)")
+    click.echo(f"Batch size: {BATCH_SIZE_OPTIMAL} (hardcoded)")
     click.echo(f"Phone prompts: {config.enable_phone_prompts}")
     click.echo(f"Strict mode: {config.strict_mode}")
     click.echo(f"Large dataset: {config.large_dataset}")

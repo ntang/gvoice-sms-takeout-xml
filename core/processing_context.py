@@ -43,20 +43,7 @@ class ProcessingContext:
     filter_non_phone_numbers: bool = False
     full_run: bool = False
     
-    # Performance settings
-    enable_batch_processing: bool = True
-    large_dataset_threshold: int = 5000
-    batch_size_optimal: int = 1000
-    buffer_size_optimal: int = 32768
-    enable_parallel_processing: bool = True
-    max_workers: int = 16
-    chunk_size_optimal: int = 1000
-    memory_efficient_threshold: int = 10000
-    enable_streaming_parsing: bool = True
-    streaming_chunk_size: int = 2 * 1024 * 1024
-    file_read_buffer_size: int = 262144
-    enable_mmap_for_large_files: bool = True
-    mmap_threshold: int = 5 * 1024 * 1024
+    # Performance settings are now hardcoded in shared_constants.py for optimal defaults
     
     # Progress logging settings
     progress_interval_percent: int = 25
@@ -116,8 +103,8 @@ def create_processing_context(config: 'ProcessingConfig') -> 'ProcessingContext'
         filter_numbers_without_aliases=FILTER_NUMBERS_WITHOUT_ALIASES,
         filter_non_phone_numbers=FILTER_NON_PHONE_NUMBERS,
         full_run=FULL_RUN,
-        large_dataset_threshold=LARGE_DATASET_THRESHOLD,
-        mmap_threshold=MMAP_THRESHOLD,
+        # large_dataset_threshold is now hardcoded in shared_constants.py
+        # mmap_threshold is now hardcoded in shared_constants.py
         progress_interval_percent=PROGRESS_INTERVAL_PERCENT,
         progress_interval_count=PROGRESS_INTERVAL_COUNT,
         enable_progress_logging=ENABLE_PROGRESS_LOGGING,

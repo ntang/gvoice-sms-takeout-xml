@@ -72,7 +72,7 @@ class ConfigurationMigrationHelper:
             
             # Large dataset optimizations
             'LARGE_DATASET': 'large_dataset',
-            'ENABLE_BATCH_PROCESSING': 'enable_batch_processing',
+            # Batch processing is now always enabled
         }
         
         # Reverse mapping for configuration to global variables

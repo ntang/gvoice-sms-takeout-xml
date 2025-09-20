@@ -265,7 +265,7 @@ class ConfigurationDefaults:
             "debug_attachments": False,
             "debug_paths": False,
             "large_dataset": False,
-            "enable_batch_processing": True,
+            # Batch processing is now always enabled
         }
     
     @staticmethod
@@ -342,7 +342,7 @@ class ConfigurationBuilder:
             'debug_attachments': 'debug_attachments',
             'debug_paths': 'debug_paths',
             'large_dataset': 'large_dataset',
-            'enable_batch_processing': 'enable_batch_processing',
+            # Batch processing is now always enabled
         }
         
         # Only add CLI values that are explicitly provided
