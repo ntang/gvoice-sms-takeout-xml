@@ -1929,6 +1929,69 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
             logger.setLevel(original_level)
             log_buffer.close()
 
+    def test_comprehensive_mms_fallback_strategies(self):
+        """Test all MMS participant extraction fallback strategies comprehensively."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        from bs4 import BeautifulSoup
+
+        # Test various scenarios that should trigger different fallback strategies
+        test_cases = [
+            # Case 1: No participants, no soup, filename with phone
+            {
+                "filename": "Alice Smith +15551234567 - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": None,
+                "description": "filename with phone number fallback",
+            },
+            # Case 2: No participants, no soup, filename without phone
+            {
+                "filename": "Bob Johnson - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": None,
+                "description": "filename without phone number fallback",
+            },
+            # Case 3: No participants, with soup, but soup has no useful data
+            {
+                "filename": "Carol Davis - Text - 2025-08-13T12_08_52Z.html",
+                "participants_raw": [],
+                "soup": BeautifulSoup(
+                    "<html><body><p>No useful data</p></body></html>", "html.parser"
+                ),
+                "description": "soup with no useful data fallback",
+            },
+        ]
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                messages = [
+                    BeautifulSoup(
+                        '<div class="message"><q>Test MMS</q></div>', "html.parser"
+                    )
+                ]
+
+                try:
+                    # Use the actual conversation manager from setup
+                    conversation_manager = sms.CONVERSATION_MANAGER
+                    phone_lookup_manager = sms.PHONE_LOOKUP_MANAGER
+
+                    sms.write_mms_messages(
+                        test_case["filename"],
+                        test_case["participants_raw"],
+                        messages,
+                        None,
+                        {},
+                        conversation_manager,
+                        phone_lookup_manager,
+                        soup=test_case["soup"],
+                    )
+                    # Function should execute without errors
+                except Exception as e:
+                    self.fail(
+                        f"MMS processing with {test_case['description']} should not fail: {e}"
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
