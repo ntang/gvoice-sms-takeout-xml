@@ -1,7 +1,7 @@
-"""Google Voice SMS Takeout XML Converter.
+"""Google Voice SMS Takeout HTML Converter.
 
-This script converts Google Voice HTML export files into a standard SMS backup XML
-format that can be imported into various SMS backup applications.
+This script converts Google Voice HTML export files into organized HTML conversation files
+that can be viewed in any web browser.
 
 The script processes:
 - Individual SMS conversations
@@ -567,7 +567,7 @@ class ThreadSafeStatsAggregator:
             self._own_number = None
 
 
-# XML templates for better maintainability
+# HTML templates for better maintainability
 
 
 def validate_configuration():
@@ -631,7 +631,7 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
 
     try:
         logger.info("=" * 60)
-        logger.info("Starting Google Voice SMS Takeout XML Conversion")
+        logger.info("Starting Google Voice SMS Takeout HTML Conversion")
         logger.info("=" * 60)
         logger.info(f"Processing directory: {context.processing_dir}")
         logger.info(f"Output directory: {context.output_dir}")
@@ -4480,14 +4480,14 @@ def write_mms_messages(
 
 def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
     """
-    Build XML parts for vCard attachments in an MMS message.
+    Build vCard attachment parts for processing in an MMS message.
 
     Args:
         message: Message element from HTML
         src_filename_map: Mapping of src elements to (filename, source_path) tuples
 
     Returns:
-        str: XML string for vCard parts
+        str: vCard attachment parts string
     """
     vcard_parts = ""
     # Cache find_all result to avoid repeated DOM traversal
@@ -4640,7 +4640,7 @@ def process_single_attachment(
     src_filename_map: Dict[str, Tuple[str, str]],
     attachment_type: str,
 ) -> Tuple[Optional[str], str]:
-    """Process a single attachment and return XML part and extracted URL."""
+    """Process a single attachment and return attachment data and extracted URL."""
     src_attr = "src" if attachment_type == "image" else "href"
     src = attachment.get(src_attr)
     if not src:
@@ -4682,55 +4682,6 @@ def process_single_attachment(
     except Exception as e:
         logger.error(f"Failed to process {attachment_type} {file_path}: {e}")
         return None, ""
-
-
-@lru_cache(maxsize=15000)
-def build_attachment_xml_part_cached(
-    relative_path_str: str, content_type: str, data: str, template: str
-) -> str:
-    """
-    Cached attachment XML part generation for performance optimization.
-
-    Args:
-        relative_path_str: String representation of relative path
-        content_type: MIME type of the attachment
-        data: Base64 encoded attachment data
-        template: XML template to use
-
-    Returns:
-        str: Formatted XML part
-    """
-    # Convert string back to Path for processing
-    relative_path = Path(relative_path_str)
-
-    # Replace placeholders in template
-    xml_part = template.replace("{name}", str(relative_path.name))
-    xml_part = xml_part.replace("{type}", content_type.split("/")[-1])
-    xml_part = xml_part.replace("{data}", data)
-
-    return xml_part
-
-
-def build_attachment_xml_part(
-    relative_path: Path, content_type: str, data: str, template: str
-) -> str:
-    """
-    Build XML part for attachment embedding.
-
-    Args:
-        relative_path: Relative path to the attachment
-        content_type: MIME type of the attachment
-        data: Base64 encoded attachment data
-        template: XML template to use
-
-    Returns:
-        str: Formatted XML part
-    """
-    # Use cached version for better performance
-    return build_attachment_xml_part_cached(
-        str(relative_path), content_type, data, template
-    )
-
 
 def find_attachment_file(
     src: str, file: str, src_filename_map: Dict[str, str], supported_types: set
@@ -4790,7 +4741,7 @@ def get_image_type(image_path: Path) -> str:
 @lru_cache(maxsize=10000)
 def encode_file_content(file_path: Path) -> str:
     """
-    Encode file content to base64 for XML embedding.
+    Encode file content to base64 for attachment embedding.
 
     Args:
         file_path: Path to the file to encode
@@ -6282,7 +6233,7 @@ def create_sample_config():
 # └── other_files...
 # Usage examples:
 # python sms.py /path/to/your/data
-# python sms.py /path/to/your/data --output my-sms-backup.xml
+# python sms.py /path/to/your/data --output my-sms-backup.html
 # python sms.py /path/to/your/data --verbose --log detailed.log
 
 # The script will:
