@@ -1596,6 +1596,142 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
         except Exception as e:
             self.fail(f"MMS participant extraction should work: {e}")
 
+    def test_filename_based_timestamp_extraction(self):
+        """Test that timestamps can be extracted from filename patterns."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test various filename timestamp patterns
+        test_cases = [
+            # Standard format: Name - Text - ISO timestamp
+            {
+                "filename": "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html",
+                "expected_timestamp": "2025-08-13T12:08:52Z",
+                "description": "standard ISO timestamp with underscores",
+            },
+            # Format with colons: Name - Text - ISO timestamp with colons
+            {
+                "filename": "John Doe - Text - 2024-12-25T15:30:45Z.html",
+                "expected_timestamp": "2024-12-25T15:30:45Z",
+                "description": "ISO timestamp with colons",
+            },
+            # Different date format: Name - Text - different date
+            {
+                "filename": "Alice Smith - Text - 2023-06-15T09:15:30Z.html",
+                "expected_timestamp": "2023-06-15T09:15:30Z",
+                "description": "different date and time",
+            },
+            # Edge case: very recent date
+            {
+                "filename": "Bob Johnson - Text - 2025-01-01T00:00:00Z.html",
+                "expected_timestamp": "2025-01-01T00:00:00Z",
+                "description": "new year timestamp",
+            },
+        ]
+
+        import time
+        from bs4 import BeautifulSoup
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                # Create a message with no timestamp elements to force filename fallback
+                test_html = (
+                    '<div class="message"><q>Test message with no timestamp</q></div>'
+                )
+                soup = BeautifulSoup(test_html, "html.parser")
+                message = soup.find("div", class_="message")
+
+                # Should extract timestamp from filename (Strategy 11)
+                result = sms.get_time_unix(message, test_case["filename"])
+
+                # Verify the timestamp is reasonable and not current time fallback
+                self.assertIsInstance(
+                    result,
+                    int,
+                    f"Should return integer timestamp for {test_case['description']}",
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Should return reasonable timestamp (after 2001) for {test_case['description']}",
+                )
+
+                # Verify it's not the current time fallback
+                current_time = int(time.time() * 1000)
+                time_diff = abs(result - current_time)
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Should not return current time fallback for {test_case['description']}",
+                )
+
+    def test_filename_timestamp_extraction_edge_cases(self):
+        """Test timestamp extraction from various filename timestamp formats."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test various timestamp formats found in filenames
+        test_cases = [
+            # Case 1: Standard ISO with underscores
+            {
+                "filename": "Test - Text - 2025-08-13T12_08_52Z.html",
+                "expected_timestamp": "2025-08-13T12:08:52Z",
+                "description": "ISO with underscores",
+            },
+            # Case 2: Different date format
+            {
+                "filename": "Test - Text - 2022-04-22T18_31_20Z.html",
+                "expected_timestamp": "2022-04-22T18:31:20Z",
+                "description": "different date with underscores",
+            },
+            # Case 3: Very old date
+            {
+                "filename": "Test - Text - 2011-05-18T19_48_15Z.html",
+                "expected_timestamp": "2011-05-18T19:48:15Z",
+                "description": "very old date",
+            },
+            # Case 4: Recent date
+            {
+                "filename": "Test - Text - 2025-07-01T15_39_34Z.html",
+                "expected_timestamp": "2025-07-01T15:39:34Z",
+                "description": "recent date",
+            },
+        ]
+
+        import time
+        from bs4 import BeautifulSoup
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                # Create message with no timestamp to force filename fallback
+                test_html = '<div class="message"><q>Test message</q></div>'
+                soup = BeautifulSoup(test_html, "html.parser")
+                message = soup.find("div", class_="message")
+
+                # Should extract timestamp from filename (Strategy 11)
+                result = sms.get_time_unix(message, test_case["filename"])
+
+                # Verify the timestamp is reasonable
+                self.assertIsInstance(
+                    result,
+                    int,
+                    f"Should return integer timestamp for {test_case['description']}",
+                )
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Should return reasonable timestamp for {test_case['description']}",
+                )
+
+                # Verify it's not the current time fallback
+                current_time = int(time.time() * 1000)
+                time_diff = abs(result - current_time)
+                self.assertGreater(
+                    time_diff,
+                    1000000,
+                    f"Should not return current time fallback for {test_case['description']}",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
