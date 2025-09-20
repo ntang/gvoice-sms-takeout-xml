@@ -133,7 +133,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_setup_processing_paths(self):
         """Test processing path setup."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         # Check that paths were set
         # Note: We can't compare exact paths since they're different temp directories
@@ -158,7 +158,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_conversation_manager(self):
         """Test conversation manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -188,7 +188,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_phone_lookup_manager(self):
         """Test phone lookup manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -215,7 +215,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_html_output_format(self):
         """Test HTML output format functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -258,7 +258,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_index_html_generation(self):
         """Test index.html generation functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -341,7 +341,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_group_conversation_handling(self):
         """Test group conversation handling including participant extraction and filename generation."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         # Test participant extraction from group conversation HTML
         test_html = """
@@ -445,7 +445,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_automatic_alias_extraction(self):
         """Test automatic alias extraction from HTML when prompts are disabled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -522,7 +522,7 @@ class TestSMSProcessing(BaseSMSTest):
         # Note: This function requires a PathManager instance, so we'll test the new function
         # First we need to set up a PathManager
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
         if hasattr(sms, 'PATH_MANAGER') and sms.PATH_MANAGER:
             from core.attachment_manager_new import build_attachment_mapping_with_progress_new
             result = build_attachment_mapping_with_progress_new(sms.PATH_MANAGER)
@@ -548,7 +548,7 @@ class TestSMSProcessing(BaseSMSTest):
     def test_html_output_sender_column(self):
         """Verify HTML output includes Sender column and renders a sender cell."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
         manager = sms.CONVERSATION_MANAGER
 
         conversation_id = "sender_column_test"

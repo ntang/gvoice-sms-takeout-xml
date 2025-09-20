@@ -521,7 +521,7 @@ class TestSMSBasic(BaseSMSTest):
     def test_batched_alias_saving(self):
         """Ensure alias saving can be batched without error."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, None)
+        sms.setup_processing_paths(test_dir, False, False, None)
         mgr = sms.PHONE_LOOKUP_MANAGER
         # Add several aliases and ensure no exception; then force a save
         for i in range(150):
