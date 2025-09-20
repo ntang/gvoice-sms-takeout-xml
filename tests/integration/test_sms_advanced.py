@@ -121,13 +121,15 @@ class TestSMSAdvanced(BaseSMSTest):
         mock_cite = Mock()
         mock_span = Mock()
 
-        # Test received message (with span)
+        # Test received message (cite text is not "Me")
         mock_message.cite = mock_cite
+        mock_cite.text = "John Doe"  # Not "Me"
         mock_cite.span = mock_span
         result = sms.get_message_type(mock_message)
         self.assertEqual(result, 1)  # received
 
-        # Test sent message (without span)
+        # Test sent message (cite text is "Me")
+        mock_cite.text = "Me"  # This indicates a sent message
         mock_cite.span = None
         result = sms.get_message_type(mock_message)
         self.assertEqual(result, 2)  # sent

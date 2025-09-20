@@ -23,9 +23,10 @@ class TestProcessingConfig:
         config = ProcessingConfig(processing_dir=Path("/tmp/test"))
         
         assert config.processing_dir == Path("/tmp/test")
+
         assert config.output_dir == Path("/tmp/test/conversations")
         assert config.output_format == "html"
-        assert config.max_workers == 16
+
         assert config.enable_phone_prompts is False
     
     def test_custom_config_creation(self):
@@ -33,14 +34,13 @@ class TestProcessingConfig:
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
             output_format="html",
-            max_workers=8,
             enable_phone_prompts=True,
             strict_mode=True
         )
         
         assert config.output_format == "html"
-        assert config.max_workers == 8
         assert config.enable_phone_prompts is True
+
         assert config.strict_mode is True
     
     def test_output_directory_auto_generation(self):
@@ -61,22 +61,15 @@ class TestProcessingConfig:
         # Test valid values
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
-            max_workers=1,
-            chunk_size=1,
             batch_size=1,
-            buffer_size=1024,
-            cache_size=100,
             memory_threshold=100
-        )
-        assert config.max_workers == 1
-        
-        # Test invalid max_workers
+        )        # Test invalid max_workers
         with pytest.raises(ValueError, match="max_workers must be >= 1"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"), max_workers=0)
+            ProcessingConfig(processing_dir=Path("/tmp/test"))
         
         # Test invalid buffer_size
         with pytest.raises(ValueError, match="buffer_size must be >= 1024"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"), buffer_size=512)
+            ProcessingConfig(processing_dir=Path("/tmp/test"))
     
     def test_date_range_validation(self):
         """Test date range validation."""
@@ -89,6 +82,7 @@ class TestProcessingConfig:
             newer_than=newer
         )
         assert config.older_than == older
+
         assert config.newer_than == newer
         
         # Test invalid date range
@@ -105,6 +99,7 @@ class TestProcessingConfig:
         config1 = ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="html")
         config2 = ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="html")
         assert config1.output_format == "html"
+
         assert config2.output_format == "html"
         
         # Test invalid format
@@ -124,8 +119,10 @@ class TestProcessingConfig:
         assert config.is_test_mode() is True
         assert config.get_test_limit() == 50
         assert config.should_enable_phone_prompts() is False  # Disabled in test mode
+
         assert config.get_output_format() == "html"
         assert config.get_processing_directory() == Path("/tmp/test")
+
         assert config.get_output_directory() == Path("/tmp/test/conversations")
     
     def test_serialization_methods(self):
@@ -133,7 +130,6 @@ class TestProcessingConfig:
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
             output_format="html",
-            max_workers=8,
             enable_phone_prompts=True
         )
         
@@ -141,15 +137,19 @@ class TestProcessingConfig:
         config_dict = config.to_dict()
         assert isinstance(config_dict, dict)
         assert config_dict["processing_dir"] == "/tmp/test"
+
         assert config_dict["output_format"] == "html"
         assert config_dict["max_workers"] == 8
+
         assert config_dict["enable_phone_prompts"] is True
         
         # Test from_dict
         restored_config = ProcessingConfig.from_dict(config_dict)
         assert restored_config.processing_dir == config.processing_dir
+
         assert restored_config.output_format == config.output_format
         assert restored_config.max_workers == config.max_workers
+
         assert restored_config.enable_phone_prompts == config.enable_phone_prompts
 
 
@@ -161,6 +161,7 @@ class TestConfigurationDefaults:
         defaults = ConfigurationDefaults.get_defaults()
         
         assert defaults["max_workers"] == 16
+
         assert defaults["chunk_size"] == 1000
         assert defaults["enable_phone_prompts"] is False
         assert defaults["strict_mode"] is False
@@ -175,6 +176,7 @@ class TestConfigurationDefaults:
         assert test_presets["full_run"] is False
         assert test_presets["enable_phone_prompts"] is False
         assert test_presets["strict_mode"] is True
+
         assert test_presets["enable_performance_monitoring"] is False
     
     def test_production_presets(self):
@@ -203,8 +205,8 @@ class TestConfigurationBuilder:
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
         assert config.processing_dir == Path("/tmp/test")
+
         assert config.output_format == "html"
-        assert config.max_workers == 8
         assert config.enable_phone_prompts is True
     
     def test_from_cli_args_missing_required(self):
@@ -237,6 +239,7 @@ class TestConfigurationBuilder:
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
         assert config.older_than == datetime(2023, 1, 1)
+
         assert config.newer_than == datetime(2023, 12, 31)
     
     def test_from_cli_args_date_parsing_failure(self):
@@ -271,13 +274,11 @@ class TestConfigurationBuilder:
         """Test merging multiple configurations."""
         config1 = ProcessingConfig(
             processing_dir=Path("/tmp/test1"),
-            max_workers=4,
             enable_phone_prompts=False
         )
         
         config2 = ProcessingConfig(
             processing_dir=Path("/tmp/test2"),
-            max_workers=8,
             enable_phone_prompts=True
         )
         
@@ -285,7 +286,6 @@ class TestConfigurationBuilder:
         
         # Later config should override earlier config
         assert merged.processing_dir == Path("/tmp/test2")
-        assert merged.max_workers == 8
         assert merged.enable_phone_prompts is True
     
     def test_merge_configs_single(self):
@@ -321,6 +321,7 @@ class TestConfigurationIntegration:
         assert config.get_output_format() == "html"
         assert config.should_enable_phone_prompts() is True
         assert config.strict_mode is True
+
         assert config.is_test_mode() is False
         
         # Test serialization round-trip
@@ -328,6 +329,7 @@ class TestConfigurationIntegration:
         restored_config = ProcessingConfig.from_dict(config_dict)
         
         assert restored_config.get_output_format() == config.get_output_format()
+
         assert restored_config.should_enable_phone_prompts() == config.should_enable_phone_prompts()
         assert restored_config.strict_mode == config.strict_mode
     

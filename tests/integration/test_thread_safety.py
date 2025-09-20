@@ -477,9 +477,7 @@ class TestMultiprocessSafety(unittest.TestCase):
         sms.setup_processing_paths(
             self.temp_dir,
             enable_phone_prompts=False,
-            buffer_size=8192,
             batch_size=1000,
-            cache_size=25000,
             large_dataset=False,
         )
 

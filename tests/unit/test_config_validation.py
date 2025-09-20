@@ -30,11 +30,7 @@ class TestConfigValidation(unittest.TestCase):
             "enable_path_validation": True,
             "enable_runtime_validation": True,
             "validation_interval": 30,
-            "max_workers": 8,
-            "chunk_size": 500,
             "memory_threshold": 5000,
-            "buffer_size": 16384,
-            "cache_size": 25000,
             "batch_size": 500
         }
     

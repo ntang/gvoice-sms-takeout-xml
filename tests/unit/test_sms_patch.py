@@ -100,17 +100,11 @@ class TestSMSModulePatcher:
         # Create test configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            max_workers=32,
-            chunk_size=2000,
             memory_threshold=20000,
-            buffer_size=16384,
-            cache_size=50000,
             batch_size=2000,
             enable_parallel_processing=True,
             enable_streaming_parsing=True,
             enable_mmap_for_large_files=True,
-            enable_performance_monitoring=True,
-            enable_progress_logging=True,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=True,
@@ -379,7 +373,7 @@ class TestSMSModulePatchFunctions:
         mock_patch.return_value = mock_patcher
         
         # Call the function
-        result = quick_patch_sms_module('/tmp/test', max_workers=32)
+        result = quick_patch_sms_module('/tmp/test')
         
         # Check that configuration was created
         mock_builder.create_with_presets.assert_called_once_with(Path('/tmp/test'), 'default')

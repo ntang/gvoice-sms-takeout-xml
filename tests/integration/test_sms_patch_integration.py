@@ -58,7 +58,6 @@ class TestSMSModulePatchIntegration:
         # Use quick patch with custom options
         patcher = quick_patch_sms_module(
             '/tmp/test',
-            max_workers=32,
             test_mode=True,
             enable_phone_prompts=True
         )
@@ -79,8 +78,6 @@ class TestSMSModulePatchIntegration:
         # Create configuration with specific values
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            max_workers=64,
-            chunk_size=5000,
             test_mode=True,
             test_limit=500,
             enable_phone_prompts=True,
@@ -173,17 +170,11 @@ class TestSMSModulePatchRealWorld:
         # Create production-like configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/production'),
-            max_workers=16,
-            chunk_size=1000,
             memory_threshold=10000,
-            buffer_size=32768,
-            cache_size=50000,
             batch_size=1000,
             enable_parallel_processing=True,
             enable_streaming_parsing=True,
             enable_mmap_for_large_files=True,
-            enable_performance_monitoring=True,
-            enable_progress_logging=True,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=False,
@@ -208,17 +199,11 @@ class TestSMSModulePatchRealWorld:
         # Create test configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            max_workers=4,
-            chunk_size=100,
             memory_threshold=1000,
-            buffer_size=8192,
-            cache_size=1000,
             batch_size=100,
             enable_parallel_processing=False,
             enable_streaming_parsing=False,
             enable_mmap_for_large_files=False,
-            enable_performance_monitoring=False,
-            enable_progress_logging=True,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=True,

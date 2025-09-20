@@ -24,8 +24,7 @@ class TestBufferManagement(unittest.TestCase):
         
         # Create conversation manager with small buffer to force flushing behavior
         self.manager = ConversationManager(
-            self.temp_path,
-            buffer_size=100,  # Small buffer to trigger flushing
+            self.temp_path,  # Small buffer to trigger flushing
             batch_size=1000,
             large_dataset=False,
             output_format='html'

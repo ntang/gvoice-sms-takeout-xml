@@ -36,9 +36,11 @@ class TestConfigurationManager:
         assert manager._config_cache == {}
         assert manager._default_config is None
         assert manager._current_config is None
+
         assert manager._cache_ttl == 300
         assert manager._validation_interval == 60
     
+
     def test_set_and_get_default_config(self):
         """Test setting and getting default configuration."""
         manager = ConfigurationManager()
@@ -48,8 +50,10 @@ class TestConfigurationManager:
         retrieved_config = manager.get_default_config()
         
         assert retrieved_config == config
+
         assert retrieved_config.processing_dir == Path("/tmp/test")
     
+
     def test_set_and_get_current_config(self):
         """Test setting and getting current configuration."""
         manager = ConfigurationManager()
@@ -59,8 +63,10 @@ class TestConfigurationManager:
         retrieved_config = manager.get_current_config()
         
         assert retrieved_config == config
+
         assert retrieved_config.processing_dir == Path("/tmp/test")
     
+
     def test_get_effective_config_with_current(self):
         """Test getting effective configuration when current is set."""
         manager = ConfigurationManager()
@@ -71,6 +77,7 @@ class TestConfigurationManager:
         
         assert effective_config == config
     
+
     def test_get_effective_config_with_fallback(self):
         """Test getting effective configuration with fallback to default."""
         manager = ConfigurationManager()
@@ -81,6 +88,7 @@ class TestConfigurationManager:
         
         assert effective_config == default_config
     
+
     def test_get_effective_config_no_config(self):
         """Test getting effective configuration when none is available."""
         manager = ConfigurationManager()
@@ -97,6 +105,7 @@ class TestConfigurationManager:
         assert config.strict_mode is True
         assert config.processing_dir == Path("/tmp/test")
     
+
     def test_build_config_from_cli(self):
         """Test building configuration from CLI arguments."""
         manager = ConfigurationManager()
@@ -110,21 +119,21 @@ class TestConfigurationManager:
         
         assert config.processing_dir == Path("/tmp/test")
         assert config.enable_phone_prompts is True
+
         assert config.output_format == "html"
     
+
     def test_merge_configurations(self):
         """Test merging multiple configurations."""
         manager = ConfigurationManager()
         
-        config1 = ProcessingConfig(processing_dir=Path("/tmp/test1"), max_workers=4)
-        config2 = ProcessingConfig(processing_dir=Path("/tmp/test2"), max_workers=8)
+        config1 = ProcessingConfig(processing_dir=Path("/tmp/test1"))
+        config2 = ProcessingConfig(processing_dir=Path("/tmp/test2"))
         
         merged = manager.merge_configurations(config1, config2)
         
         # Later config should override earlier config
         assert merged.processing_dir == Path("/tmp/test2")
-        assert merged.max_workers == 8
-    
     def test_build_complete_configuration(self):
         """Test building complete configuration from all sources."""
         manager = ConfigurationManager()
@@ -141,6 +150,7 @@ class TestConfigurationManager:
         assert config.enable_phone_prompts is True
         assert config.processing_dir == Path("/tmp/test")
     
+
     def test_configuration_caching(self):
         """Test that configurations are cached correctly."""
         manager = ConfigurationManager()
@@ -172,6 +182,7 @@ class TestConfigurationManager:
 class TestConfigurationHooks:
     """Test the configuration hooks and decorators."""
     
+
     def test_configuration_integrator_creation(self):
         """Test that ConfigurationIntegrator can be created."""
         integrator = ConfigurationIntegrator()
@@ -232,6 +243,7 @@ class TestConfigurationMigration:
         
         # Check some key mappings
         assert mapping['ENABLE_PHONE_PROMPTS'] == 'enable_phone_prompts'
+
         assert mapping['ENABLE_TEST_MODE'] == 'test_mode'
         assert mapping['OUTPUT_FORMAT'] == 'output_format'
         
@@ -239,6 +251,7 @@ class TestConfigurationMigration:
         reverse_mapping = helper.get_reverse_mapping()
         assert reverse_mapping['enable_phone_prompts'] == 'ENABLE_PHONE_PROMPTS'
     
+
     def test_migratable_globals_list(self):
         """Test that migratable globals list is correct."""
         helper = get_migration_helper()
@@ -262,6 +275,7 @@ class TestConfigurationMigration:
         assert helper.map_global_variable('NON_EXISTENT') is None
         
         # Test reverse mapping
+
         assert helper.map_configuration_field('enable_phone_prompts') == 'ENABLE_PHONE_PROMPTS'
         assert helper.map_configuration_field('non_existent') is None
 
@@ -269,6 +283,7 @@ class TestConfigurationMigration:
 class TestConfigurationIntegration:
     """Test integration between configuration components."""
     
+
     def setup_method(self):
         """Set up test method - clear global configuration."""
         # Clear any existing global configuration
@@ -293,6 +308,7 @@ class TestConfigurationIntegration:
         # Should get the value from configuration
         assert phone_prompts == config.enable_phone_prompts
     
+
     def test_migration_with_manager_integration(self):
         """Test that migration utilities work with ConfigurationManager."""
         manager = get_configuration_manager()
@@ -319,6 +335,7 @@ class TestConfigurationIntegration:
         current_config = manager.get_current_config()
         assert current_config == config
     
+
     def test_complete_workflow(self):
         """Test complete configuration workflow from CLI to usage."""
         manager = get_configuration_manager()
@@ -359,6 +376,7 @@ class TestConfigurationIntegration:
         
         # Test configuration values
         assert current_config.enable_phone_prompts is True
+
         assert current_config.output_format == "html"
         assert current_config.test_mode is True
 
@@ -366,6 +384,7 @@ class TestConfigurationIntegration:
 class TestConfigurationDecorators:
     """Test configuration decorators."""
     
+
     def setup_method(self):
         """Set up test method - clear global configuration."""
         # Clear any existing global configuration

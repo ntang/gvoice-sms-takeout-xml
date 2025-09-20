@@ -95,7 +95,7 @@ class TestImprovedFileOperations(unittest.TestCase):
         """Test successful parallel attachment copying."""
         filenames = {"test1.txt", "test2.txt", "test3.txt", "test4.txt"}
         
-        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir, max_workers=2)
+        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir)
         
         # Check that all files were copied
         for filename in filenames:
@@ -109,7 +109,7 @@ class TestImprovedFileOperations(unittest.TestCase):
         
         filenames = {"test1.txt", "test2.txt", "test3.txt"}
         
-        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir, max_workers=2)
+        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir)
         
         # Check that successful copies worked
         self.assertTrue((self.attachments_dir / "test1.txt").exists())
@@ -218,7 +218,7 @@ class TestBackwardCompatibility(unittest.TestCase):
         filenames = {"test1.txt", "test2.txt"}
         
         # Use the backward compatibility wrapper
-        improved_file_operations.copy_attachments_parallel(filenames, self.attachments_dir, max_workers=2)
+        improved_file_operations.copy_attachments_parallel(filenames, self.attachments_dir)
         
         # Check that files were copied
         self.assertTrue((self.attachments_dir / "test1.txt").exists())
@@ -321,7 +321,7 @@ class TestErrorHandling(unittest.TestCase):
         filenames = set()
         
         # Should not raise any errors
-        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir, max_workers=2)
+        improved_file_operations.copy_attachments_parallel_improved(filenames, self.attachments_dir)
 
     def test_copy_chunk_parallel_improved_empty_list(self):
         """Test chunk copying with empty filename list."""
