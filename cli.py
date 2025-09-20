@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Voice SMS Takeout XML Converter - CLI Interface (New Configuration System)
+Google Voice SMS Takeout HTML Converter - CLI Interface (New Configuration System)
 
 This module provides a CLI interface that integrates with the new configuration
 system while maintaining backward compatibility with existing functionality.
@@ -151,12 +151,6 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path),
     default=Path.cwd().parent / "gvoice-convert",
     help="Directory containing Google Voice export files (default: ../gvoice-convert)"
-)
-@click.option(
-    '--output-format',
-    type=click.Choice(['html', 'xml']),
-    default='html',
-    help="Output format for converted conversations (default: html)"
 )
 @click.option(
     '--max-workers',
@@ -346,7 +340,7 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
 )
 @click.pass_context
 def cli(ctx, **kwargs):
-    """Google Voice SMS Takeout XML Converter (New Configuration System)."""
+    """Google Voice SMS Takeout HTML Converter (New Configuration System)."""
     # Initialize with configuration from command line arguments
     ctx.ensure_object(dict)
     
@@ -409,7 +403,6 @@ def convert(ctx):
             batch_size=config.batch_size,
             cache_size=config.cache_size,
             large_dataset=config.large_dataset,
-            output_format=config.output_format,
             phone_lookup_file=config.phone_lookup_file
         )
         logger.info("✅ Processing paths initialized successfully")

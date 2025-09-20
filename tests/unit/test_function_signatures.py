@@ -28,12 +28,11 @@ class TestFunctionSignatures:
         config = create_processing_config_from_legacy(
             '/tmp/test',
             enable_phone_prompts=True,
-            output_format='xml'
         )
         
         assert config.processing_dir == Path('/tmp/test')
         assert config.enable_phone_prompts is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
         assert config.test_mode is False  # Default preset
     
     def test_create_processing_config_from_legacy_with_preset(self):
@@ -41,13 +40,12 @@ class TestFunctionSignatures:
         config = create_processing_config_from_legacy(
             '/tmp/test',
             enable_phone_prompts=True,
-            output_format='xml',
             preset='test'
         )
         
         assert config.processing_dir == Path('/tmp/test')
         assert config.enable_phone_prompts is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
         assert config.test_mode is True  # Test preset
         assert config.strict_mode is True  # Test preset
     
@@ -160,7 +158,6 @@ class TestSetupProcessingPaths:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml'
         )
         
         setup_processing_paths_with_config(config)
@@ -176,7 +173,6 @@ class TestSetupProcessingPaths:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml',
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
@@ -190,7 +186,6 @@ class TestSetupProcessingPaths:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml'
         )
         
         # Verify the new function was called
@@ -207,7 +202,7 @@ class TestSetupProcessingPaths:
         assert config.batch_size == 500
         assert config.cache_size == 50000
         assert config.large_dataset is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
     
     @patch('core.function_signatures.setup_processing_paths_with_config')
     def test_setup_processing_paths_legacy_with_path_object(self, mock_setup_with_config):
@@ -215,7 +210,6 @@ class TestSetupProcessingPaths:
         setup_processing_paths_legacy(
             Path('/tmp/test'),
             enable_phone_prompts=False,
-            output_format='html'
         )
         
         # Verify the new function was called
@@ -263,7 +257,7 @@ class TestMigrationFunctions:
         """Test migrate_sms_module_to_configuration function."""
         # Mock the migration function
         mock_config = ProcessingConfig(processing_dir=Path('/tmp/test'))
-        mock_updates = {'ENABLE_PHONE_PROMPTS': True, 'OUTPUT_FORMAT': 'xml'}
+        mock_updates = {'ENABLE_PHONE_PROMPTS': True, 'OUTPUT_FORMAT': 'html'}
         mock_migrate.return_value = (mock_config, mock_updates)
         
         # Test the migration
@@ -326,7 +320,7 @@ class TestConfigurationOverrides:
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=False,  # Default value
             buffer_size=8192,  # Default value
-            output_format='html'  # Default value
+  # Default value
         )
         
         # Call with overrides
@@ -334,7 +328,7 @@ class TestConfigurationOverrides:
             config,
             enable_phone_prompts=True,  # Override
             buffer_size=16384,  # Override
-            output_format='xml'  # Override
+  # Override
         )
         
         # Verify global configuration was set
@@ -348,7 +342,6 @@ class TestConfigurationOverrides:
             batch_size=1000,  # Default from config
             cache_size=25000,  # Default from config
             large_dataset=False,  # Default from config
-            output_format='xml',  # Override value
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
@@ -363,7 +356,6 @@ class TestConfigurationOverrides:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml'
         )
         
         # Call without overrides
@@ -380,7 +372,6 @@ class TestConfigurationOverrides:
             batch_size=500,  # From config
             cache_size=50000,  # From config
             large_dataset=True,  # From config
-            output_format='xml',  # From config
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
 

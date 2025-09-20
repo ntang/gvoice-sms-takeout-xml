@@ -116,7 +116,7 @@ class TestSMSModulePatcher:
             test_mode=True,
             test_limit=200,
             enable_phone_prompts=True,
-            output_format='xml',
+            output_format='html',
             large_dataset=True
         )
         
@@ -165,7 +165,7 @@ class TestSMSModulePatcher:
         assert mock_sms.TEST_MODE is True
         assert mock_sms.TEST_LIMIT == 200
         assert mock_sms.ENABLE_PHONE_PROMPTS is True
-        assert mock_sms.OUTPUT_FORMAT == 'xml'
+        assert mock_sms.OUTPUT_FORMAT == 'html'
         assert mock_sms.LARGE_DATASET is True
         
         # Check that patched globals were tracked

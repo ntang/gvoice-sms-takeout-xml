@@ -71,7 +71,6 @@ class TestBackwardCompatibilityManager:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml',
             preset='test'
         )
         
@@ -81,7 +80,7 @@ class TestBackwardCompatibilityManager:
         assert config.batch_size == 500
         assert config.cache_size == 50000
         assert config.large_dataset is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
         assert config.test_mode is True  # From test preset
         assert config.strict_mode is True  # From test preset
     
@@ -92,7 +91,6 @@ class TestBackwardCompatibilityManager:
         config = manager._create_config_from_legacy_params(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=False,
-            output_format='html'
         )
         
         assert config.processing_dir == Path('/tmp/test')
@@ -135,7 +133,6 @@ class TestBackwardCompatibilityManager:
                 '/tmp/test',
                 enable_phone_prompts=True,
                 buffer_size=16384,
-                output_format='xml'
             )
             
             # Check that deprecation warning was shown
@@ -153,7 +150,7 @@ class TestBackwardCompatibilityManager:
         assert config.processing_dir == Path('/tmp/test')
         assert config.enable_phone_prompts is True
         assert config.buffer_size == 16384
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
     
     @patch('core.function_signatures.validate_processing_config')
     def test_validate_processing_directory_legacy_wrapper(self, mock_validate):
@@ -193,7 +190,7 @@ class TestBackwardCompatibilityManager:
         
         # Mock the migration function
         mock_config = ProcessingConfig(processing_dir=Path('/tmp/test'))
-        mock_updates = {'ENABLE_PHONE_PROMPTS': True, 'OUTPUT_FORMAT': 'xml'}
+        mock_updates = {'ENABLE_PHONE_PROMPTS': True, 'OUTPUT_FORMAT': 'html'}
         mock_migrate.return_value = (mock_config, mock_updates)
         
         # Test migration
@@ -223,7 +220,6 @@ class TestBackwardCompatibilityFunctions:
             '/tmp/test',
             enable_phone_prompts=True,
             buffer_size=16384,
-            output_format='xml'
         )
         
         # Check that the new function was called
@@ -237,7 +233,7 @@ class TestBackwardCompatibilityFunctions:
         assert config.processing_dir == Path('/tmp/test')
         assert config.enable_phone_prompts is True
         assert config.buffer_size == 16384
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
     
     @patch('core.function_signatures.validate_processing_config')
     def test_validate_processing_directory_legacy_compat(self, mock_validate):
@@ -270,7 +266,6 @@ class TestBackwardCompatibilityFunctions:
             batch_size=500,
             cache_size=50000,
             large_dataset=True,
-            output_format='xml',
             preset='test'
         )
         
@@ -280,7 +275,7 @@ class TestBackwardCompatibilityFunctions:
         assert config.batch_size == 500
         assert config.cache_size == 50000
         assert config.large_dataset is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
         assert config.test_mode is True  # From test preset
         assert config.strict_mode is True  # From test preset
     
@@ -289,7 +284,6 @@ class TestBackwardCompatibilityFunctions:
         config = create_legacy_compatibility_config(
             Path('/tmp/test'),
             enable_phone_prompts=False,
-            output_format='html'
         )
         
         assert config.processing_dir == Path('/tmp/test')
@@ -386,12 +380,11 @@ class TestBackwardCompatibilityIntegration:
         config = manager._create_config_from_legacy_params(
             '/tmp/test',
             enable_phone_prompts=True,
-            output_format='xml'
         )
         
         assert config.processing_dir == Path('/tmp/test')
         assert config.enable_phone_prompts is True
-        assert config.output_format == 'xml'
+        assert config.output_format == 'html'
         assert isinstance(config, ProcessingConfig)
 
 

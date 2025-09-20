@@ -350,7 +350,7 @@ class TestMultiprocessSafety(unittest.TestCase):
             batch_size=1000,
             cache_size=25000,
             large_dataset=False,
-            output_format="xml",
+            output_format="html",
         )
 
         # Verify global variables are set

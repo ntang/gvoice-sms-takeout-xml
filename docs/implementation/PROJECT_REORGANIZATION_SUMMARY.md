@@ -1,7 +1,7 @@
 # Project Reorganization Summary
 
 ## Overview
-This document summarizes the comprehensive reorganization of the Google Voice SMS Takeout XML Converter project, completed to improve maintainability, organization, and portability.
+This document summarizes the comprehensive reorganization of the Google Voice SMS Takeout HTML Converter project, completed to improve maintainability, organization, and portability.
 
 ## Goals Achieved
 ✅ **Logical Organization**: Files are now grouped by functionality and purpose  
@@ -182,7 +182,7 @@ gvoice-sms-takeout-xml/
 - **All functionality** (no features removed or changed)
 - **Execution method** (`python sms.py` still works)
 - **Command-line interface** (all options preserved)
-- **Output formats** (XML and HTML unchanged)
+- **Output format** (HTML format maintained)
 
 ### What Improved
 - **Project organization** (logical grouping)

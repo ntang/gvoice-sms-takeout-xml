@@ -23,7 +23,6 @@ def setup_processing_paths_with_config(
     batch_size: Optional[int] = None,
     cache_size: Optional[int] = None,
     large_dataset: Optional[bool] = None,
-    output_format: Optional[str] = None,
     phone_lookup_file: Optional[Path] = None,
 ) -> None:
     """
@@ -38,7 +37,6 @@ def setup_processing_paths_with_config(
         batch_size: Override batch size (optional)
         cache_size: Override cache size (optional)
         large_dataset: Override large dataset setting (optional)
-        output_format: Override output format (optional)
         
     Raises:
         ValueError: If parameters are invalid
@@ -53,7 +51,6 @@ def setup_processing_paths_with_config(
     effective_batch_size = batch_size if batch_size is not None else config.batch_size
     effective_cache_size = cache_size if cache_size is not None else config.cache_size
     effective_large_dataset = large_dataset if large_dataset is not None else config.large_dataset
-    effective_output_format = output_format if output_format is not None else config.output_format
     effective_phone_lookup_file = phone_lookup_file if phone_lookup_file is not None else config.phone_lookup_file
     
     # Call the original function with the effective values
@@ -65,7 +62,6 @@ def setup_processing_paths_with_config(
         batch_size=effective_batch_size,
         cache_size=effective_cache_size,
         large_dataset=effective_large_dataset,
-        output_format=effective_output_format,
         phone_lookup_file=effective_phone_lookup_file,
     )
     
@@ -79,7 +75,6 @@ def setup_processing_paths_legacy(
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-    output_format: str = "html",
     preset: str = "default",
 ) -> None:
     """
@@ -95,7 +90,7 @@ def setup_processing_paths_legacy(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('xml' or 'html')
+        output_format: Output format ('html')
         
     Raises:
         ValueError: If parameters are invalid
@@ -117,7 +112,6 @@ def setup_processing_paths_legacy(
         'batch_size': batch_size,
         'cache_size': cache_size,
         'large_dataset': large_dataset,
-        'output_format': output_format,
     })
     
     # Create final configuration
@@ -240,7 +234,6 @@ def create_processing_config_from_legacy(
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-    output_format: str = "html",
     preset: str = "default"
 ) -> ProcessingConfig:
     """
@@ -256,7 +249,7 @@ def create_processing_config_from_legacy(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('xml' or 'html')
+        output_format: Output format ('html')
         preset: Preset name to use as base
         
     Returns:
@@ -278,7 +271,6 @@ def create_processing_config_from_legacy(
         'batch_size': batch_size,
         'cache_size': cache_size,
         'large_dataset': large_dataset,
-        'output_format': output_format,
     })
     
     # Create new configuration with overrides

@@ -117,7 +117,7 @@ class ConfigurationValidator:
     @staticmethod
     def validate_output_format(value: str) -> bool:
         """Validate output format setting."""
-        return value in ["html", "xml"]
+        return value == "html"
     
     @staticmethod
     def validate_max_workers(value: int) -> bool:
