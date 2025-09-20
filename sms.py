@@ -4560,7 +4560,7 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                                         raise copy_error
 
                         try:
-                            # XML template removed - only HTML output supported
+                            # HTML output only
                             pass
                         except (KeyError, ValueError) as template_error:
                             logger.error(f"Template formatting error for vCard {filename}: {template_error}")
@@ -4651,13 +4651,13 @@ def process_single_attachment(
         if attachment_type == "image":
             image_type = get_image_type(file_path)
             return (
-                # XML template removed - only HTML output supported
+                # HTML output only
                 "",
                 "",
             )
         else:  # vcard
             return (
-                # XML template removed - only HTML output supported
+                # HTML output only
                 "",
                 "",
             )
@@ -7412,7 +7412,7 @@ def write_call_entry(
         if context and context.phone_lookup_manager:
             alias = context.phone_lookup_manager.get_alias(phone_number, soup)
         else:
-            # Fallback to global for backward compatibility
+            # Fallback to global configuration
             alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Extract call details from the already parsed soup if available,
@@ -7705,7 +7705,7 @@ def write_voicemail_entry(
         if context and context.phone_lookup_manager:
             alias = context.phone_lookup_manager.get_alias(phone_number, soup)
         else:
-            # Fallback to global for backward compatibility
+            # Fallback to global configuration
             alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Create voicemail message content

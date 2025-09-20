@@ -2,7 +2,7 @@
 Function Signature Updates for SMS/MMS processing system.
 
 This module provides updated function signatures that accept ProcessingConfig
-objects while maintaining backward compatibility with existing code.
+objects for the new architecture.
 """
 
 import logging

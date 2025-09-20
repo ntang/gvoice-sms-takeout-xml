@@ -2,7 +2,7 @@
 SMS Module Patch for Configuration System Integration.
 
 This module provides patches and modifications to integrate the existing sms.py
-module with the new configuration system while maintaining backward compatibility.
+module with the new configuration system.
 """
 
 import logging
@@ -25,7 +25,7 @@ class SMSModulePatcher:
     This class provides methods to:
     1. Patch global variables to use configuration values
     2. Replace function calls with configuration-driven versions
-    3. Maintain backward compatibility
+    3. Integrate with new configuration system
     4. Enable gradual migration
     """
     
@@ -171,7 +171,7 @@ class SMSModulePatcher:
         Patch functions in sms.py to use the new configuration system.
         
         This replaces key functions with configuration-driven versions
-        while maintaining backward compatibility.
+        for the new configuration system.
         """
         try:
             import sms
