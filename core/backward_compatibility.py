@@ -54,6 +54,7 @@ class BackwardCompatibilityManager:
         cache_size: int = 25000,
         large_dataset: bool = False,
         output_format: str = "html",
+        phone_lookup_file: Optional[Path] = None,
     ) -> None:
         """
         Legacy wrapper for setup_processing_paths.
@@ -77,6 +78,10 @@ class BackwardCompatibilityManager:
             large_dataset=large_dataset,
             output_format=output_format,
         )
+        
+        # Set phone_lookup_file if provided
+        if phone_lookup_file is not None:
+            config.phone_lookup_file = phone_lookup_file
         
         # Call the new configuration-driven version
         from .function_signatures import setup_processing_paths_with_config

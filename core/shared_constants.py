@@ -194,3 +194,11 @@ def set_test_mode(enabled: bool, limit: int = 100):
     global TEST_MODE, TEST_LIMIT
     TEST_MODE = enabled
     TEST_LIMIT = limit
+    
+    # Also update the sms module if it's been imported
+    try:
+        import sms
+        sms.TEST_MODE = enabled
+        sms.TEST_LIMIT = limit
+    except ImportError:
+        pass  # sms module not imported yet

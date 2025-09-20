@@ -47,7 +47,7 @@ def run_pytest_tests():
     print("🚀 Running tests with pytest...")
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "test_sms_unified.py", "-v", "--tb=short"],
+            [sys.executable, "-m", "pytest", "tests/integration/test_sms_unified.py", "-v", "--tb=short"],
             capture_output=True,
             text=True,
         )
@@ -71,7 +71,7 @@ def run_coverage_tests():
                 sys.executable,
                 "-m",
                 "pytest",
-                "test_sms_unified.py",
+                "tests/integration/test_sms_unified.py",
                 "--cov=sms",
                 "--cov-report=term-missing",
                 "--cov-report=html",
