@@ -1,6 +1,6 @@
 """Google Voice SMS Takeout HTML Converter - Core Processing Module.
 
-This module provides the core processing functionality for converting Google Voice HTML 
+This module provides the core processing functionality for converting Google Voice HTML
 export files into organized HTML conversation files that can be viewed in any web browser.
 
 IMPORTANT: This module is designed to be imported, not run directly.
@@ -24,6 +24,29 @@ Author: [Your Name]
 Date: [Date]
 """
 
+from utils.enhanced_logging import (
+    track_processing, log_processing_event, log_risk_factor,
+    get_metrics_collector, ProcessingMetrics
+)
+from core.app_config import *
+from utils.utils import is_valid_phone_number, generate_unknown_number_hash
+from utils.improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
+from core.attachment_manager_new import (
+    build_attachment_mapping_with_progress_new,
+    copy_mapped_attachments_new,
+)
+from processors.file_processor import (
+    process_single_html_file,
+)
+from processors.html_processor import (
+    get_file_type,
+    STRING_POOL,
+)
+from core.phone_lookup import PhoneLookupManager
+from core.conversation_manager import ConversationManager
+from bs4 import BeautifulSoup
+import phonenumbers
+import dateutil.parser
 import glob
 import inspect
 import logging
@@ -51,41 +74,19 @@ if TYPE_CHECKING:
 # PROJECT ROOT DETECTION FOR PORTABLE IMPORTS
 # ====================================================================
 # Find project root (where this script is located) and add to Python path
-# This ensures imports work regardless of where the project is located on the filesystem
+# This ensures imports work regardless of where the project is located on
+# the filesystem
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import dateutil.parser
-import phonenumbers
-from bs4 import BeautifulSoup
 # XML template imports removed - only HTML output supported
 
 # Import new modular components
-from core.conversation_manager import ConversationManager
-from core.phone_lookup import PhoneLookupManager
-from processors.html_processor import (
-    get_file_type,
-    STRING_POOL,
-)
-from processors.file_processor import (
-    process_single_html_file,
-)
-from core.attachment_manager_new import (
-    build_attachment_mapping_with_progress_new,
-    copy_mapped_attachments_new,
-)
 
 # Import improved file operations
-from utils.improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
 
-from utils.utils import is_valid_phone_number, generate_unknown_number_hash
-from core.app_config import *
 
 # Enhanced logging and metrics
-from utils.enhanced_logging import (
-    track_processing, log_processing_event, log_risk_factor,
-    get_metrics_collector, ProcessingMetrics
-)
 
 
 # ====================================================================
@@ -192,7 +193,7 @@ def validate_runtime_paths() -> None:
     This function should be called periodically during long-running operations.
     """
     global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY
-    
+
     try:
         # Check if processing directory still exists and is accessible
         if PROCESSING_DIRECTORY and PROCESSING_DIRECTORY.exists():
@@ -201,10 +202,12 @@ def validate_runtime_paths() -> None:
             if test_file and test_file.exists():
                 logger.debug("✅ Processing directory validation passed")
             else:
-                logger.warning("⚠️  Processing directory may have become inaccessible")
+                logger.warning(
+                    "⚠️  Processing directory may have become inaccessible")
         else:
-            logger.error("❌ Processing directory no longer exists or accessible")
-        
+            logger.error(
+                "❌ Processing directory no longer exists or accessible")
+
         # Check if output directory is still writable
         if OUTPUT_DIRECTORY and OUTPUT_DIRECTORY.exists():
             try:
@@ -216,37 +219,41 @@ def validate_runtime_paths() -> None:
                 logger.error(f"❌ Output directory is no longer writable: {e}")
         else:
             logger.error("❌ Output directory no longer exists or accessible")
-            
+
     except Exception as e:
         logger.warning(f"⚠️  Runtime path validation failed: {e}")
 
 
-def validate_attachment_mapping_integrity(src_filename_map: Dict[str, Tuple[str, str]]) -> None:
+def validate_attachment_mapping_integrity(
+    src_filename_map: Dict[str, Tuple[str, str]]) -> None:
     """
     Validate that all attachment mappings point to valid source files.
-    
+
     Args:
         src_filename_map: The attachment mapping to validate
     """
     if not src_filename_map:
         logger.info("ℹ️  No attachment mappings to validate")
         return
-    
+
     logger.info("🔍 Validating attachment mapping integrity...")
     valid_mappings = 0
     invalid_mappings = 0
-    
+
     for src, (filename, source_path) in src_filename_map.items():
         if source_path and Path(source_path).exists():
             valid_mappings += 1
         else:
             invalid_mappings += 1
-            logger.warning(f"⚠️  Invalid mapping: {src} -> {filename} (source: {source_path})")
-    
-    logger.info(f"✅ Attachment mapping validation: {valid_mappings} valid, {invalid_mappings} invalid")
-    
+            logger.warning(
+                f"⚠️  Invalid mapping: {src} -> {filename} (source: {source_path})")
+
+    logger.info(
+        f"✅ Attachment mapping validation: {valid_mappings} valid, {invalid_mappings} invalid")
+
     if invalid_mappings > 0:
-        logger.warning(f"⚠️  {invalid_mappings} attachment mappings have invalid source paths")
+        logger.warning(
+            f"⚠️  {invalid_mappings} attachment mappings have invalid source paths")
         logger.warning("This may cause file copy operations to fail")
 
 
@@ -384,7 +391,8 @@ class StringBuilder:
             # Look for vCard entries with the phone number
             # Pattern: <a class="tel" href="tel:+1234567890"><span
             # class="fn">Name</span></a>
-            tel_links = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
+            tel_links = soup.select(
+    STRING_POOL.ADDITIONAL_SELECTORS["tel_links"])
             for link in tel_links:
                 href = link.get("href", "")
                 if href.startswith("tel:"):
@@ -407,7 +415,8 @@ class StringBuilder:
             # Look for other patterns where phone numbers and names are associated
             # Pattern: <cite class="sender vcard"><a class="tel"
             # href="tel:+1234567890">Name</a></cite>
-            cite_elements = soup.find_all("cite", class_=lambda x: x and "sender" in x)
+            cite_elements = soup.find_all(
+    "cite", class_=lambda x: x and "sender" in x)
             for cite in cite_elements:
                 tel_link = cite.find("a", class_="tel", href=True)
                 if tel_link:
@@ -421,7 +430,8 @@ class StringBuilder:
 
             # Look for general name elements near phone numbers
             # Pattern: <span class="fn">Name</span> or similar
-            fn_elements = soup.select(STRING_POOL.ADDITIONAL_SELECTORS["fn_elements"])
+            fn_elements = soup.select(
+    STRING_POOL.ADDITIONAL_SELECTORS["fn_elements"])
             for fn in fn_elements:
                 name = fn.get_text(strip=True)
                 if name and name.lower() not in generic_phrases:
@@ -442,10 +452,14 @@ class StringBuilder:
             return None
 
         except Exception as e:
-            logger.debug(f"Failed to extract alias from HTML for {phone_number}: {e}")
+            logger.debug(
+                f"Failed to extract alias from HTML for {phone_number}: {e}")
             return None
 
-    def get_alias(self, phone_number: str, soup: Optional[BeautifulSoup] = None) -> str:
+    def get_alias(
+    self,
+    phone_number: str,
+     soup: Optional[BeautifulSoup] = None) -> str:
         """Get alias for a phone number, prompting user if not found and prompts are enabled."""
         if phone_number in self.phone_aliases:
             return self.phone_aliases[phone_number]
@@ -453,7 +467,8 @@ class StringBuilder:
         if not self.enable_prompts:
             # Try to automatically extract alias from HTML if provided
             if soup:
-                extracted_alias = self.extract_alias_from_html(soup, phone_number)
+                extracted_alias = self.extract_alias_from_html(
+                    soup, phone_number)
                 if extracted_alias:
                     # Store the automatically extracted alias
                     self.phone_aliases[phone_number] = extracted_alias
@@ -507,7 +522,8 @@ class StringBuilder:
         sanitized_alias = self.sanitize_alias(alias)
         self.phone_aliases[phone_number] = sanitized_alias
         self.save_aliases_batched()
-        logger.info(f"Added alias '{sanitized_alias}' for phone number {phone_number}")
+        logger.info(
+            f"Added alias '{sanitized_alias}' for phone number {phone_number}")
 
 
 @dataclass
@@ -589,10 +605,10 @@ def validate_configuration():
 def get_limited_file_list(limit: int) -> List[Path]:
     """
     Get a limited list of HTML files for test mode.
-    
+
     Args:
         limit: Maximum number of files to return
-        
+
     Returns:
         List of Path objects for HTML files, limited to the specified count
     """
@@ -605,10 +621,14 @@ def get_limited_file_list(limit: int) -> List[Path]:
                     break
         if len(html_files) >= limit:
             break
-    
-    logger.info(f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
+
+    logger.info(
+        f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
     return html_files
-def main(config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None):
+
+
+def main(config: Optional["ProcessingConfig"] = None,
+     context: Optional["ProcessingContext"] = None):
     """Main conversion function with comprehensive progress logging and performance optimization."""
     start_time = time.time()
 
@@ -629,25 +649,30 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         logger.info("=" * 60)
         logger.info(f"Processing directory: {context.processing_dir}")
         logger.info(f"Output directory: {context.output_dir}")
-        
+
         # Test mode indicator
         if context.test_mode:
-            logger.info(f"🧪 TEST MODE ENABLED - All operations limited to {context.test_limit} files")
+            logger.info(
+                f"🧪 TEST MODE ENABLED - All operations limited to {context.test_limit} files")
             # Create limited file list for test mode
-            context.limited_html_files = get_limited_file_list(context.test_limit)
-            logger.info(f"🧪 TEST MODE: Created limited file list with {len(context.limited_html_files)} files")
+            context.limited_html_files = get_limited_file_list(
+                context.test_limit)
+            logger.info(
+                f"🧪 TEST MODE: Created limited file list with {len(context.limited_html_files)} files")
         else:
             logger.info("🚀 FULL RUN MODE - Processing all files")
             context.limited_html_files = None
 
         # Critical validation: ensure context is properly initialized
         if context.output_dir is None:
-            logger.error("🚨 CRITICAL ERROR: output_dir is not initialized in context")
+            logger.error(
+                "🚨 CRITICAL ERROR: output_dir is not initialized in context")
             logger.error("Cannot proceed with conversion - exiting")
             sys.exit(1)
-        
+
         if context.processing_dir is None:
-            logger.error("🚨 CRITICAL ERROR: processing_dir is not initialized in context")
+            logger.error(
+                "🚨 CRITICAL ERROR: processing_dir is not initialized in context")
             logger.error("Cannot proceed with conversion - exiting")
             sys.exit(1)
 
@@ -658,10 +683,12 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         logger.info("Performance Configuration:")
         logger.info(f"  Parallel processing: enabled (16 workers)")
         logger.info(f"  Max workers: {MAX_WORKERS}")
-        logger.info(f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
+        logger.info(
+            f"  Memory efficient threshold: {MEMORY_EFFICIENT_THRESHOLD:,}")
         logger.info(f"  Streaming parsing: enabled")
-        logger.info(f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB")
-        
+        logger.info(
+            f"  Memory mapping threshold: {MMAP_THRESHOLD // (1024*1024)}MB")
+
         # Initialize memory monitoring
         if ENABLE_PERFORMANCE_MONITORING:
             try:
@@ -675,7 +702,8 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
                 })
                 logger.info("✅ Memory monitoring initialized")
             except Exception as e:
-                logger.warning(f"⚠️  Memory monitoring initialization failed: {e}")
+                logger.warning(
+                    f"⚠️  Memory monitoring initialization failed: {e}")
                 logger.warning("Memory monitoring disabled")
 
         # Validate configuration
@@ -686,15 +714,17 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
             # Quick check: scan a few files to see if any fall within the date
             # range
             logger.info("📅 Scanning files to validate date range coverage...")
-            
+
             if TEST_MODE:
                 # In test mode, use the limited file list for date validation
                 sample_files = get_limited_file_list(min(10, TEST_LIMIT))
                 sample_files = [str(f) for f in sample_files]
-                logger.info(f"🧪 TEST MODE: Date validation using limited file list ({len(sample_files)} files)")
-                
+                logger.info(
+                    f"🧪 TEST MODE: Date validation using limited file list ({len(sample_files)} files)")
+
                 # In test mode, be more lenient with date validation
-                logger.info("🧪 TEST MODE: Skipping strict date validation for test purposes")
+                logger.info(
+                    "🧪 TEST MODE: Skipping strict date validation for test purposes")
                 files_in_range = 1  # Assume files are valid in test mode
             else:
                 # In full mode, scan up to 10 files for date validation
@@ -740,40 +770,47 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
                 logger.warning(
                     f"   Date range: {DATE_FILTER_OLDER_THAN} to {DATE_FILTER_NEWER_THAN}"
                 )
-                logger.warning("   This may indicate no messages will be processed")
+                logger.warning(
+                    "   This may indicate no messages will be processed")
                 logger.warning(
                     "   Consider adjusting your date filters or use --full-run to process all files"
                 )
 
                 # In test mode, bypass the date validation failure
                 if TEST_MODE:
-                    logger.info("🧪 TEST MODE: Bypassing date validation failure for test purposes")
+                    logger.info(
+                        "🧪 TEST MODE: Bypassing date validation failure for test purposes")
                 else:
                     # Ask user if they want to continue
                     if not FULL_RUN:
                         logger.error(
                             "❌ REFUSING TO CONTINUE: No files found in date range and not in full-run mode"
                         )
-                        logger.error("   Use --full-run to override this safety check")
+                        logger.error(
+                            "   Use --full-run to override this safety check")
                         sys.exit(1)
 
         # Build attachment mapping
         logger.info("Building attachment mapping...")
         mapping_start = time.time()
-        
-        # In test mode, limit attachment mapping to only process files that will be used
+
+        # In test mode, limit attachment mapping to only process files that
+        # will be used
         if TEST_MODE:
-            logger.info(f"🧪 TEST MODE: Limiting attachment mapping to support {TEST_LIMIT} HTML files")
+            logger.info(
+                f"🧪 TEST MODE: Limiting attachment mapping to support {TEST_LIMIT} HTML files")
             # Use the global limited file list for attachment mapping
             if LIMITED_HTML_FILES:
                 sample_html_files = [str(f) for f in LIMITED_HTML_FILES]
-                logger.info(f"🧪 TEST MODE: Using global limited file list for attachment mapping")
+                logger.info(
+                    f"🧪 TEST MODE: Using global limited file list for attachment mapping")
             else:
                 # Fallback to creating a new limited list
                 sample_html_files = get_limited_file_list(TEST_LIMIT)
                 sample_html_files = [str(f) for f in sample_html_files]
-            
-            # Only process attachments that are referenced by the sample HTML files
+
+            # Only process attachments that are referenced by the sample HTML
+            # files
             src_filename_map = build_attachment_mapping_with_progress_new(
                 context.path_manager, sample_files=sample_html_files
             )
@@ -781,7 +818,7 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
             src_filename_map = build_attachment_mapping_with_progress_new(
                 context.path_manager
             )
-        
+
         mapping_time = time.time() - mapping_start
         logger.info(
             f"Found {len(src_filename_map)} attachment mappings in {mapping_time:.2f}s"
@@ -792,7 +829,7 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         copy_start = time.time()
         # Ensure output directories exist before copying
         context.path_manager.ensure_output_directories()
-        
+
         copy_mapped_attachments_new(
             src_filename_map, context.path_manager
         )
@@ -842,22 +879,28 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
                 f"  Index generation: {index_time:.2f}s ({(index_time/elapsed_time)*100:.1f}%)"
             )
         else:
-            logger.info("  Performance breakdown: Processing completed too quickly for accurate timing")
-        
+            logger.info(
+                "  Performance breakdown: Processing completed too quickly for accurate timing")
+
         # Memory monitoring summary
         if ENABLE_PERFORMANCE_MONITORING:
             try:
                 from utils.memory_monitor import get_memory_summary, generate_memory_recommendations
-                
+
                 memory_summary = get_memory_summary()
                 if "error" not in memory_summary:
                     logger.info("Memory Usage Summary:")
-                    logger.info(f"  Current memory: {memory_summary['current_memory_mb']:.1f}MB")
-                    logger.info(f"  Peak memory: {memory_summary['peak_memory_mb']:.1f}MB (at {memory_summary['peak_memory_time']})")
-                    logger.info(f"  Average memory: {memory_summary['average_memory_mb']:.1f}MB")
-                    logger.info(f"  Open files: {memory_summary['open_files']}")
-                    logger.info(f"  Active threads: {memory_summary['threads']}")
-                    
+                    logger.info(
+                        f"  Current memory: {memory_summary['current_memory_mb']:.1f}MB")
+                    logger.info(
+                        f"  Peak memory: {memory_summary['peak_memory_mb']:.1f}MB (at {memory_summary['peak_memory_time']})")
+                    logger.info(
+                        f"  Average memory: {memory_summary['average_memory_mb']:.1f}MB")
+                    logger.info(
+                        f"  Open files: {memory_summary['open_files']}")
+                    logger.info(
+                        f"  Active threads: {memory_summary['threads']}")
+
                     # Generate optimization recommendations
                     recommendations = generate_memory_recommendations()
                     if recommendations:
@@ -865,8 +908,9 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
                         for rec in recommendations:
                             logger.info(f"  • {rec}")
                 else:
-                    logger.warning(f"⚠️  Memory monitoring summary unavailable: {memory_summary['error']}")
-                    
+                    logger.warning(
+                        f"⚠️  Memory monitoring summary unavailable: {memory_summary['error']}")
+
             except Exception as e:
                 logger.warning(f"⚠️  Memory monitoring summary failed: {e}")
 
@@ -874,20 +918,25 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         try:
             logger.info("🔍 Export Health Assessment:")
             export_health_summary = generate_export_health_summary()
-            
+
             if "error" not in export_health_summary:
-                logger.info(f"  Overall Status: {export_health_summary['overall_status']}")
-                logger.info(f"  Files Analyzed: {export_health_summary['total_files']}")
-                logger.info(f"  Low Message Count Files: {export_health_summary['low_message_files']}")
-                logger.info(f"  Suspicious Files: {export_health_summary['suspicious_files']}")
-                
+                logger.info(
+                    f"  Overall Status: {export_health_summary['overall_status']}")
+                logger.info(
+                    f"  Files Analyzed: {export_health_summary['total_files']}")
+                logger.info(
+                    f"  Low Message Count Files: {export_health_summary['low_message_files']}")
+                logger.info(
+                    f"  Suspicious Files: {export_health_summary['suspicious_files']}")
+
                 if export_health_summary['recommendations']:
                     logger.info("  Recommendations:")
                     for rec in export_health_summary['recommendations']:
                         logger.info(f"    • {rec}")
             else:
-                logger.warning(f"⚠️  Export health assessment unavailable: {export_health_summary['error']}")
-                
+                logger.warning(
+                    f"⚠️  Export health assessment unavailable: {export_health_summary['error']}")
+
         except Exception as e:
             logger.warning(f"⚠️  Export health assessment failed: {e}")
 
@@ -895,35 +944,47 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
         try:
             logger.info("📊 Enhanced Processing Metrics Summary:")
             metrics_summary = metrics_collector.get_summary()
-            
+
             if "error" not in metrics_summary:
-                logger.info(f"  Total Files Processed: {metrics_summary['total_files_processed']}")
-                logger.info(f"  Success Rate: {metrics_summary['success_rate']}")
-                logger.info(f"  Total Processing Time: {metrics_summary['total_processing_time_ms']:.0f} ms")
-                logger.info(f"  Average Processing Time: {metrics_summary['average_processing_time_ms']:.0f} ms per file")
-                logger.info(f"  Total Messages Processed: {metrics_summary['total_messages_processed']}")
-                logger.info(f"  Total Participants Extracted: {metrics_summary['total_participants_extracted']}")
-                
+                logger.info(
+                    f"  Total Files Processed: {metrics_summary['total_files_processed']}")
+                logger.info(
+                    f"  Success Rate: {metrics_summary['success_rate']}")
+                logger.info(
+                    f"  Total Processing Time: {metrics_summary['total_processing_time_ms']:.0f} ms")
+                logger.info(
+                    f"  Average Processing Time: {metrics_summary['average_processing_time_ms']:.0f} ms per file")
+                logger.info(
+                    f"  Total Messages Processed: {metrics_summary['total_messages_processed']}")
+                logger.info(
+                    f"  Total Participants Extracted: {metrics_summary['total_participants_extracted']}")
+
                 if metrics_summary['risk_factor_distribution']:
                     logger.info("  Risk Factor Distribution:")
-                    for factor, count in metrics_summary['risk_factor_distribution'].items():
+                    for factor, count in metrics_summary['risk_factor_distribution'].items(
+                    ):
                         logger.info(f"    • {factor}: {count} occurrences")
-                
+
                 logger.info("  Processing Efficiency:")
                 efficiency = metrics_summary['processing_efficiency']
-                logger.info(f"    • Messages per file: {efficiency['messages_per_file']:.1f}")
-                logger.info(f"    • Participants per file: {efficiency['participants_per_file']:.1f}")
-                logger.info(f"    • Processing time per message: {efficiency['processing_time_per_message']:.1f} ms")
+                logger.info(
+                    f"    • Messages per file: {efficiency['messages_per_file']:.1f}")
+                logger.info(
+                    f"    • Participants per file: {efficiency['participants_per_file']:.1f}")
+                logger.info(
+                    f"    • Processing time per message: {efficiency['processing_time_per_message']:.1f} ms")
             else:
-                logger.warning(f"⚠️  Enhanced metrics unavailable: {metrics_summary['error']}")
-                
+                logger.warning(
+                    f"⚠️  Enhanced metrics unavailable: {metrics_summary['error']}")
+
         except Exception as e:
             logger.warning(f"⚠️  Enhanced metrics summary failed: {e}")
 
         # Throughput metrics
         if "num_sms" in stats and stats["num_sms"] > 0 and elapsed_time > 0:
             sms_per_second = stats["num_sms"] / elapsed_time
-            logger.info(f"Throughput: {sms_per_second:.1f} SMS messages/second")
+            logger.info(
+                f"Throughput: {sms_per_second:.1f} SMS messages/second")
 
         if len(src_filename_map) > 0 and elapsed_time > 0:
             attachments_per_second = (
@@ -936,7 +997,8 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
                 )
                 / elapsed_time
             )
-            logger.info(f"Throughput: {attachments_per_second:.1f} attachments/second")
+            logger.info(
+                f"Throughput: {attachments_per_second:.1f} attachments/second")
 
         logger.info("=" * 60)
         logger.info("Conversion completed successfully!")
@@ -944,7 +1006,8 @@ def main(config: Optional["ProcessingConfig"] = None, context: Optional["Process
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        logger.error(f"Conversion failed after {elapsed_time:.2f} seconds: {e}")
+        logger.error(
+            f"Conversion failed after {elapsed_time:.2f} seconds: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         logger.error(f"Exception details: {str(e)}")
         import traceback
@@ -992,12 +1055,15 @@ def display_results(stats: Dict[str, int], elapsed_time: float):
     logger.info(f"Total voicemails processed: {stats['num_voicemails']}")
     logger.info(f"Total processing time: {elapsed_time:.2f} seconds")
 
-    total_messages = stats["num_sms"] + stats["num_calls"] + stats["num_voicemails"]
+    total_messages = stats["num_sms"] + \
+        stats["num_calls"] + stats["num_voicemails"]
     if total_messages > 0 and elapsed_time > 0:
         messages_per_second = total_messages / elapsed_time
-        logger.info(f"Processing rate: {messages_per_second:.2f} messages/second")
+        logger.info(
+            f"Processing rate: {messages_per_second:.2f} messages/second")
     elif total_messages > 0 and elapsed_time <= 0:
-        logger.info("Processing rate: Completed too quickly for accurate measurement")
+        logger.info(
+            "Processing rate: Completed too quickly for accurate measurement")
 
     logger.info(f"Output directory: {OUTPUT_DIRECTORY}")
     logger.info("=" * 60)
@@ -1026,7 +1092,10 @@ def remove_problematic_files() -> None:
         logger.error(f"Failed to remove problematic files: {e}")
 
 
-def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") -> None:
+def remove_files_by_pattern(
+    pattern: str,
+    reason: str,
+     regex_pattern: str = "") -> None:
     """
     Remove files matching a pattern with optional regex filtering.
 
@@ -1048,7 +1117,9 @@ def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") 
             import re
 
             regex = re.compile(regex_pattern)
-            files_to_remove = [f for f in files_to_remove if regex.match(Path(f).name)]
+            files_to_remove = [
+    f for f in files_to_remove if regex.match(
+        Path(f).name)]
 
         for file_path in files_to_remove:
             try:
@@ -1110,7 +1181,8 @@ def extract_src_cached(html_directory: str) -> List[str]:
                 # CRITICAL: File processing failures are errors that need
                 # attention
                 logger.error(f"Failed to process {html_file}: {e}")
-                logger.debug("Continuing with next file to maintain processing flow")
+                logger.debug(
+                    "Continuing with next file to maintain processing flow")
                 continue
 
     except Exception as e:
@@ -1220,7 +1292,8 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
                 # CRITICAL: File processing failures are errors that need
                 # attention
                 logger.error(f"Failed to process {html_file}: {e}")
-                logger.debug("Continuing with next file to maintain processing flow")
+                logger.debug(
+                    "Continuing with next file to maintain processing flow")
                 continue
 
         # Log final performance metrics
@@ -1265,34 +1338,70 @@ def is_valid_image_src(src: str) -> bool:
         ]
     ):
         # Check if this is actually an attachment filename (has image extension or number suffix)
-        # Attachment filenames typically end with patterns like "-1-1", "-2-1", etc.
-        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
-            logger.debug(f"Allowing attachment filename as valid image src: {src}")
+        # Attachment filenames typically end with patterns like "-1-1", "-2-1",
+        # etc.
+        if re.search(
+    r"-\d+-\d+$",
+    src) or any(
+        ext in src for ext in [
+            '.jpg',
+            '.jpeg',
+            '.png',
+            '.gif',
+            '.bmp',
+             '.webp']):
+            logger.debug(
+                f"Allowing attachment filename as valid image src: {src}")
             return True
         else:
-            logger.debug(f"Filtering out HTML filename as invalid image src: {src}")
+            logger.debug(
+                f"Filtering out HTML filename as invalid image src: {src}")
             return False
 
     # Skip src that contains timestamp patterns (likely HTML filenames)
     # But allow if it's an attachment filename with timestamp
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", src):
-        # Check if this is an attachment filename (has number suffix or image extension)
-        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
-            logger.debug(f"Allowing attachment filename with timestamp as valid image src: {src}")
+        # Check if this is an attachment filename (has number suffix or image
+        # extension)
+        if re.search(
+    r"-\d+-\d+$",
+    src) or any(
+        ext in src for ext in [
+            '.jpg',
+            '.jpeg',
+            '.png',
+            '.gif',
+            '.bmp',
+             '.webp']):
+            logger.debug(
+                f"Allowing attachment filename with timestamp as valid image src: {src}")
             return True
         else:
-            logger.debug(f"Filtering out timestamp pattern as invalid image src: {src}")
+            logger.debug(
+                f"Filtering out timestamp pattern as invalid image src: {src}")
             return False
 
     # Skip src that contains phone number patterns (likely HTML filenames)
     # But allow if it's an attachment filename with phone number
     if re.search(r"\+\d+", src):
-        # Check if this is an attachment filename (has number suffix or image extension)
-        if re.search(r"-\d+-\d+$", src) or any(ext in src for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
-            logger.debug(f"Allowing attachment filename with phone number as valid image src: {src}")
+        # Check if this is an attachment filename (has number suffix or image
+        # extension)
+        if re.search(
+    r"-\d+-\d+$",
+    src) or any(
+        ext in src for ext in [
+            '.jpg',
+            '.jpeg',
+            '.png',
+            '.gif',
+            '.bmp',
+             '.webp']):
+            logger.debug(
+                f"Allowing attachment filename with phone number as valid image src: {src}")
             return True
         else:
-            logger.debug(f"Filtering out phone number pattern as invalid image src: {src}")
+            logger.debug(
+                f"Filtering out phone number pattern as invalid image src: {src}")
             return False
 
     # Valid image src should be a filename with image extension or data URL
@@ -1340,23 +1449,28 @@ def is_valid_vcard_href(href: str) -> bool:
             " - Missed - ",
         ]
     ):
-        # Check if this is actually a vCard filename (has .vcf extension or number suffix)
+        # Check if this is actually a vCard filename (has .vcf extension or
+        # number suffix)
         if href.endswith('.vcf') or re.search(r"-\d+-\d+$", href):
             logger.debug(f"Allowing vCard filename as valid href: {href}")
             return True
         else:
-            logger.debug(f"Filtering out HTML filename as invalid vCard href: {href}")
+            logger.debug(
+                f"Filtering out HTML filename as invalid vCard href: {href}")
             return False
 
     # Skip href that contains timestamp patterns (likely HTML filenames)
     # But allow if it's a vCard filename with timestamp
     if re.search(r"\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}Z", href):
-        # Check if this is a vCard filename (has .vcf extension or number suffix)
+        # Check if this is a vCard filename (has .vcf extension or number
+        # suffix)
         if href.endswith('.vcf') or re.search(r"-\d+-\d+$", href):
-            logger.debug(f"Allowing vCard filename with timestamp as valid href: {href}")
+            logger.debug(
+                f"Allowing vCard filename with timestamp as valid href: {href}")
             return True
         else:
-            logger.debug(f"Filtering out timestamp pattern as invalid vCard href: {href}")
+            logger.debug(
+                f"Filtering out timestamp pattern as invalid vCard href: {href}")
             return False
 
     # Valid vCard href should be a filename with .vcf extension or data URL
@@ -1512,7 +1626,8 @@ def list_att_filenames_cached(directory: str) -> List[str]:
             if path.suffix.lower() in SUPPORTED_EXTENSIONS
         ]
     except Exception as e:
-        logger.error(f"Failed to list attachment filenames from {directory}: {e}")
+        logger.error(
+            f"Failed to list attachment filenames from {directory}: {e}")
         return []
 
 
@@ -1561,72 +1676,26 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
         attachment_count = 0
 
         for file_path in file_generator:
-                total_files += 1
-                processed_files += 1
+            total_files += 1
+            processed_files += 1
 
-                try:
-                    if (
-                        file_path.is_file()
-                        and file_path.suffix.lower() in SUPPORTED_EXTENSIONS
-                    ):
-                        attachment_filenames.append(str(file_path.name))
-                        attachment_count += 1
-
-                    # Report progress every 1000 files for large datasets
-                    if processed_files % 1000 == 0:
-                        logger.info(
-                            f"Attachment scan progress: {processed_files} files processed, {attachment_count} attachments found"
-                        )
-
-                except Exception as e:
-                    logger.error(f"Failed to process {file_path}: {e}")
-                    continue
-        else:
-            # Traditional approach for smaller datasets
-            all_files = list(Path(directory).rglob("*"))
-            total_files = len(all_files)
-
-            if total_files == 0:
-                logger.error(f"No files found in {directory}")
-                return []
-
-            logger.info(
-                f"Starting attachment scan in {directory} - {total_files} total files to examine"
-            )
-
-            # Note: We don't apply test mode limit to attachment scanning
-            # because we need to see ALL available attachments to properly match them
-            # Test mode only limits the HTML files being processed
-
-            last_reported_progress = 0
-            attachment_count = 0
-
-            attachment_filenames = []
-
-            for i, file_path in enumerate(all_files):
-                if file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+            try:
+                if (
+                    file_path.is_file()
+                    and file_path.suffix.lower() in SUPPORTED_EXTENSIONS
+                ):
                     attachment_filenames.append(str(file_path.name))
                     attachment_count += 1
 
-                # Report progress
-                current_progress = i + 1
-                if should_report_progress(
-                    current_progress, total_files, last_reported_progress
-                ):
-                    # Defensive check: ensure total_files is valid for division
-                    if not total_files or total_files <= 0:
-                        percentage = 0.0
-                        logger.warning(
-                            f"Invalid total_files value ({total_files}) for progress calculation"
-                        )
-                    else:
-                        percentage = (current_progress / total_files) * 100
-
+                # Report progress every 1000 files for large datasets
+                if processed_files % 1000 == 0:
                     logger.info(
-                        f"Attachment scan progress: {current_progress}/{total_files} files examined ({percentage:.1f}%) - "
-                        f"Attachments found: {attachment_count}"
+                        f"Attachment scan progress: {processed_files} files processed, {attachment_count} attachments found"
                     )
-                    last_reported_progress = current_progress
+
+            except Exception as e:
+                logger.error(f"Failed to process {file_path}: {e}")
+                continue
 
         # Log final performance metrics
         scan_time = time.time() - start_time
@@ -2052,6 +2121,11 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
         f"Completed processing {filtered_files} files. "
         f"Final stats - SMS: {stats['num_sms']}, Images: {stats['num_img']}, vCards: {stats['num_vcf']}, Calls: {stats['num_calls']}, Voicemails: {stats['num_voicemails']}"
     )
+    
+    # Finalize conversation files
+    if CONVERSATION_MANAGER:
+        logger.info("Finalizing conversation files...")
+        CONVERSATION_MANAGER.finalize_conversation_files()
     
     # Memory monitoring for file processing completion
     if ENABLE_PERFORMANCE_MONITORING:
@@ -3240,9 +3314,10 @@ def write_sms_messages(
                 else:
                     # Use existing logic for individual conversations
                     sender_display = "Me" if sms_values.get("type") == 2 else alias
+                
                 conversation_manager.write_message_with_content(
                     conversation_id=conversation_id,
-                    formatted_time=sms_values["time"],
+                    timestamp=sms_values["time"],
                     sender=sender_display,
                     message=message_text,
                 )
@@ -4344,63 +4419,63 @@ def write_mms_messages(
                     logger.debug(f"Generated MMS conversation ID: {conversation_id}")
                 else:
                     logger.debug(f"Using passed conversation ID for MMS: {conversation_id}")
-                # For HTML output, extract text and attachments directly
-                message_text = message_content
-                if not message_text or message_text.strip() == "":
-                    message_text = "[Empty message]"
+                    # For HTML output, extract text and attachments directly
+                    message_text = message_content
+                    if not message_text or message_text.strip() == "":
+                        message_text = "[Empty message]"
 
-                # Create attachments with proper links
-                attachments = []
-                if has_images:
-                    # Find the actual image filename for linking
-                    img_src = message.find("img", src=True)
-                    if img_src:
-                        img_filename = img_src.get("src")
-                        if img_filename in src_filename_map:
-                            actual_filename, _ = src_filename_map[img_filename]
-                            if actual_filename != "No unused match found":
-                                # Create clickable link to the image
-                                attachments.append(
-                                    f"<a href='attachments/{actual_filename}' target='_blank'>📷 Image</a>"
-                                )
+                    # Create attachments with proper links
+                    attachments = []
+                    if has_images:
+                        # Find the actual image filename for linking
+                        img_src = message.find("img", src=True)
+                        if img_src:
+                            img_filename = img_src.get("src")
+                            if img_filename in src_filename_map:
+                                actual_filename, _ = src_filename_map[img_filename]
+                                if actual_filename != "No unused match found":
+                                    # Create clickable link to the image
+                                    attachments.append(
+                                        f"<a href='attachments/{actual_filename}' target='_blank'>📷 Image</a>"
+                                    )
+                                else:
+                                    attachments.append("📷 Image (file not found)")
                             else:
-                                attachments.append("📷 Image (file not found)")
+                                attachments.append("📷 Image (unmapped)")
                         else:
-                            attachments.append("📷 Image (unmapped)")
-                    else:
-                        attachments.append("📷 Image")
+                            attachments.append("📷 Image")
 
-                if has_vcards:
-                    attachments.append("📇 vCard")
+                    if has_vcards:
+                        attachments.append("📇 vCard")
 
-                # Sender for MMS: prefer page alias, then phone lookup
-                # alias
-                sender_display = sender
-                try:
-                    # Prefer alias from participant_aliases if available
-                    if sender in participants:
-                        idx = participants.index(sender)
-                        if (
-                            idx < len(participant_aliases)
-                            and participant_aliases[idx]
-                        ):
-                            sender_display = participant_aliases[idx]
-                    # Fall back to phone lookup alias
-                    if phone_lookup_manager:
-                        sender_display = phone_lookup_manager.get_alias(
-                            sender_display, None
-                        )
-                except Exception:
-                    pass
-                conversation_manager.write_message_with_content(
-                    conversation_id=conversation_id,
-                    formatted_time=get_time_formatted(message),
-                    sender=sender_display,
-                    message=message_text,
-                    attachments=attachments,
-                )
-                # Update latest timestamp for this conversation
-                conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
+                    # Sender for MMS: prefer page alias, then phone lookup
+                    # alias
+                    sender_display = sender
+                    try:
+                        # Prefer alias from participant_aliases if available
+                        if sender in participants:
+                            idx = participants.index(sender)
+                            if (
+                                idx < len(participant_aliases)
+                                and participant_aliases[idx]
+                            ):
+                                sender_display = participant_aliases[idx]
+                        # Fall back to phone lookup alias
+                        if phone_lookup_manager:
+                            sender_display = phone_lookup_manager.get_alias(
+                                sender_display, None
+                            )
+                    except Exception:
+                        pass
+                    conversation_manager.write_message_with_content(
+                        conversation_id=conversation_id,
+                    timestamp=get_time_unix(message),
+                        sender=sender_display,
+                        message=message_text,
+                        attachments=attachments,
+                    )
+                    # Update latest timestamp for this conversation
+                    conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
 
                 processed_count += 1
 
@@ -4803,11 +4878,12 @@ def get_message_type(message: BeautifulSoup) -> int:
             else:
                 return 1  # Default to received
 
-        # Check if this is a "Me" message (sent by user)
-        if author_raw.span:
-            return 1  # Received message (has span element)
+        # Check the text content of the cite element
+        cite_text = author_raw.text.strip()
+        if cite_text == "Me":
+            return 2  # Sent message (user sent this)
         else:
-            return 2  # Sent message (no span element)
+            return 1  # Received message (from someone else)
 
     except Exception as e:
         logger.error(f"Failed to determine message type: {e}")
@@ -5966,6 +6042,8 @@ def setup_processing_paths(
     large_dataset: bool = False,
     phone_lookup_file: Optional[Path] = None,
 ) -> None:
+    # Declare all global variables at the beginning
+    global PROCESSING_DIRECTORY, OUTPUT_DIRECTORY, LOG_FILENAME, CONVERSATION_MANAGER, PHONE_LOOKUP_MANAGER, PATH_MANAGER
     """
     Set up all file paths based on the specified processing directory.
 
@@ -6062,6 +6140,12 @@ def setup_processing_paths(
     PROCESSING_DIRECTORY = Path(processing_dir).resolve()
     OUTPUT_DIRECTORY = PROCESSING_DIRECTORY / "conversations"
     LOG_FILENAME = str(PROCESSING_DIRECTORY / DEFAULT_LOG_FILENAME)
+    
+    # Update shared_constants module
+    from core import shared_constants
+    shared_constants.PROCESSING_DIRECTORY = PROCESSING_DIRECTORY
+    shared_constants.OUTPUT_DIRECTORY = OUTPUT_DIRECTORY
+    shared_constants.LOG_FILENAME = LOG_FILENAME
 
     # Create directories
     OUTPUT_DIRECTORY.mkdir(exist_ok=True)
@@ -6077,6 +6161,7 @@ def setup_processing_paths(
         False,
         "html",  # Only HTML output supported
     )
+    shared_constants.CONVERSATION_MANAGER = CONVERSATION_MANAGER
     # Use provided phone lookup file path or default to processing directory
     if phone_lookup_file is not None:
         logger.info(f"Using provided phone lookup file: {phone_lookup_file}")
@@ -6087,6 +6172,7 @@ def setup_processing_paths(
     PHONE_LOOKUP_MANAGER = strict_call(
         PhoneLookupManager, phone_lookup_file, enable_phone_prompts, SKIP_FILTERED_CONTACTS
     )
+    shared_constants.PHONE_LOOKUP_MANAGER = PHONE_LOOKUP_MANAGER
 
     # Initialize new PathManager system
     logger.info("🔧 Initializing new PathManager system...")
@@ -6102,6 +6188,7 @@ def setup_processing_paths(
         )
         PATH_MANAGER = PathManager(processing_dir, test_mode=test_mode)
         PATH_MANAGER.ensure_output_directories()
+        shared_constants.PATH_MANAGER = PATH_MANAGER
         logger.info("✅ PathManager initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize PathManager: {e}")
@@ -6491,7 +6578,7 @@ def process_chunk_parallel(
         except Exception as e:
             logger.error(f"Failed to process {html_file} in parallel chunk: {e}")
             continue
-    
+
     if own_number:
         stats["own_number"] = own_number
 
@@ -7486,7 +7573,7 @@ def write_call_entry(
         attachments = []
         CONVERSATION_MANAGER.write_message_with_content(
             conversation_id=conversation_id,
-            formatted_time=call_ts,
+            timestamp=call_ts,
             sender=alias,
             message=message_text,
         )
@@ -7773,7 +7860,7 @@ def write_voicemail_entry(
         attachments = []
         CONVERSATION_MANAGER.write_message_with_content(
             conversation_id=conversation_id,
-            formatted_time=vm_ts,
+            timestamp=vm_ts,
             sender=alias,
             message=message_text,
         )

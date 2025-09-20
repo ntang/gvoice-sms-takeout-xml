@@ -257,10 +257,10 @@ class ConversationManager:
     def write_message_with_content(
         self,
         conversation_id: str,
-        formatted_time: str,
+        timestamp: int,  # Unix timestamp in milliseconds
         sender: str,
         message: str,
-        attachments: list = None,  # Add for backward compatibility
+        attachments: list = None,
     ):
         """Write a message to a conversation file with content."""
         with self._lock:
@@ -274,14 +274,18 @@ class ConversationManager:
                 logger.error(f"Failed to get file_info for {conversation_id} after opening.")
                 return
 
-            # Append the message to the internal buffer
+            # Convert timestamp to formatted string for display
+            formatted_time = self._format_timestamp(timestamp)
+            
+            # Append the message to the internal buffer with actual timestamp
             message_data = {
                 "text": message,
                 "attachments": attachments or [],
                 "sender": sender,
+                "formatted_time": formatted_time,
                 "raw_content": None,  # Not needed for HTML output
             }
-            file_info["messages"].append((0, message_data)) # Placeholder timestamp for now
+            file_info["messages"].append((timestamp, message_data))  # Use actual timestamp
             file_info["buffer_size"] += len(message)
 
             # Flush buffer if it gets too large
@@ -777,63 +781,136 @@ class ConversationManager:
     ):
         """Finalize an HTML conversation file."""
         try:
+            # Validate message data
+            valid_messages = [msg for msg in sorted_messages if self._validate_message_data(msg[1])]
+            
+            if not valid_messages:
+                logger.warning(f"No valid messages found for conversation {conversation_id}")
+                self._write_error_page(file_info, conversation_id, "No valid messages found")
+                return
+            
             from templates.loader import format_conversation_template
             
             # Build message rows from sorted messages
             message_rows = []
-            for timestamp, message_data in sorted_messages:
+            for timestamp, message_data in valid_messages:
                 # Extract message content from dictionary (HTML output only)
                 text = message_data.get('text', '')
                 attachments = message_data.get('attachments', [])
                 sender = message_data.get('sender', 'Unknown')
                 
-                # Format timestamp
-                formatted_time = self._format_timestamp(timestamp)
+                # Use pre-formatted timestamp from message data
+                formatted_time = message_data.get('formatted_time', self._format_timestamp(timestamp))
                 
                 # Build attachments HTML
-                attachments_html = ""
-                if attachments:
-                    attachment_links = []
-                    for attachment in attachments:
-                        if isinstance(attachment, dict) and 'filename' in attachment:
-                            attachment_links.append(f'<a href="{attachment["filename"]}" class="attachment">{attachment["filename"]}</a>')
-                        elif isinstance(attachment, str) and attachment:
-                            attachment_links.append(f'<span class="attachment">{attachment}</span>')
-                    if attachment_links:
-                        attachments_html = "<br>".join(attachment_links)
+                attachments_html = self._build_attachments_html(attachments)
                 
                 # Create message row
-                row = f"""
-                <tr>
-                    <td class="timestamp">{formatted_time}</td>
-                    <td class="sender">{sender}</td>
-                    <td class="message">{text}</td>
-                    <td class="attachments">{attachments_html}</td>
-                </tr>"""
+                row = self._build_message_row(formatted_time, sender, text, attachments_html)
                 message_rows.append(row)
             
-            # Build HTML header efficiently
-            header = format_conversation_template(
-                conversation_id=conversation_id,
-                total_messages=len(sorted_messages),
-                message_rows="\n".join(message_rows)
-            )
-            # The template already includes the complete HTML structure
-            final_content = header
+            # Get conversation metadata
+            date_range = self._get_conversation_date_range(valid_messages)
             
-            file_info["file"].write(final_content)
+            # Build HTML using template
+            html_content = format_conversation_template(
+                conversation_id=conversation_id,
+                total_messages=len(valid_messages),
+                message_rows="\n".join(message_rows),
+                date_range=date_range
+            )
+            
+            # Write and close file
+            file_info["file"].write(html_content)
             file_info["file"].close()
+            
+            logger.info(f"Successfully finalized conversation {conversation_id} with {len(valid_messages)} messages")
             
         except Exception as e:
             logger.error(f"ERROR: Failed to finalize HTML file for {conversation_id}: {e}")
-            # Write a minimal error page
-            error_content = f"<html><body><h1>Error</h1><p>Failed to generate conversation: {e}</p></body></html>"
-            file_info["file"].write(error_content)
-            file_info["file"].close()
+            self._write_error_page(file_info, conversation_id, str(e))
 
     # _extract_message_content function removed - only HTML output supported
 
     # _extract_sender_from_raw function removed - only HTML output supported
+
+    def _validate_message_data(self, message_data: dict) -> bool:
+        """Validate message data before processing."""
+        required_fields = ['text', 'sender', 'formatted_time']
+        return all(field in message_data for field in required_fields)
+
+    def _write_error_page(self, file_info: dict, conversation_id: str, error_message: str):
+        """Write an error page when HTML generation fails."""
+        error_content = f"""<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <title>Error - {conversation_id}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .error {{ background-color: #ffe6e6; padding: 20px; border-radius: 5px; border: 1px solid #ff9999; }}
+    </style>
+</head>
+<body>
+    <div class='error'>
+        <h1>Error Generating Conversation</h1>
+        <p><strong>Conversation ID:</strong> {conversation_id}</p>
+        <p><strong>Error:</strong> {error_message}</p>
+        <p><em>Please check the logs for more details.</em></p>
+    </div>
+</body>
+</html>"""
+        file_info["file"].write(error_content)
+        file_info["file"].close()
+
+    def _build_attachments_html(self, attachments: list) -> str:
+        """Build HTML for attachments."""
+        if not attachments:
+            return ""
+        
+        attachment_links = []
+        for attachment in attachments:
+            if isinstance(attachment, dict) and 'filename' in attachment:
+                attachment_links.append(f'<a href="{attachment["filename"]}" class="attachment">📎 {attachment["filename"]}</a>')
+            elif isinstance(attachment, str) and attachment:
+                attachment_links.append(f'<span class="attachment">📎 {attachment}</span>')
+        
+        return "<br>".join(attachment_links) if attachment_links else ""
+
+    def _build_message_row(self, formatted_time: str, sender: str, text: str, attachments_html: str) -> str:
+        """Build a single message row HTML."""
+        # Escape HTML characters in text
+        import html
+        escaped_text = html.escape(text)
+        
+        return f"""
+                <tr>
+                    <td class="timestamp">{formatted_time}</td>
+                    <td class="sender">{html.escape(sender)}</td>
+                    <td class="message">{escaped_text}</td>
+                    <td class="attachments">{attachments_html}</td>
+                </tr>"""
+
+    def _get_conversation_date_range(self, messages: list) -> str:
+        """Get the date range for a conversation."""
+        if not messages:
+            return "No messages"
+        
+        timestamps = [msg[0] for msg in messages]
+        min_ts = min(timestamps)
+        max_ts = max(timestamps)
+        
+        try:
+            from datetime import datetime
+            min_date = datetime.fromtimestamp(min_ts / 1000).strftime("%Y-%m-%d")
+            max_date = datetime.fromtimestamp(max_ts / 1000).strftime("%Y-%m-%d")
+            
+            if min_date == max_date:
+                return min_date
+            else:
+                return f"{min_date} to {max_date}"
+        except Exception:
+            return "Unknown date range"
 
     def _format_timestamp(self, timestamp: int) -> str:
         """Format timestamp for display."""

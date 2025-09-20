@@ -5,22 +5,35 @@
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>SMS Conversation - {conversation_id}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-        th {{ background-color: #f2f2f2; font-weight: bold; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 20px; line-height: 1.6; }}
+        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+        th {{ background-color: #f8f9fa; font-weight: 600; color: #495057; }}
         tr:nth-child(even) {{ background-color: #f9f9f9; }}
-        .timestamp {{ font-size: 0.9em; color: #666; }}
-        .message {{ max-width: 400px; word-wrap: break-word; }}
-        .attachment {{ color: #0066cc; text-decoration: none; }}
+        tr:hover {{ background-color: #f5f5f5; }}
+        .timestamp {{ font-size: 0.9em; color: #6c757d; white-space: nowrap; }}
+        .message {{ max-width: 400px; word-wrap: break-word; word-break: break-word; }}
+        .sender {{ font-weight: 500; color: #495057; }}
+        .attachment {{ color: #007bff; text-decoration: none; font-size: 0.9em; }}
         .attachment:hover {{ text-decoration: underline; }}
-        .header {{ background-color: #e6f3ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+        .header {{ background: linear-gradient(135deg, #e6f3ff 0%, #f0f8ff 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #b3d9ff; }}
+        .header h1 {{ margin: 0 0 10px 0; color: #0066cc; }}
+        .header p {{ margin: 5px 0; color: #495057; }}
+        .metadata {{ color: #6c757d; font-size: 0.9em; }}
+        @media (max-width: 768px) {{
+            body {{ margin: 10px; }}
+            table {{ font-size: 0.8em; }}
+            th, td {{ padding: 8px; }}
+            .message {{ max-width: 200px; }}
+            .timestamp {{ font-size: 0.8em; }}
+        }}
     </style>
 </head>
 <body>
     <div class='header'>
         <h1>SMS Conversation: {conversation_id}</h1>
         <p>Total Messages: {total_messages}</p>
+        <p>Date Range: {date_range}</p>
         <p><em>Converted from Google Voice Takeout data</em></p>
     </div>
 

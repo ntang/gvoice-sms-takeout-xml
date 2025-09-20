@@ -47,7 +47,11 @@ class TestSMSOutput(BaseSMSTest):
 
         # Write a test message
         manager.write_message_with_content(
-            "test_conversation", "2022-01-01 00:00:00", "TestUser", "Test message", []
+            conversation_id="test_conversation",
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="TestUser",
+            message="Test message",
+            attachments=[]
         )
         manager.finalize_conversation_files()
 
@@ -67,10 +71,18 @@ class TestSMSOutput(BaseSMSTest):
         conversation_id = "sms_sender_display"
         # Simulate two messages: sent by Me and received from Alice
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:00:00", "Me", "Hi", []
+            conversation_id=conversation_id,
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="Me",
+            message="Hi",
+            attachments=[]
         )
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:01:40", "Alice", "Hello", []
+            conversation_id=conversation_id,
+            timestamp=1640995300000,  # 2022-01-01 00:01:40 in milliseconds
+            sender="Alice",
+            message="Hello",
+            attachments=[]
         )
         manager.finalize_conversation_files()
 
@@ -89,18 +101,29 @@ class TestSMSOutput(BaseSMSTest):
         
         # Test 1: Dictionary-based messages (XML parsing no longer supported)
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:00:00", "+15551234567", "Hello from XML", []
+            conversation_id=conversation_id,
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="+15551234567",
+            message="Hello from XML",
+            attachments=[]
         )
         
         # Test 2: Dictionary-based messages with sender information
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:01:00", "Alice", "Hello from dict", []
+            conversation_id=conversation_id,
+            timestamp=1640995260000,  # 2022-01-01 00:01:00 in milliseconds
+            sender="Alice",
+            message="Hello from dict",
+            attachments=[]
         )
         
         # Test 3: Message with attachments
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:02:00", "Bob", "Message with attachment", 
-            [{"filename": "test_image.jpg", "content_type": "image/jpeg"}]
+            conversation_id=conversation_id,
+            timestamp=1640995320000,  # 2022-01-01 00:02:00 in milliseconds
+            sender="Bob",
+            message="Message with attachment",
+            attachments=[{"filename": "test_image.jpg", "content_type": "image/jpeg"}]
         )
         
         manager.finalize_conversation_files()

@@ -172,7 +172,11 @@ class TestSMSProcessing(BaseSMSTest):
 
         # Test message writing (using dictionary format)
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:00:00", "Test Sender", "test", []
+            conversation_id=conversation_id,
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="Test Sender",
+            message="test",
+            attachments=[]
         )
 
         # Test finalization
@@ -226,7 +230,11 @@ class TestSMSProcessing(BaseSMSTest):
 
         # Test message writing (using dictionary format)
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello World", []
+            conversation_id=conversation_id,
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="Test Sender",
+            message="Hello World",
+            attachments=[]
         )
 
         # Test finalization
@@ -546,7 +554,11 @@ class TestSMSProcessing(BaseSMSTest):
         conversation_id = "sender_column_test"
         # Test sender column display
         manager.write_message_with_content(
-            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello Sender Column", []
+            conversation_id=conversation_id,
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
+            sender="Test Sender",
+            message="Hello Sender Column",
+            attachments=[]
         )
         manager.finalize_conversation_files()
 

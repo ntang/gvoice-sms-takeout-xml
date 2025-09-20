@@ -167,7 +167,7 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
         # Test message writing
         manager.write_message_with_content(
             conversation_id=conversation_id,
-            formatted_time="2022-01-01 00:00:00",
+            timestamp=1640995200000,  # 2022-01-01 00:00:00 in milliseconds
             sender="Test Sender",
             message="Test message",
             attachments=[]
