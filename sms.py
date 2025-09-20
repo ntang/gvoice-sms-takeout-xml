@@ -285,24 +285,7 @@ VIDEO_TAG_PATTERN = re.compile(r"<video")
 
 # XML translation tables and attributes removed - only HTML output supported
 
-# Legacy functions for backward compatibility with tests
-
-
-def get_pooled_string(text: str) -> str:
-    """Legacy function for backward compatibility with tests."""
-    return text
-
-
-def clear_string_pool() -> None:
-    """Legacy function for backward compatibility with tests."""
-    pass
-
-
-def log_performance(
-    function_name: str, start_time: float, additional_info: str = ""
-) -> None:
-    """Legacy function for backward compatibility with tests."""
-    pass
+# Legacy functions removed - migration complete
 
 
 class ConversionError(Exception):
