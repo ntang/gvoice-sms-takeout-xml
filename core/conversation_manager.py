@@ -212,6 +212,8 @@ class ConversationManager:
         if conversation_id not in self.conversation_files:
             # Create new conversation file with optimized buffer size
             filename = self.get_conversation_filename(conversation_id)
+            # Ensure the output directory exists
+            filename.parent.mkdir(parents=True, exist_ok=True)
             file_handle = open(
                 filename, "w", encoding="utf-8", buffering=self.write_buffer_size
             )
