@@ -2159,6 +2159,72 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
             time_diff, 21600000, "Should extract correct timestamp from Strategy 1"
         )
 
+    def test_numeric_filename_processing_fixes(self):
+        """Test that numeric filenames are now filtered out by default (service codes)."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test cases that are now filtered out by default (service codes)
+        test_cases = [
+            # Case 1: Numeric service codes (common for verification codes)
+            {
+                "filename": "262966 - Text - 2022-01-12T00_54_17Z.html",
+                "should_skip": True,  # Now filtered out by default
+                "description": "verification service code",
+            },
+            # Case 2: Bank alerts and notifications
+            {
+                "filename": "274624 - Text - 2025-04-16T18_34_53Z.html",
+                "should_skip": True,  # Now filtered out by default
+                "description": "bank alert code",
+            },
+            # Case 3: Emergency/service notifications
+            {
+                "filename": "30368 - Text - 2016-11-13T23_17_42Z.html",
+                "should_skip": True,  # Now filtered out by default
+                "description": "emergency notification code",
+            },
+            # Case 4: Marketing/promotional codes
+            {
+                "filename": "692639 - Text - 2025-04-19T19_47_09Z.html",
+                "should_skip": True,  # Now filtered out by default
+                "description": "promotional code",
+            },
+            # Case 5: Various other service codes
+            {
+                "filename": "78015 - Text - 2020-05-08T17_00_37Z.html",
+                "should_skip": True,  # Now filtered out by default
+                "description": "service notification code",
+            },
+            # Case 6: Still skip truly invalid patterns
+            {
+                "filename": " - Text - 2020-05-08T17_00_37Z.html",
+                "should_skip": True,
+                "description": "invalid empty pattern",
+            },
+            # Case 7: Still skip corrupted filenames
+            {
+                "filename": 'test<>:"|?*.html',
+                "should_skip": True,
+                "description": "corrupted filename with invalid characters",
+            },
+        ]
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                result = sms.should_skip_file(test_case["filename"])
+
+                if test_case["should_skip"]:
+                    self.assertTrue(
+                        result,
+                        f"Should skip {test_case['description']}: {test_case['filename']}",
+                    )
+                else:
+                    self.assertFalse(
+                        result,
+                        f"Should NOT skip {test_case['description']}: {test_case['filename']}",
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
