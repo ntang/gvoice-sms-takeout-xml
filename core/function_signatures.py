@@ -68,60 +68,7 @@ def setup_processing_paths_with_config(
     logger.info("✅ Processing paths initialized with configuration object")
 
 
-def setup_processing_paths_legacy(
-    processing_dir: Union[str, Path],
-    enable_phone_prompts: bool = False,
-    buffer_size: int = 8192,
-    batch_size: int = 1000,
-    cache_size: int = 25000,
-    large_dataset: bool = False,
-    preset: str = "default",
-) -> None:
-    """
-    Legacy version of setup_processing_paths for backward compatibility.
-    
-    This function creates a ProcessingConfig from the legacy parameters
-    and then calls the new configuration-driven version.
-    
-    Args:
-        processing_dir: Path to the processing directory
-        enable_phone_prompts: Whether to enable phone number alias prompts
-        buffer_size: Buffer size for file I/O operations
-        batch_size: Batch size for processing files
-        cache_size: Cache size for performance optimization
-        large_dataset: Whether this is a large dataset
-        output_format: Output format ('html')
-        
-    Raises:
-        ValueError: If parameters are invalid
-        TypeError: If parameter types are incorrect
-    """
-    # Convert processing_dir to Path if it's a string
-    if isinstance(processing_dir, str):
-        processing_dir = Path(processing_dir)
-    
-    # Create a ProcessingConfig from the legacy parameters with preset
-    from .processing_config import ConfigurationBuilder
-    config = ConfigurationBuilder.create_with_presets(processing_dir, preset)
-    
-    # Override with legacy parameters
-    config_dict = config.to_dict()
-    config_dict.update({
-        'enable_phone_prompts': enable_phone_prompts,
-        'buffer_size': buffer_size,
-        'batch_size': batch_size,
-        'cache_size': cache_size,
-        'large_dataset': large_dataset,
-    })
-    
-    # Create final configuration
-    from .processing_config import ProcessingConfig
-    config = ProcessingConfig.from_dict(config_dict)
-    
-    # Call the new configuration-driven version
-    setup_processing_paths_with_config(config)
-    
-    logger.info("✅ Processing paths initialized with legacy parameters (converted to config)")
+# Legacy functions removed - migration complete
 
 
 def migrate_sms_module_to_configuration(
@@ -227,54 +174,4 @@ def validate_processing_config(config: ProcessingConfig) -> bool:
         return False
 
 
-def create_processing_config_from_legacy(
-    processing_dir: Union[str, Path],
-    enable_phone_prompts: bool = False,
-    buffer_size: int = 8192,
-    batch_size: int = 1000,
-    cache_size: int = 25000,
-    large_dataset: bool = False,
-    preset: str = "default"
-) -> ProcessingConfig:
-    """
-    Create a ProcessingConfig from legacy parameters.
-    
-    This function provides a bridge between the old parameter-based approach
-    and the new configuration object approach.
-    
-    Args:
-        processing_dir: Path to the processing directory
-        enable_phone_prompts: Whether to enable phone number alias prompts
-        buffer_size: Buffer size for file I/O operations
-        batch_size: Batch size for processing files
-        cache_size: Cache size for performance optimization
-        large_dataset: Whether this is a large dataset
-        output_format: Output format ('html')
-        preset: Preset name to use as base
-        
-    Returns:
-        ProcessingConfig: Configuration object with the specified settings
-    """
-    # Convert processing_dir to Path if it's a string
-    if isinstance(processing_dir, str):
-        processing_dir = Path(processing_dir)
-    
-    # Start with preset configuration
-    from .processing_config import ConfigurationBuilder
-    config = ConfigurationBuilder.create_with_presets(processing_dir, preset)
-    
-    # Override with legacy parameters
-    config_dict = config.to_dict()
-    config_dict.update({
-        'enable_phone_prompts': enable_phone_prompts,
-        'buffer_size': buffer_size,
-        'batch_size': batch_size,
-        'cache_size': cache_size,
-        'large_dataset': large_dataset,
-    })
-    
-    # Create new configuration with overrides
-    final_config = ProcessingConfig.from_dict(config_dict)
-    
-    logger.info(f"✅ ProcessingConfig created from legacy parameters with {preset} preset")
-    return final_config
+# Legacy config creation removed - use ConfigurationBuilder directly

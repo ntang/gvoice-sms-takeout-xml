@@ -11,11 +11,9 @@ from unittest.mock import patch, MagicMock
 
 from core.function_signatures import (
     setup_processing_paths_with_config,
-    setup_processing_paths_legacy,
     migrate_sms_module_to_configuration,
     get_effective_processing_config,
-    validate_processing_config,
-    create_processing_config_from_legacy
+    validate_processing_config
 )
 from core.processing_config import ProcessingConfig
 
@@ -23,55 +21,7 @@ from core.processing_config import ProcessingConfig
 class TestFunctionSignatures:
     """Test the function signature updates."""
     
-    def test_create_processing_config_from_legacy_basic(self):
-        """Test creating ProcessingConfig from basic legacy parameters."""
-        config = create_processing_config_from_legacy(
-            '/tmp/test',
-            enable_phone_prompts=True,
-        )
-        
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.enable_phone_prompts is True
-        assert config.output_format == 'html'
-        assert config.test_mode is False  # Default preset
-    
-    def test_create_processing_config_from_legacy_with_preset(self):
-        """Test creating ProcessingConfig from legacy parameters with test preset."""
-        config = create_processing_config_from_legacy(
-            '/tmp/test',
-            enable_phone_prompts=True,
-            preset='test'
-        )
-        
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.enable_phone_prompts is True
-        assert config.output_format == 'html'
-        assert config.test_mode is True  # Test preset
-        assert config.strict_mode is True  # Test preset
-    
-    def test_create_processing_config_from_legacy_string_path(self):
-        """Test creating ProcessingConfig from string path."""
-        config = create_processing_config_from_legacy(
-            '/tmp/test',
-            buffer_size=16384,
-            batch_size=500
-        )
-        
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.buffer_size == 16384
-        assert config.batch_size == 500
-    
-    def test_create_processing_config_from_legacy_path_object(self):
-        """Test creating ProcessingConfig from Path object."""
-        config = create_processing_config_from_legacy(
-            Path('/tmp/test'),
-            cache_size=50000,
-            large_dataset=True
-        )
-        
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.cache_size == 50000
-        assert config.large_dataset is True
+    # Legacy function tests removed - migration complete
     
     def test_validate_processing_config_valid(self):
         """Test validation of valid processing configuration."""
@@ -176,77 +126,7 @@ class TestSetupProcessingPaths:
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
-    @patch('core.function_signatures.setup_processing_paths_with_config')
-    def test_setup_processing_paths_legacy(self, mock_setup_with_config):
-        """Test setup_processing_paths_legacy function."""
-        setup_processing_paths_legacy(
-            '/tmp/test',
-            enable_phone_prompts=True,
-            buffer_size=16384,
-            batch_size=500,
-            cache_size=50000,
-            large_dataset=True,
-        )
-        
-        # Verify the new function was called
-        mock_setup_with_config.assert_called_once()
-        
-        # Get the config that was passed
-        call_args = mock_setup_with_config.call_args
-        config = call_args[0][0]  # First positional argument
-        
-        # Verify the config was created correctly
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.enable_phone_prompts is True
-        assert config.buffer_size == 16384
-        assert config.batch_size == 500
-        assert config.cache_size == 50000
-        assert config.large_dataset is True
-        assert config.output_format == 'html'
-    
-    @patch('core.function_signatures.setup_processing_paths_with_config')
-    def test_setup_processing_paths_legacy_with_path_object(self, mock_setup_with_config):
-        """Test setup_processing_paths_legacy with Path object."""
-        setup_processing_paths_legacy(
-            Path('/tmp/test'),
-            enable_phone_prompts=False,
-        )
-        
-        # Verify the new function was called
-        mock_setup_with_config.assert_called_once()
-        
-        # Get the config that was passed
-        call_args = mock_setup_with_config.call_args
-        config = call_args[0][0]  # First positional argument
-        
-        # Verify the config was created correctly
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.enable_phone_prompts is False
-        assert config.output_format == 'html'
-    
-    @patch('core.function_signatures.setup_processing_paths_with_config')
-    def test_setup_processing_paths_legacy_with_overrides(self, mock_setup_with_config):
-        """Test setup_processing_paths_legacy with parameter overrides."""
-        setup_processing_paths_legacy(
-            '/tmp/test',
-            enable_phone_prompts=True,
-            buffer_size=32768,
-            preset='test'
-        )
-        
-        # Verify the new function was called
-        mock_setup_with_config.assert_called_once()
-        
-        # Get the config that was passed
-        call_args = mock_setup_with_config.call_args
-        config = call_args[0][0]  # First positional argument
-        
-        # Verify the config was created correctly with test preset
-        assert config.processing_dir == Path('/tmp/test')
-        assert config.enable_phone_prompts is True
-        assert config.buffer_size == 32768
-        assert config.test_mode is True  # From test preset
-        assert config.strict_mode is True  # From test preset
+    # Legacy setup_processing_paths_legacy tests removed - migration complete
 
 
 class TestMigrationFunctions:
