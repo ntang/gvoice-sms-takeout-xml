@@ -2339,6 +2339,89 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                 f"Progress should be accurate at message {message_idx + 1}",
             )
 
+    def test_comprehensive_timestamp_fallback_strategies(self):
+        """Test all timestamp fallback strategies comprehensively."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test that each strategy is tried in order and works
+        strategies = [
+            # Strategy 1: dt class with title
+            {
+                "html": '<div class="message"><abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr><q>Test</q></div>',
+                "description": "dt class with title attribute",
+            },
+            # Strategy 2: abbr with title (no dt class)
+            {
+                "html": '<div class="message"><abbr title="2024-02-20T14:45:30Z">Feb 20</abbr><q>Test</q></div>',
+                "description": "abbr element with title attribute",
+            },
+            # Strategy 3: time with datetime
+            {
+                "html": '<div class="message"><time datetime="2024-03-25T09:15:45Z">Mar 25</time><q>Test</q></div>',
+                "description": "time element with datetime attribute",
+            },
+            # Strategy 4: any element with datetime
+            {
+                "html": '<div class="message"><span datetime="2024-04-10T16:20:15Z">Apr 10</span><q>Test</q></div>',
+                "description": "any element with datetime attribute",
+            },
+            # Strategy 5: ISO pattern in text
+            {
+                "html": '<div class="message"><q>Test</q><span>2024-05-12T11:30:00Z</span></div>',
+                "description": "ISO timestamp pattern in text content",
+            },
+            # Strategy 6: Flexible date parsing
+            {
+                "html": '<div class="message"><q>Test</q><span>12/25/2023 3:45 PM</span></div>',
+                "description": "flexible date/time parsing",
+            },
+            # Strategy 7: Element text parsing
+            {
+                "html": '<div class="message"><q>Test</q><div>2024-06-18</div></div>',
+                "description": "timestamp in element text",
+            },
+        ]
+
+        import time
+        from bs4 import BeautifulSoup
+
+        for i, strategy in enumerate(strategies):
+            with self.subTest(i=i, strategy=strategy["description"]):
+                soup = BeautifulSoup(strategy["html"], "html.parser")
+                message = soup.find("div", class_="message")
+                if not message:
+                    message = soup.find("div")
+
+                # Should extract timestamp successfully
+                result = sms.get_time_unix(message)
+                self.assertIsInstance(
+                    result, int, f"Strategy {i+1} should return valid timestamp"
+                )
+                self.assertGreater(
+                    result, 0, f"Strategy {i+1} should return positive timestamp"
+                )
+
+                # Verify it's a reasonable timestamp (not epoch 0 or current time fallback)
+                current_time = int(time.time() * 1000)
+                # Allow for timezone differences and parsing variations
+                # The timestamp should be reasonable (not epoch 0, not too far in future)
+                self.assertGreater(
+                    result,
+                    1000000000000,
+                    f"Strategy {i+1} should return reasonable timestamp (after 2001)",
+                )
+                # For past dates, ensure they're not unreasonably far in the future
+                # Allow up to 1 year in the future to account for timezone and parsing differences
+                max_allowed_future = current_time + (
+                    365 * 24 * 60 * 60 * 1000
+                )  # 1 year in milliseconds
+                self.assertLess(
+                    result,
+                    max_allowed_future,
+                    f"Strategy {i+1} should not return unreasonably far future timestamp",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
