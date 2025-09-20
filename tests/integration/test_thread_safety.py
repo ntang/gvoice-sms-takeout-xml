@@ -108,7 +108,7 @@ class TestThreadSafety(unittest.TestCase):
         sms.get_first_phone_number_cached.cache_clear()
         sms.get_participant_phone_numbers_cached.cache_clear()
         sms.parse_timestamp_cached.cache_clear()
-        sms.build_attachment_xml_part_cached.cache_clear()
+        # sms.build_attachment_xml_part_cached.cache_clear()  # Function removed - only HTML output supported
         sms.get_image_type.cache_clear()
         sms.encode_file_content.cache_clear()
         
@@ -456,7 +456,7 @@ class TestMultiprocessSafety(unittest.TestCase):
         sms.get_first_phone_number_cached.cache_clear()
         sms.get_participant_phone_numbers_cached.cache_clear()
         sms.parse_timestamp_cached.cache_clear()
-        sms.build_attachment_xml_part_cached.cache_clear()
+        # sms.build_attachment_xml_part_cached.cache_clear()  # Function removed - only HTML output supported
         sms.get_image_type.cache_clear()
         sms.encode_file_content.cache_clear()
         

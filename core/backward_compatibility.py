@@ -234,7 +234,7 @@ def setup_processing_paths_legacy_compat(
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-    output_format: str = "html",
+    phone_lookup_file: Optional[Path] = None,
 ) -> None:
     """
     Legacy-compatible version of setup_processing_paths.
@@ -259,6 +259,7 @@ def setup_processing_paths_legacy_compat(
         batch_size=batch_size,
         cache_size=cache_size,
         large_dataset=large_dataset,
+        phone_lookup_file=phone_lookup_file,
     )
 
 

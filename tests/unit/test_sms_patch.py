@@ -297,9 +297,8 @@ class TestSMSModulePatchFunctions:
         from core.sms_patch import _active_patchers
         _active_patchers.clear()
     
-    @patch('core.sms_patch.enable_backward_compatibility')
     @patch('core.sms_patch.SMSModulePatcher')
-    def test_patch_sms_module(self, mock_patcher_class, mock_enable_compat):
+    def test_patch_sms_module(self, mock_patcher_class):
         """Test the main patch_sms_module function."""
         # Create test configuration
         config = ProcessingConfig(processing_dir=Path('/tmp/test'))
@@ -318,8 +317,7 @@ class TestSMSModulePatchFunctions:
         mock_patcher.patch_global_variables.assert_called_once_with(config)
         mock_patcher.patch_functions.assert_called_once()
         
-        # Check that backward compatibility was enabled
-        mock_enable_compat.assert_called_once()
+        # Backward compatibility removed - migration complete
         
         # Check return value
         assert result == mock_patcher
