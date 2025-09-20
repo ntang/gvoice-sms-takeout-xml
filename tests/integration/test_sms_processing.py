@@ -265,6 +265,12 @@ class TestSMSProcessing(BaseSMSTest):
         # Clear any existing conversations from other tests
         manager.conversation_files.clear()
         manager.conversation_stats.clear()
+        
+        # Clear the output directory to ensure clean state
+        import shutil
+        if manager.output_dir.exists():
+            shutil.rmtree(manager.output_dir)
+        manager.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Create test conversation files with proper file objects
         conversation_id1 = "test_conversation_1"
