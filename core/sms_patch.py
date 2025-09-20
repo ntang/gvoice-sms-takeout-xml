@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 from .processing_config import ProcessingConfig
 from .configuration_manager import get_configuration_manager, set_global_configuration
 from .function_signatures import setup_processing_paths_with_config
-from .backward_compatibility import enable_backward_compatibility
+# from .backward_compatibility import enable_backward_compatibility  # Removed - migration complete
 
 logger = logging.getLogger(__name__)
 
@@ -354,8 +354,8 @@ def patch_sms_module(config: ProcessingConfig) -> SMSModulePatcher:
     # Patch functions
     patcher.patch_functions()
     
-    # Enable backward compatibility
-    enable_backward_compatibility()
+    # Backward compatibility removed - migration complete
+    # enable_backward_compatibility()
     
     # Register the patcher
     register_patcher(patcher)
