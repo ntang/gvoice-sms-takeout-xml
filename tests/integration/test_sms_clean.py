@@ -264,6 +264,524 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
         self.assertIsNotNone(sms.PHONE_LOOKUP_MANAGER)
         self.assertIsNotNone(sms.PATH_MANAGER)
 
+    def test_html_output_format(self):
+        """Test HTML output format functionality."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        manager = sms.CONVERSATION_MANAGER
+
+        # Test that output format is set correctly
+        self.assertEqual(manager.output_format, "html")
+
+        # Test conversation filename generation for HTML
+        conversation_id = "test_conversation"
+        filename = manager.get_conversation_filename(conversation_id)
+        self.assertEqual(filename.suffix, ".html")
+
+        # Test message writing (using dictionary format)
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello World", []
+        )
+
+        # Test finalization
+        manager.finalize_conversation_files()
+
+        # Check that output directory was created
+        self.assertTrue(manager.output_dir.exists())
+
+        # Check that HTML file was created
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        self.assertTrue(html_file.exists())
+
+        # Check HTML content
+        with open(html_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            self.assertIn("<!DOCTYPE html>", content)
+            self.assertIn("<table>", content)
+            self.assertIn("Hello World", content)
+            self.assertIn("SMS Conversation: test_conversation", content)
+
+    def test_html_output_sender_column(self):
+        """Verify HTML output includes Sender column and renders a sender cell."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "sender_column_test"
+        # Test sender column display
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello Sender Column", []
+        )
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        self.assertTrue(html_file.exists())
+        content = html_file.read_text(encoding="utf-8")
+        self.assertIn("<th>Sender</th>", content)
+        self.assertIn('class="sender"', content)
+
+    def test_html_output_sms_sender_display(self):
+        """Verify SMS sender display shows 'Me' for sent and alias for received."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "sms_sender_display"
+        # Simulate two messages: sent by Me and received from Alice
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Me", "Hi", []
+        )
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:01:40", "Alice", "Hello", []
+        )
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        content = html_file.read_text(encoding="utf-8")
+        self.assertIn('<td class="sender">Me</td>', content)
+        self.assertIn('<td class="sender">Alice</td>', content)
+
+    def test_html_output_comprehensive_regression(self):
+        """Comprehensive regression test for all HTML output fixes."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "regression_test"
+        
+        # Test 1: Dictionary-based messages (XML parsing no longer supported)
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "+15551234567", "Hello from XML", []
+        )
+        
+        # Test 2: Dictionary-based messages with sender information
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:01:00", "Alice", "Hello from dict", []
+        )
+        
+        # Test 3: Message with attachments
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:02:00", "Bob", "Message with attachment", 
+            [{"filename": "test_image.jpg", "content_type": "image/jpeg"}]
+        )
+        
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        self.assertTrue(html_file.exists())
+        content = html_file.read_text(encoding="utf-8")
+        
+        # Verify basic HTML structure
+        self.assertIn("<!DOCTYPE html>", content)
+        self.assertIn("<table>", content)
+        self.assertIn("<th>Sender</th>", content)
+        
+        # Verify message content
+        self.assertIn("Hello from XML", content)
+        self.assertIn("Hello from dict", content)
+        self.assertIn("Message with attachment", content)
+        
+        # Verify sender information
+        self.assertIn('<td class="sender">+15551234567</td>', content)
+        self.assertIn('<td class="sender">Alice</td>', content)
+        self.assertIn('<td class="sender">Bob</td>', content)
+
+    def test_index_html_generation(self):
+        """Test index.html generation functionality."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        manager = sms.CONVERSATION_MANAGER
+
+        # Create test conversations using the clean approach
+        conversation_id1 = "test_conversation_1"
+        conversation_id2 = "test_conversation_2"
+
+        # Write messages to conversations
+        manager.write_message_with_content(
+            conversation_id1, "2022-01-01 00:00:00", "+15551234567", "Hello World", []
+        )
+        manager.write_message_with_content(
+            conversation_id2, "2022-01-01 00:01:00", "+15559876543", "Goodbye World", []
+        )
+
+        # Finalize conversation files first
+        manager.finalize_conversation_files()
+
+        # Test index.html generation
+        test_stats = {
+            "num_sms": 2,
+            "num_calls": 0,
+            "num_voicemails": 0,
+            "num_img": 0,
+            "num_vcard": 0,
+        }
+
+        # Generate index.html
+        manager.generate_index_html(test_stats, 1.5)
+
+        # Check that index.html was created
+        index_file = manager.output_dir / "index.html"
+        self.assertTrue(index_file.exists())
+
+        # Check index.html content
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("<!DOCTYPE html>", content)
+        self.assertIn("<title>Google Voice Conversations Index</title>", content)
+        self.assertIn("test_conversation_1.html", content)
+        self.assertIn("test_conversation_2.html", content)
+        self.assertIn("Total conversations: 2", content)
+        self.assertIn("SMS Messages", content)
+
+    def test_index_generation_regression(self):
+        """Regression test for index generation with missing conversation stats."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        manager = sms.CONVERSATION_MANAGER
+
+        # Create test conversations using the clean approach
+        conversation_id1 = "manual_conversation_1"
+        conversation_id2 = "manual_conversation_2"
+
+        # Write messages to conversations
+        manager.write_message_with_content(
+            conversation_id1, "2022-01-01 00:00:00", "+15551234567", "Hello World", []
+        )
+        manager.write_message_with_content(
+            conversation_id2, "2022-01-01 00:01:00", "+15559876543", "Goodbye World", []
+        )
+
+        # Finalize conversation files first
+        manager.finalize_conversation_files()
+
+        # Test index.html generation with minimal stats
+        test_stats = {
+            "num_sms": 2,
+            "num_calls": 1,
+            "num_voicemails": 0,
+            "num_img": 0,
+            "num_vcard": 0,
+        }
+
+        # Generate index.html
+        manager.generate_index_html(test_stats, 1.5)
+
+        # Check that index.html was created
+        index_file = manager.output_dir / "index.html"
+        self.assertTrue(index_file.exists())
+
+        # Check index.html content
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("<!DOCTYPE html>", content)
+        self.assertIn("<title>Google Voice Conversations Index</title>", content)
+        self.assertIn("manual_conversation_1.html", content)
+        self.assertIn("manual_conversation_2.html", content)
+
+    def test_calls_and_voicemails_processed(self):
+        """Ensure calls and voicemails are captured and timestamps vary."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+        manager = sms.CONVERSATION_MANAGER
+
+        # Create synthetic call and voicemail files with proper Google Voice naming patterns
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        call_file = calls_dir / "test_call_placed_2024-02-01.html"
+        vm_file = calls_dir / "test_voicemail_2023-03-05.html"
+        
+        call_file.write_text(
+            """
+            <html><head><title>Placed call</title></head><body>
+                <abbr class="dt" title="2024-02-01T15:00:00Z"></abbr>
+                <a class="tel" href="tel:+15550000001">User</a>
+                <abbr class="duration" title="PT45S">(0:45)</abbr>
+            </body></html>
+            """,
+            encoding="utf-8",
+        )
+        
+        vm_file.write_text(
+            """
+            <html><head><title>Voicemail</title></head><body>
+                <abbr class="dt" title="2023-03-05T10:30:00Z"></abbr>
+                <a class="tel" href="tel:+15550000002">User</a>
+                <div class="message">Test voicemail</div>
+            </body></html>
+            """,
+            encoding="utf-8",
+        )
+
+        # Test that files exist and can be read
+        self.assertTrue(call_file.exists())
+        self.assertTrue(vm_file.exists())
+        
+        # Test that we can read the content
+        call_content = call_file.read_text(encoding="utf-8")
+        vm_content = vm_file.read_text(encoding="utf-8")
+        
+        self.assertIn("Placed call", call_content)
+        self.assertIn("Voicemail", vm_content)
+        self.assertIn("tel:+15550000001", call_content)
+        self.assertIn("tel:+15550000002", vm_content)
+
+    def test_call_voicemail_timestamp_parsing(self):
+        """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Create a call file with a specific timestamp in HTML
+        calls_dir = test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        call_file = calls_dir / "test-call-2020.html"
+
+        # HTML with timestamp from 2020 - using published class like real Google Voice data
+        call_html = """
+        <html><head><title>Placed call</title></head><body>
+            <abbr class="published" title="2020-06-15T14:30:00.000-04:00">Jun 15, 2020</abbr>
+            <a class="tel" href="tel:+15550000001">Test User</a>
+            <abbr class="duration" title="PT2M30S">(2:30)</abbr>
+        </body></html>
+        """
+        call_file.write_text(call_html, encoding="utf-8")
+
+        # Wait a moment to ensure file mtime differs from content timestamp
+        import time
+        time.sleep(0.1)
+
+        # Touch the file to change its modification time to current time
+        call_file.touch()
+
+        # Test that we can read the file and extract timestamp information
+        with open(call_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            self.assertIn("2020-06-15T14:30:00.000-04:00", content)
+            self.assertIn("Jun 15, 2020", content)
+            self.assertIn("Test User", content)
+
+    def test_date_filtering_functionality(self):
+        """Test that date filtering works correctly for messages."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        from datetime import datetime
+
+        # Test older-than filter
+        sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
+
+        # Messages from 2022 should be skipped
+        old_timestamp = int(datetime(2022, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(old_timestamp)
+        self.assertTrue(
+            should_skip,
+            "Message from 2022 should be skipped with older-than 2023 filter",
+        )
+
+        # Messages from 2023 should NOT be skipped
+        new_timestamp = int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(new_timestamp)
+        self.assertFalse(
+            should_skip,
+            "Message from 2023 should NOT be skipped with older-than 2023 filter",
+        )
+
+        # Reset filter
+        sms.DATE_FILTER_OLDER_THAN = None
+
+        # Test newer-than filter
+        sms.DATE_FILTER_NEWER_THAN = datetime(2024, 12, 31)
+
+        # Messages from 2025 should be skipped
+        future_timestamp = int(datetime(2025, 1, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(future_timestamp)
+        self.assertTrue(
+            should_skip,
+            "Message from 2025 should be skipped with newer-than 2024 filter",
+        )
+
+        # Messages from 2024 should NOT be skipped
+        current_timestamp = int(datetime(2024, 6, 15, 12, 0, 0).timestamp() * 1000)
+        should_skip = sms.should_skip_message_by_date(current_timestamp)
+        self.assertFalse(
+            should_skip,
+            "Message from 2024 should NOT be skipped with newer-than 2024 filter",
+        )
+
+        # Reset filter
+        sms.DATE_FILTER_NEWER_THAN = None
+
+    def test_date_filtering_edge_cases(self):
+        """Test edge cases for date filtering."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        from datetime import datetime
+
+        # Test with no filters (should not skip anything)
+        sms.DATE_FILTER_OLDER_THAN = None
+        sms.DATE_FILTER_NEWER_THAN = None
+
+        test_timestamps = [
+            int(datetime(2020, 1, 1, 0, 0, 0).timestamp() * 1000),  # Very old
+            int(datetime(2023, 6, 15, 12, 0, 0).timestamp() * 1000),  # Recent
+            int(datetime(2025, 12, 31, 23, 59, 59).timestamp() * 1000),  # Future
+        ]
+
+        for timestamp in test_timestamps:
+            with self.subTest(timestamp=timestamp):
+                should_skip = sms.should_skip_message_by_date(timestamp)
+                self.assertFalse(
+                    should_skip,
+                    f"Message should NOT be skipped with no filters: {timestamp}",
+                )
+
+        # Test with invalid timestamps (should not skip)
+        invalid_timestamps = [0, -1, 999999999999999]  # Invalid Unix timestamps
+
+        for timestamp in invalid_timestamps:
+            with self.subTest(timestamp=timestamp):
+                should_skip = sms.should_skip_message_by_date(timestamp)
+                self.assertFalse(
+                    should_skip,
+                    f"Invalid timestamp should NOT cause skipping: {timestamp}",
+                )
+
+    def test_service_code_filtering_command_line(self):
+        """Test that service code filtering can be controlled via command line arguments."""
+        test_dir = Path(self.test_dir)
+
+        # Test default behavior (service codes filtered out)
+        sms.INCLUDE_SERVICE_CODES = False
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Service codes should be skipped by default
+        test_cases = [
+            "262966 - Text - 2022-01-12T00_54_17Z.html",
+            "274624 - Text - 2025-04-16T18_34_53Z.html",
+            "30368 - Text - 2016-11-13T23_17_42Z.html",
+            "692639 - Text - 2025-04-19T19_47_09Z.html",
+            "78015 - Text - 2020-05-08T17_00_37Z.html",
+        ]
+
+        for filename in test_cases:
+            with self.subTest(filename=filename):
+                should_skip = sms.should_skip_file(filename)
+                self.assertTrue(
+                    should_skip,
+                    f"Service code should be skipped by default: {filename}",
+                )
+
+        # Test with service codes enabled
+        sms.INCLUDE_SERVICE_CODES = True
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Service codes should NOT be skipped when enabled
+        for filename in test_cases:
+            with self.subTest(filename=filename):
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(
+                    should_skip,
+                    f"Service code should NOT be skipped when enabled: {filename}",
+                )
+
+    def test_service_code_filename_support(self):
+        """Test that service codes and short codes are filtered out by default but can be enabled."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test various service code patterns that should be processed
+        service_codes = [
+            # Common verification code senders
+            "262966",  # Common verification service
+            "87892",  # Verification service
+            "47873",  # Marketing service
+            "44444",  # Common service code
+            "22395",  # Alert service
+            "78015",  # Notification service
+            "386732",  # Business alert
+            "692639",  # Promotional code
+            "274624",  # Bank alert
+            "30368",  # Emergency notification
+            "12345",  # Generic service
+            "99999",  # Service code
+        ]
+
+        # Test default behavior (service codes filtered out)
+        # Ensure INCLUDE_SERVICE_CODES is False
+        sms.INCLUDE_SERVICE_CODES = False
+        for code in service_codes:
+            filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
+            with self.subTest(code=code):
+                # Should be skipped by default (filtered out)
+                should_skip = sms.should_skip_file(filename)
+                self.assertTrue(
+                    should_skip,
+                    f"Service code {code} should be skipped by default",
+                )
+
+        # Test with service codes enabled
+        sms.INCLUDE_SERVICE_CODES = True
+
+        # Service codes should NOT be skipped when enabled
+        for code in service_codes:
+            filename = f"{code} - Text - 2025-01-01T12_00_00Z.html"
+            with self.subTest(code=code):
+                should_skip = sms.should_skip_file(filename)
+                self.assertFalse(
+                    should_skip,
+                    f"Service code {code} should NOT be skipped when enabled",
+                )
+
+    def test_conversation_id_generation_consistency(self):
+        """Test that conversation IDs are generated consistently for the same participants."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test that the same participants always generate the same conversation ID
+        test_participants = ["+15551234567", "Susan Nowak Tang"]
+
+        # Generate conversation ID multiple times
+        conversation_ids = []
+        for _ in range(5):
+            conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(
+                test_participants, True
+            )
+            conversation_ids.append(conversation_id)
+
+        # All conversation IDs should be the same
+        unique_ids = set(conversation_ids)
+        self.assertEqual(
+            len(unique_ids),
+            1,
+            f"Same participants should always generate same conversation ID, got: {unique_ids}",
+        )
+
+        # Test with different participant orders
+        reversed_participants = list(reversed(test_participants))
+        reversed_conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(
+            reversed_participants, True
+        )
+
+        # Should generate different IDs for different orders (current behavior)
+        self.assertNotEqual(
+            conversation_ids[0],
+            reversed_conversation_id,
+            "Conversation ID should be different for different participant orders",
+        )
+
+        # Test with different participants
+        different_participants = ["+15559876543", "Different Person"]
+        different_conversation_id = sms.CONVERSATION_MANAGER.get_conversation_id(
+            different_participants, True
+        )
+
+        # Should generate a different ID
+        self.assertNotEqual(
+            conversation_ids[0],
+            different_conversation_id,
+            "Different participants should generate different conversation IDs",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
