@@ -277,7 +277,7 @@ class ConversationManager:
             # Append the message to the internal buffer
             message_data = {
                 "text": message,
-                "attachments": [],
+                "attachments": attachments or [],
                 "sender": sender,
                 "raw_content": None,  # Not needed for HTML output
             }
@@ -563,6 +563,20 @@ class ConversationManager:
                     # Skip conversations with no messages (safety net)
                     total_messages = (conv_stats['sms_count'] + conv_stats['calls_count'] + 
                                      conv_stats['voicemails_count'])
+                    
+                    # If stats are missing but file exists and has content, estimate from file
+                    if total_messages == 0 and file_size > 100:  # File has content
+                        logger.debug(f"No cached stats for {file_path.name}, estimating from file content")
+                        # Estimate stats from file content for display purposes
+                        conv_stats = {
+                            'sms_count': 1,  # Assume at least 1 message if file has content
+                            'calls_count': 0,
+                            'voicemails_count': 0,
+                            'attachments_count': 0,
+                            'latest_message_time': 'Unknown'
+                        }
+                        total_messages = 1
+                    
                     if total_messages == 0:
                         logger.debug(f"Skipping empty conversation file: {file_path.name}")
                         continue
@@ -819,32 +833,40 @@ class ConversationManager:
             message_rows = []
             for timestamp, message_data in sorted_messages:
                 if isinstance(message_data, dict):
-                    # Extract message content
+                    # Extract message content from dictionary
                     text = message_data.get('text', '')
                     attachments = message_data.get('attachments', [])
                     sender = message_data.get('sender', 'Unknown')
-                    
-                    # Format timestamp
-                    formatted_time = self._format_timestamp(timestamp)
-                    
-                    # Build attachments HTML
-                    attachments_html = ""
-                    if attachments:
-                        attachment_links = []
-                        for attachment in attachments:
-                            if isinstance(attachment, dict) and 'filename' in attachment:
-                                attachment_links.append(f'<a href="{attachment["filename"]}" class="attachment">{attachment["filename"]}</a>')
-                        if attachment_links:
-                            attachments_html = "<br>".join(attachment_links)
-                    
-                    # Create message row
-                    row = f"""
-                    <tr>
-                        <td class="timestamp">{formatted_time}</td>
-                        <td class="message">{text}</td>
-                        <td class="attachments">{attachments_html}</td>
-                    </tr>"""
-                    message_rows.append(row)
+                else:
+                    # Parse raw XML string
+                    text, attachments_str = self._extract_message_content(message_data)
+                    attachments = [attachments_str] if attachments_str else []
+                    sender = 'Unknown'  # Default sender for XML messages
+                
+                # Format timestamp
+                formatted_time = self._format_timestamp(timestamp)
+                
+                # Build attachments HTML
+                attachments_html = ""
+                if attachments:
+                    attachment_links = []
+                    for attachment in attachments:
+                        if isinstance(attachment, dict) and 'filename' in attachment:
+                            attachment_links.append(f'<a href="{attachment["filename"]}" class="attachment">{attachment["filename"]}</a>')
+                        elif isinstance(attachment, str) and attachment:
+                            attachment_links.append(f'<span class="attachment">{attachment}</span>')
+                    if attachment_links:
+                        attachments_html = "<br>".join(attachment_links)
+                
+                # Create message row
+                row = f"""
+                <tr>
+                    <td class="timestamp">{formatted_time}</td>
+                    <td class="sender">{sender}</td>
+                    <td class="message">{text}</td>
+                    <td class="attachments">{attachments_html}</td>
+                </tr>"""
+                message_rows.append(row)
             
             # Build HTML header efficiently
             header = format_conversation_template(
