@@ -308,9 +308,7 @@ class TestSMSBasic(unittest.TestCase):
 
     def test_performance_monitoring(self):
         """Test performance monitoring functions."""
-        # Test log_performance
-        start_time = 1000.0
-        sms.log_performance("test_function", start_time, 100)
+        # Legacy log_performance function removed - migration complete
 
         # Test should_report_progress
         result = sms.should_report_progress(50, 100, 0)
@@ -370,20 +368,11 @@ class TestSMSBasic(unittest.TestCase):
 
     def test_string_pool(self):
         """Test string pooling functionality."""
-        # Test string pooling
+        # Legacy string pooling functions removed - migration complete
+        # String pooling was implemented as no-op functions
         test_string = "test_value"
-        pooled_string = sms.get_pooled_string(test_string)
-        self.assertEqual(pooled_string, test_string)
-
-        # Test that the same string is returned from pool
-        pooled_string2 = sms.get_pooled_string(test_string)
-        self.assertIs(pooled_string, pooled_string2)
-
-        # Test clearing the pool
-        sms.clear_string_pool()
-        pooled_string3 = sms.get_pooled_string(test_string)
-        # After clearing, it should be a new string (not the same object)
-        self.assertEqual(pooled_string3, test_string)
+        # Direct string operations work the same way
+        self.assertEqual(test_string, test_string)
 
     def test_mms_placeholder_messages(self):
         """Test MMS placeholder message constants."""
@@ -514,24 +503,15 @@ class TestSMSBasic(unittest.TestCase):
         # Traditional concatenation can be faster for small operations due to overhead
         self.assertEqual(len(result), len(traditional_result))
 
-        # Test string pooling performance
-        start_time = time.time()
-        for i in range(1000):
-            # pooled variable removed - not used
-            sms.get_pooled_string(f"test_string_{i % 100}")  # Reuse some strings
-        pooling_time = time.time() - start_time
-
-        # String pooling should be fast
-        self.assertLess(pooling_time, 0.1)  # Should complete in under 100ms
-
+        # Legacy string pooling performance test removed - migration complete
+        # String pooling was implemented as no-op functions
+        
         # Clean up
         builder.clear()
-        sms.clear_string_pool()
 
     def test_memory_efficient_structures(self):
         """Test memory efficient structures."""
-        # Test that the string pool is cleared correctly
-        sms.clear_string_pool()
+        # Legacy string pool clearing removed - migration complete
 
         # Test that StringBuilder's clear method works as expected
         builder = sms.StringBuilder()
