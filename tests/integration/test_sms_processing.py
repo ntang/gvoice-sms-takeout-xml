@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 """
-Unified unit tests for sms.py
+SMS processing integration tests.
 
-This test suite combines basic and comprehensive tests with command-line options:
-- --basic: Run only basic tests (faster)
-- --full: Run full test suite including integration tests
-- --limit N: Set test limit for performance (default: 100)
-
-Examples:
-  python test_sms_unified.py --basic          # Basic tests only
-  python test_sms_unified.py --full           # Full test suite
-  python test_sms_unified.py --basic --limit 50  # Basic tests with 50 limit
-  python test_sms_unified.py --full --limit 200  # Full suite with 200 limit
+This module contains tests for SMS processing functionality
+including conversation management, phone lookup, and HTML output.
 """
 
 import unittest

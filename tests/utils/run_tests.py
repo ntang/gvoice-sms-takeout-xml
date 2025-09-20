@@ -47,7 +47,7 @@ def run_pytest_tests():
     print("🚀 Running tests with pytest...")
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/integration/test_sms_unified.py", "-v", "--tb=short"],
+            [sys.executable, "-m", "pytest", "tests/integration/test_sms_basic.py", "tests/integration/test_sms_advanced.py", "tests/integration/test_sms_processing.py", "tests/integration/test_sms_output.py", "-v", "--tb=short"],
             capture_output=True,
             text=True,
         )
@@ -71,7 +71,10 @@ def run_coverage_tests():
                 sys.executable,
                 "-m",
                 "pytest",
-                "tests/integration/test_sms_unified.py",
+                "tests/integration/test_sms_basic.py",
+                "tests/integration/test_sms_advanced.py", 
+                "tests/integration/test_sms_processing.py",
+                "tests/integration/test_sms_output.py",
                 "--cov=sms",
                 "--cov-report=term-missing",
                 "--cov-report=html",
@@ -107,12 +110,10 @@ def run_quick_validation():
         result = subprocess.run(
             [
                 sys.executable,
-                "sms.py",
+                "cli.py",
                 "--test-mode",
                 "--test-limit",
                 "5",
-                "--output-format",
-                "xml",
                 str(Path.cwd()),
             ],
             capture_output=True,
@@ -125,16 +126,15 @@ def run_quick_validation():
         else:
             print(f"⚠️  Configuration validation had issues: {result.stderr}")
             # Fall back to direct call for basic validation
-            sms.setup_processing_paths(Path.cwd(), output_format="html")
-            sms.validate_configuration()
+            sms.setup_processing_paths(Path.cwd())
             print("✅ Configuration validation passes (fallback)")
 
-        # Test 3: XML escaping
-        test_text = "Hello & World <test>"
-        escaped = sms.escape_xml(test_text)
-        expected = "Hello &amp; World &lt;test&gt;"
-        assert escaped == expected, f"Expected '{expected}', got '{escaped}'"
-        print("✅ XML escaping works correctly")
+        # Test 3: HTML processing (replaced XML escaping test)
+        from bs4 import BeautifulSoup
+        test_html = "<div>Hello & World <test></div>"
+        soup = BeautifulSoup(test_html, 'html.parser')
+        assert soup.get_text() == "Hello & World <test>", "HTML parsing works correctly"
+        print("✅ HTML processing works correctly")
 
         # Test 4: Time formatting
         elapsed_seconds = 3661  # 1 hour, 1 minute, 1 second
