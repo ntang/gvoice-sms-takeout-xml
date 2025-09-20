@@ -2,7 +2,7 @@
 Unit tests for the function signatures module.
 
 Tests the updated function signatures that accept ProcessingConfig
-objects while maintaining backward compatibility.
+objects for the new architecture.
 """
 
 import pytest

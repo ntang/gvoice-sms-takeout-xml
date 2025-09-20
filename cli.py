@@ -3,7 +3,7 @@
 Google Voice SMS Takeout HTML Converter - CLI Interface (New Configuration System)
 
 This module provides a CLI interface that integrates with the new configuration
-system while maintaining backward compatibility with existing functionality.
+system with the new configuration architecture.
 """
 
 import logging
