@@ -288,29 +288,11 @@ class ConversationManager:
             file_info["messages"].append((timestamp, message_data))  # Use actual timestamp
             file_info["buffer_size"] += len(message)
 
-            # Flush buffer if it gets too large
-            if file_info["buffer_size"] > self.write_buffer_size:
-                self._flush_buffer_to_file(conversation_id)
+            # Memory-only buffering: No premature flushing to files
+            # All messages are kept in memory until finalization
 
-    def _flush_buffer_to_file(self, conversation_id: str):
-        """Flush buffered messages to the conversation file."""
-        file_info = self.conversation_files.get(conversation_id)
-        if not file_info:
-            return
-
-        # Write all buffered messages to the file
-        for timestamp, message_data in file_info["messages"]:
-            if isinstance(message_data, dict):
-                # Extract text from message data dictionary
-                message_text = message_data.get("text", "")
-                file_info["file"].write(message_text)
-            else:
-                # Handle legacy string format
-                file_info["file"].write(str(message_data))
-        
-        # Clear the buffer
-        file_info["messages"].clear()
-        file_info["buffer_size"] = 0
+    # _flush_buffer_to_file method removed - using memory-only buffering
+    # Messages are kept in memory until finalization to ensure clean HTML output
 
     def finalize_conversation_files(self):
         """Finalize all conversation files by writing headers and closing tags."""
