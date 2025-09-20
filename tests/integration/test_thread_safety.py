@@ -59,6 +59,28 @@ class TestThreadSafety(unittest.TestCase):
         shared_constants.PROCESSING_DIRECTORY = None
         shared_constants.OUTPUT_DIRECTORY = None
         shared_constants.LOG_FILENAME = None
+        
+        # Clear manager internal state before resetting
+        if shared_constants.CONVERSATION_MANAGER:
+            try:
+                # Clear internal state if the manager has cleanup methods
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'conversation_files'):
+                    shared_constants.CONVERSATION_MANAGER.conversation_files.clear()
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'conversation_stats'):
+                    shared_constants.CONVERSATION_MANAGER.conversation_stats.clear()
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'message_buffer'):
+                    shared_constants.CONVERSATION_MANAGER.message_buffer.clear()
+            except Exception:
+                pass  # Ignore cleanup errors
+        
+        if shared_constants.PHONE_LOOKUP_MANAGER:
+            try:
+                # Clear phone lookup manager state
+                if hasattr(shared_constants.PHONE_LOOKUP_MANAGER, 'phone_aliases'):
+                    shared_constants.PHONE_LOOKUP_MANAGER.phone_aliases.clear()
+            except Exception:
+                pass  # Ignore cleanup errors
+        
         shared_constants.CONVERSATION_MANAGER = None
         shared_constants.PHONE_LOOKUP_MANAGER = None
         shared_constants.PATH_MANAGER = None
@@ -385,6 +407,28 @@ class TestMultiprocessSafety(unittest.TestCase):
         shared_constants.PROCESSING_DIRECTORY = None
         shared_constants.OUTPUT_DIRECTORY = None
         shared_constants.LOG_FILENAME = None
+        
+        # Clear manager internal state before resetting
+        if shared_constants.CONVERSATION_MANAGER:
+            try:
+                # Clear internal state if the manager has cleanup methods
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'conversation_files'):
+                    shared_constants.CONVERSATION_MANAGER.conversation_files.clear()
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'conversation_stats'):
+                    shared_constants.CONVERSATION_MANAGER.conversation_stats.clear()
+                if hasattr(shared_constants.CONVERSATION_MANAGER, 'message_buffer'):
+                    shared_constants.CONVERSATION_MANAGER.message_buffer.clear()
+            except Exception:
+                pass  # Ignore cleanup errors
+        
+        if shared_constants.PHONE_LOOKUP_MANAGER:
+            try:
+                # Clear phone lookup manager state
+                if hasattr(shared_constants.PHONE_LOOKUP_MANAGER, 'phone_aliases'):
+                    shared_constants.PHONE_LOOKUP_MANAGER.phone_aliases.clear()
+            except Exception:
+                pass  # Ignore cleanup errors
+        
         shared_constants.CONVERSATION_MANAGER = None
         shared_constants.PHONE_LOOKUP_MANAGER = None
         shared_constants.PATH_MANAGER = None
