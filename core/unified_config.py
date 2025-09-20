@@ -335,25 +335,17 @@ class AppConfig(BaseSettings):
                 "  • Use --full-run to process all entries, or use --test-limit without --full-run for test mode"
             )
         
-        # Critical conflict: full-run + test-mode
-        # Detect if test_mode was explicitly set to True while full_run is True
+        # Resolve conflict: full-run overrides test-mode
+        # When both are set, full_run takes precedence and test_mode is effectively disabled
         if self.full_run and self.test_mode:
-            errors.append(
-                "Conflicting options: --full-run and --test-mode cannot be used together.\n"
-                "  • --full-run means 'process all entries without test mode limitations'\n"
-                "  • --test-mode means 'enable testing mode with limited processing'\n"
-                "  • These are mutually exclusive concepts\n"
-                "  • Use --full-run to process all entries, or use --test-mode without --full-run for test mode"
-            )
+            # Resolve the conflict by disabling test_mode
+            self.test_mode = False
         
-        # Critical conflict: verbose + debug
+        # Resolve conflict: debug overrides verbose
+        # When both are set, debug takes precedence and verbose is effectively disabled
         if self.verbose and self.debug:
-            errors.append(
-                "Conflicting options: --verbose and --debug cannot be used together.\n"
-                "  • --verbose sets logging to INFO level\n"
-                "  • --debug sets logging to DEBUG level (includes verbose)\n"
-                "  • Use --debug for maximum detail, or --verbose for moderate detail"
-            )
+            # Resolve the conflict by disabling verbose
+            self.verbose = False
         
         if errors:
             raise ValueError("\n\n".join(errors))
@@ -393,7 +385,7 @@ class AppConfig(BaseSettings):
     def effective_test_limit(self) -> int:
         """Get the effective test limit."""
         if self.full_run:
-            return 10000  # Maximum allowed value for full run mode
+            return 0  # No limit in full run mode
         return self.test_limit
     
     # ====================================================================

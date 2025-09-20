@@ -73,6 +73,44 @@ class TestSMSBasic(unittest.TestCase):
 
     def tearDown(self):
         """Clean up after each test method."""
+        # Reset SMS module global variables to allow fresh setup in next test
+        import sms
+        from core import shared_constants
+        # Reset all global variables
+        shared_constants.PROCESSING_DIRECTORY = None
+        shared_constants.OUTPUT_DIRECTORY = None
+        shared_constants.LOG_FILENAME = None
+        shared_constants.CONVERSATION_MANAGER = None
+        shared_constants.PHONE_LOOKUP_MANAGER = None
+        shared_constants.PATH_MANAGER = None
+        shared_constants.LIMITED_HTML_FILES = None
+        # Reset filtering configuration
+        shared_constants.DATE_FILTER_OLDER_THAN = None
+        shared_constants.DATE_FILTER_NEWER_THAN = None
+        shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = False
+        shared_constants.FILTER_NON_PHONE_NUMBERS = False
+        shared_constants.FULL_RUN = False
+        shared_constants.TEST_MODE = False
+        shared_constants.TEST_LIMIT = 100
+        
+        # Clear all LRU caches to prevent test interference
+        sms.extract_src_cached.cache_clear()
+        sms.list_att_filenames_cached.cache_clear()
+        sms.normalize_filename.cache_clear()
+        sms.src_to_filename_mapping_cached.cache_clear()
+        sms.build_attachment_mapping_cached.cache_clear()
+        sms.count_attachments_in_file_cached.cache_clear()
+        sms.extract_fallback_number_cached.cache_clear()
+        sms.search_fallback_numbers_cached.cache_clear()
+        sms.get_message_type_cached.cache_clear()
+        sms.get_mms_sender_cached.cache_clear()
+        sms.get_first_phone_number_cached.cache_clear()
+        sms.get_participant_phone_numbers_cached.cache_clear()
+        sms.parse_timestamp_cached.cache_clear()
+        sms.build_attachment_xml_part_cached.cache_clear()
+        sms.get_image_type.cache_clear()
+        sms.encode_file_content.cache_clear()
+        
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
@@ -93,8 +131,7 @@ class TestSMSBasic(unittest.TestCase):
             "PARTICIPANT_TYPE_RECEIVED",
             "HTML_PARSER",
             "GROUP_CONVERSATION_MARKER",
-            "SMS_XML_TEMPLATE",
-            "MMS_XML_TEMPLATE",
+            # SMS_XML_TEMPLATE and MMS_XML_TEMPLATE removed - XML output no longer supported
             "TEST_MODE",
             "TEST_LIMIT",
         ]
@@ -129,21 +166,7 @@ class TestSMSBasic(unittest.TestCase):
         self.assertEqual(stats.num_vcf, 2)
         self.assertEqual(stats.own_number, "+15551234567")
 
-    def test_escape_xml(self):
-        """Test XML escaping functionality."""
-        test_cases = [
-            ("Hello & World", "Hello &amp; World"),
-            ("<tag>", "&lt;tag&gt;"),
-            ("'quote'", "&apos;quote&apos;"),
-            ('"double"', "&quot;double&quot;"),
-            ("normal text", "normal text"),
-            ("&<>'\"", "&amp;&lt;&gt;&apos;&quot;"),
-        ]
-
-        for input_text, expected_output in test_cases:
-            with self.subTest(input_text=input_text):
-                result = sms.escape_xml(input_text)
-                self.assertEqual(result, expected_output)
+    # test_escape_xml removed - XML output no longer supported
 
     def test_format_elapsed_time(self):
         """Test elapsed time formatting."""
@@ -207,38 +230,7 @@ class TestSMSBasic(unittest.TestCase):
                 result = sms.get_image_type(image_path)
                 self.assertEqual(result, expected_type)
 
-    def test_format_sms_xml(self):
-        """Test SMS XML formatting."""
-        sms_values = {
-            "alias": "test_alias",
-            "time": 1640995200000,  # 2022-01-01 00:00:00 UTC
-            "type": 1,  # received
-            "message": "Hello, world!",
-        }
-
-        result = sms.format_sms_xml(sms_values)
-
-        # Check that all values are present
-        self.assertIn("test_alias", result)
-        self.assertIn("1640995200000", result)
-        self.assertIn("1", result)
-        self.assertIn("Hello, world!", result)
-
-        # Check XML structure - SMS template is self-closing
-        self.assertIn("<sms", result)
-        self.assertIn("/>", result)
-
-    def test_format_sms_xml_cached(self):
-        """Test cached SMS XML formatting."""
-        result = sms.format_sms_xml_cached(
-            "test_alias", 1640995200000, 1, "Hello, world!"
-        )
-
-        # Check that all values are present
-        self.assertIn("test_alias", result)
-        self.assertIn("1640995200000", result)
-        self.assertIn("1", result)
-        self.assertIn("Hello, world!", result)
+    # test_format_sms_xml and test_format_sms_xml_cached removed - XML output no longer supported
 
     def test_extract_fallback_number(self):
         """Test fallback number extraction from filename."""
@@ -290,26 +282,7 @@ class TestSMSBasic(unittest.TestCase):
         # Should not raise any exceptions
         sms.validate_configuration()
 
-    def test_escape_xml_edge_cases(self):
-        """Test XML escaping with edge cases."""
-        test_cases = [
-            ("", ""),  # Empty string
-            ("&", "&amp;"),  # Single ampersand
-            ("<", "&lt;"),  # Single less than
-            (">", "&gt;"),  # Single greater than
-            ("'", "&apos;"),  # Single quote
-            ('"', "&quot;"),  # Double quote
-            ("&<>'\"", "&amp;&lt;&gt;&apos;&quot;"),  # All special chars
-            (
-                "Hello & World <test> 'quote' \"double\"",
-                "Hello &amp; World &lt;test&gt; &apos;quote&apos; &quot;double&quot;",
-            ),
-        ]
-
-        for input_text, expected_output in test_cases:
-            with self.subTest(input_text=input_text):
-                result = sms.escape_xml(input_text)
-                self.assertEqual(result, expected_output)
+    # test_escape_xml_edge_cases removed - XML output no longer supported
 
     def test_performance_monitoring(self):
         """Test performance monitoring functions."""
@@ -359,19 +332,7 @@ class TestSMSBasic(unittest.TestCase):
         result = sms.get_participant_phone_numbers_cached("mock_hash")
         self.assertIsInstance(result, list)
 
-    def test_template_constants(self):
-        """Test that template constants are properly formatted."""
-        # Test SMS_XML_TEMPLATE
-        self.assertIn("{alias}", sms.SMS_XML_TEMPLATE)
-        self.assertIn("{time}", sms.SMS_XML_TEMPLATE)
-        self.assertIn("{type}", sms.SMS_XML_TEMPLATE)
-        self.assertIn("{message}", sms.SMS_XML_TEMPLATE)
-
-        # Test MMS_XML_TEMPLATE
-        self.assertIn("{participants}", sms.MMS_XML_TEMPLATE)
-        self.assertIn("{time}", sms.MMS_XML_TEMPLATE)
-        self.assertIn("{m_type}", sms.MMS_XML_TEMPLATE)
-        self.assertIn("{msg_box}", sms.MMS_XML_TEMPLATE)
+    # test_template_constants removed - XML templates no longer supported
 
     def test_regex_patterns(self):
         """Test that regex patterns are properly compiled."""
@@ -381,27 +342,9 @@ class TestSMSBasic(unittest.TestCase):
         self.assertIsNotNone(sms.PHONE_NUMBER_PATTERN.pattern)
         self.assertIsNotNone(sms.TEL_HREF_PATTERN.pattern)
 
-    def test_string_translation(self):
-        """Test HTML to XML string translation."""
-        # Test that the translation table is properly set up
-        self.assertIsNotNone(sms.HTML_TO_XML_TRANSLATION)
+    # test_string_translation removed - XML translation no longer supported
 
-        # Test basic translation - note that & is not translated in the current implementation
-        test_string = "Hello <world> & 'quotes' \"double\""
-        translated = test_string.translate(sms.HTML_TO_XML_TRANSLATION)
-        self.assertIn("&lt;", translated)
-        self.assertIn("&gt;", translated)
-        # Note: & is not translated to &amp; in the current implementation
-        self.assertIn("&", translated)
-
-    def test_xml_attributes_pool(self):
-        """Test XML attributes string pool."""
-        # Test that common XML attributes are defined
-        self.assertIn('read="1"', sms.XML_ATTRIBUTES)
-        self.assertIn('status="1"', sms.XML_ATTRIBUTES)
-        self.assertIn('locked="0"', sms.XML_ATTRIBUTES)
-        self.assertIn('type="1"', sms.XML_ATTRIBUTES)
-        self.assertIn('type="2"', sms.XML_ATTRIBUTES)
+    # test_xml_attributes_pool removed - XML attributes no longer supported
 
     def test_string_pool(self):
         """Test string pooling functionality."""
@@ -582,7 +525,7 @@ class TestSMSBasic(unittest.TestCase):
     def test_batched_alias_saving(self):
         """Ensure alias saving can be batched without error."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         mgr = sms.PHONE_LOOKUP_MANAGER
         # Add several aliases and ensure no exception; then force a save
         for i in range(150):
@@ -615,6 +558,44 @@ class TestSMSAdvanced(unittest.TestCase):
 
     def tearDown(self):
         """Clean up after each test method."""
+        # Reset SMS module global variables to allow fresh setup in next test
+        import sms
+        from core import shared_constants
+        # Reset all global variables
+        shared_constants.PROCESSING_DIRECTORY = None
+        shared_constants.OUTPUT_DIRECTORY = None
+        shared_constants.LOG_FILENAME = None
+        shared_constants.CONVERSATION_MANAGER = None
+        shared_constants.PHONE_LOOKUP_MANAGER = None
+        shared_constants.PATH_MANAGER = None
+        shared_constants.LIMITED_HTML_FILES = None
+        # Reset filtering configuration
+        shared_constants.DATE_FILTER_OLDER_THAN = None
+        shared_constants.DATE_FILTER_NEWER_THAN = None
+        shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = False
+        shared_constants.FILTER_NON_PHONE_NUMBERS = False
+        shared_constants.FULL_RUN = False
+        shared_constants.TEST_MODE = False
+        shared_constants.TEST_LIMIT = 100
+        
+        # Clear all LRU caches to prevent test interference
+        sms.extract_src_cached.cache_clear()
+        sms.list_att_filenames_cached.cache_clear()
+        sms.normalize_filename.cache_clear()
+        sms.src_to_filename_mapping_cached.cache_clear()
+        sms.build_attachment_mapping_cached.cache_clear()
+        sms.count_attachments_in_file_cached.cache_clear()
+        sms.extract_fallback_number_cached.cache_clear()
+        sms.search_fallback_numbers_cached.cache_clear()
+        sms.get_message_type_cached.cache_clear()
+        sms.get_mms_sender_cached.cache_clear()
+        sms.get_first_phone_number_cached.cache_clear()
+        sms.get_participant_phone_numbers_cached.cache_clear()
+        sms.parse_timestamp_cached.cache_clear()
+        sms.build_attachment_xml_part_cached.cache_clear()
+        sms.get_image_type.cache_clear()
+        sms.encode_file_content.cache_clear()
+        
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
 
@@ -707,11 +688,41 @@ class TestSMSIntegration(unittest.TestCase):
         """Clean up after each test method."""
         # Reset SMS module global variables to allow fresh setup in next test
         import sms
-        sms.PROCESSING_DIRECTORY = None
-        sms.OUTPUT_DIRECTORY = None
-        sms.LOG_FILENAME = None
-        sms.CONVERSATION_MANAGER = None
-        sms.PHONE_LOOKUP_MANAGER = None
+        from core import shared_constants
+        # Reset all global variables
+        shared_constants.PROCESSING_DIRECTORY = None
+        shared_constants.OUTPUT_DIRECTORY = None
+        shared_constants.LOG_FILENAME = None
+        shared_constants.CONVERSATION_MANAGER = None
+        shared_constants.PHONE_LOOKUP_MANAGER = None
+        shared_constants.PATH_MANAGER = None
+        shared_constants.LIMITED_HTML_FILES = None
+        # Reset filtering configuration
+        shared_constants.DATE_FILTER_OLDER_THAN = None
+        shared_constants.DATE_FILTER_NEWER_THAN = None
+        shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = False
+        shared_constants.FILTER_NON_PHONE_NUMBERS = False
+        shared_constants.FULL_RUN = False
+        shared_constants.TEST_MODE = False
+        shared_constants.TEST_LIMIT = 100
+        
+        # Clear all LRU caches to prevent test interference
+        sms.extract_src_cached.cache_clear()
+        sms.list_att_filenames_cached.cache_clear()
+        sms.normalize_filename.cache_clear()
+        sms.src_to_filename_mapping_cached.cache_clear()
+        sms.build_attachment_mapping_cached.cache_clear()
+        sms.count_attachments_in_file_cached.cache_clear()
+        sms.extract_fallback_number_cached.cache_clear()
+        sms.search_fallback_numbers_cached.cache_clear()
+        sms.get_message_type_cached.cache_clear()
+        sms.get_mms_sender_cached.cache_clear()
+        sms.get_first_phone_number_cached.cache_clear()
+        sms.get_participant_phone_numbers_cached.cache_clear()
+        sms.parse_timestamp_cached.cache_clear()
+        sms.build_attachment_xml_part_cached.cache_clear()
+        sms.get_image_type.cache_clear()
+        sms.encode_file_content.cache_clear()
         
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir)
@@ -737,7 +748,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_setup_processing_paths(self):
         """Test processing path setup."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Check that paths were set
         self.assertEqual(sms.PROCESSING_DIRECTORY.resolve(), test_dir.resolve())
@@ -757,7 +768,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_conversation_manager(self):
         """Test conversation manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -769,9 +780,10 @@ class TestSMSIntegration(unittest.TestCase):
         filename = manager.get_conversation_filename(conversation_id)
         self.assertIsInstance(filename, Path)
 
-        # Test message writing
-        test_xml = "<sms>test</sms>"
-        manager.write_message(conversation_id, test_xml, 1640995200000)
+        # Test message writing (using dictionary format)
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Test Sender", "test", []
+        )
 
         # Test finalization
         manager.finalize_conversation_files()
@@ -782,7 +794,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_phone_lookup_manager(self):
         """Test phone lookup manager functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -809,7 +821,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_html_output_format(self):
         """Test HTML output format functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -822,9 +834,10 @@ class TestSMSIntegration(unittest.TestCase):
         filename = manager.get_conversation_filename(conversation_id)
         self.assertEqual(filename.suffix, ".html")
 
-        # Test message writing
-        test_xml = "<sms><text>Hello World</text></sms>"
-        manager.write_message(conversation_id, test_xml, 1640995200000)
+        # Test message writing (using dictionary format)
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello World", []
+        )
 
         # Test finalization
         manager.finalize_conversation_files()
@@ -847,7 +860,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_index_html_generation(self):
         """Test index.html generation functionality."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         manager = sms.CONVERSATION_MANAGER
 
@@ -920,7 +933,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_group_conversation_handling(self):
         """Test group conversation handling including participant extraction and filename generation."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test participant extraction from group conversation HTML
         test_html = """
@@ -1024,7 +1037,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_automatic_alias_extraction(self):
         """Test automatic alias extraction from HTML when prompts are disabled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         manager = sms.PHONE_LOOKUP_MANAGER
 
@@ -1089,51 +1102,7 @@ class TestSMSIntegration(unittest.TestCase):
         no_soup_alias = manager.get_alias("+15559999999", None)
         self.assertEqual(no_soup_alias, "+15559999999")
 
-    def test_message_content_extraction(self):
-        """Test message content extraction for HTML output."""
-        test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
-
-        manager = sms.CONVERSATION_MANAGER
-
-        # Test text extraction
-        test_xml = "<sms><text>Hello World</text></sms>"
-        message_text, attachments = manager._extract_message_content(test_xml)
-        self.assertEqual(message_text, "Hello World")
-        self.assertEqual(attachments, "-")
-
-        # Test attachment detection
-        test_xml_with_img = (
-            "<sms><text>Check this out</text><img src='test.jpg'/></sms>"
-        )
-        message_text, attachments = manager._extract_message_content(test_xml_with_img)
-        self.assertEqual(message_text, "Check this out")
-        self.assertIn("📷 Image", attachments)
-
-        # Test vCard detection
-        test_xml_with_vcard = (
-            "<sms><text>Contact info</text><a class='vcard'>vCard</a></sms>"
-        )
-        message_text, attachments = manager._extract_message_content(
-            test_xml_with_vcard
-        )
-        self.assertEqual(message_text, "Contact info")
-        self.assertIn("📇 vCard", attachments)
-
-        # Test multiple attachments
-        test_xml_multiple = "<sms><text>Multiple</text><img src='img.jpg'/><a class='vcard'>vCard</a></sms>"
-        message_text, attachments = manager._extract_message_content(test_xml_multiple)
-        self.assertEqual(message_text, "Multiple")
-        self.assertIn("📷 Image", attachments)
-        self.assertIn("📇 vCard", attachments)
-
-        # Test timestamp formatting
-        timestamp = 1640995200000  # 2022-01-01 12:00:00 UTC
-        formatted = manager._format_timestamp(timestamp)
-        # Check that it's a valid timestamp format (timezone may vary)
-        self.assertRegex(formatted, r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
-        # Check that it's not the raw timestamp
-        self.assertNotEqual(formatted, str(timestamp))
+    # test_message_content_extraction removed - XML parsing no longer supported
 
     def test_attachment_processing_integration(self):
         """Test attachment processing integration."""
@@ -1145,7 +1114,7 @@ class TestSMSIntegration(unittest.TestCase):
         # Note: This function requires a PathManager instance, so we'll test the new function
         # First we need to set up a PathManager
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         if hasattr(sms, 'PATH_MANAGER') and sms.PATH_MANAGER:
             from core.attachment_manager_new import build_attachment_mapping_with_progress_new
             result = build_attachment_mapping_with_progress_new(sms.PATH_MANAGER)
@@ -1164,46 +1133,21 @@ class TestSMSIntegration(unittest.TestCase):
         result = sms.list_att_filenames_with_progress()
         self.assertIsInstance(result, list)
 
-    def test_mms_processing_integration(self):
-        """Test MMS processing integration."""
-        # Test build_mms_xml
-        mms_xml = sms.build_mms_xml(
-            "test_participants",
-            1640995200000,
-            128,  # MMS_TYPE_SENT
-            2,  # MESSAGE_BOX_SENT
-            "text_part",
-            "image_parts",
-            "vcard_parts",
-            "participants_xml",
-            "0",
-        )
+    # test_mms_processing_integration removed - XML output no longer supported
 
-        self.assertIsInstance(mms_xml, str)
-        self.assertIn("test_participants", mms_xml)
-        self.assertIn("1640995200000", mms_xml)
-
-    def test_participant_processing_integration(self):
-        """Test participant processing integration."""
-        # Test build_participants_xml
-        participants_xml = sms.build_participants_xml(
-            ["+15551234567", "+15551234568"], "+15551234567", True
-        )
-
-        self.assertIsInstance(participants_xml, str)
-        self.assertIn("+15551234567", participants_xml)
-        self.assertIn("+15551234568", participants_xml)
+    # test_participant_processing_integration removed - XML output no longer supported
 
     def test_html_output_sender_column(self):
         """Verify HTML output includes Sender column and renders a sender cell."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         manager = sms.CONVERSATION_MANAGER
 
         conversation_id = "sender_column_test"
-        # Raw XML without sender info should default sender cell to '-'
-        test_xml = "<sms><text>Hello Sender Column</text></sms>"
-        manager.write_message(conversation_id, test_xml, 1640995200000)
+        # Test sender column display
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "Test Sender", "Hello Sender Column", []
+        )
         manager.finalize_conversation_files()
 
         html_file = manager.output_dir / f"{conversation_id}.html"
@@ -1215,7 +1159,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_html_output_sms_sender_display(self):
         """Verify SMS sender display shows 'Me' for sent and alias for received."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         manager = sms.CONVERSATION_MANAGER
 
         conversation_id = "sms_sender_display"
@@ -1236,14 +1180,15 @@ class TestSMSIntegration(unittest.TestCase):
     def test_html_output_comprehensive_regression(self):
         """Comprehensive regression test for all HTML output fixes."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         manager = sms.CONVERSATION_MANAGER
 
         conversation_id = "regression_test"
         
-        # Test 1: XML parsing with raw XML strings
-        test_xml = '<sms protocol="0" address="+15551234567" type="1" subject="null" body="Hello from XML" toa="null" sc_toa="null" date="1640995200000" read="1" status="-1" locked="0" />'
-        manager.write_message(conversation_id, test_xml, 1640995200000)
+        # Test 1: Dictionary-based messages (XML parsing no longer supported)
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:00:00", "+15551234567", "Hello from XML", []
+        )
         
         # Test 2: Dictionary-based messages with sender information
         manager.write_message_with_content(
@@ -1283,7 +1228,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_index_generation_regression(self):
         """Regression test for index generation with missing conversation stats."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         manager = sms.CONVERSATION_MANAGER
 
         # Create conversation files manually (simulating the scenario from the failing test)
@@ -1346,7 +1291,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_call_voicemail_timestamp_parsing(self):
         """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create a call file with a specific timestamp in HTML
         calls_dir = test_dir / "Calls"
@@ -1426,7 +1371,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_published_timestamp_extraction(self):
         """Test that published timestamps are correctly extracted from call/voicemail HTML."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create a voicemail file with the exact structure from real Google Voice data
         calls_dir = test_dir / "Calls"
@@ -1489,7 +1434,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_file_handle_management(self):
         """Test that file handles are properly managed to avoid 'too many open files' errors."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create multiple call files to test file handle management
         calls_dir = test_dir / "Calls"
@@ -1547,7 +1492,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_message_processing_with_soup_parameter(self):
         """Test that MMS message processing works correctly with soup parameter."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create test HTML with MMS message structure
         test_html = """
@@ -1605,7 +1550,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_message_type_determination_with_none_cite(self):
         """Test that message type determination handles None cite elements gracefully."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create test HTML with no cite element
         test_html = """
@@ -1639,7 +1584,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_timestamp_extraction_with_multiple_strategies(self):
         """Test get_time_unix with various HTML structures for timestamp extraction."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various timestamp formats and structures
         test_cases = [
@@ -1716,7 +1661,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_processing_with_none_soup_parameter(self):
         """Test that MMS processing works correctly when soup parameter is None."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create test HTML with MMS message structure
         test_html = """
@@ -1774,7 +1719,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_timestamp_extraction_edge_cases(self):
         """Test timestamp extraction with edge cases and malformed HTML."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test edge cases that might cause timestamp extraction to fail
         edge_cases = [
@@ -1824,7 +1769,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_participant_extraction_with_none_soup(self):
         """Test that MMS participant extraction gracefully handles None soup parameter."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create test data that would normally require soup for participant extraction
         messages = [
@@ -1862,7 +1807,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_comprehensive_timestamp_fallback_strategies(self):
         """Test all timestamp fallback strategies comprehensively."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that each strategy is tried in order and works
         strategies = [
@@ -1942,7 +1887,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_calls_and_voicemails_processed(self):
         """Ensure calls and voicemails are captured and timestamps vary."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
         manager = sms.CONVERSATION_MANAGER
 
         # Create synthetic call and voicemail files with proper Google Voice naming patterns
@@ -1991,7 +1936,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_enhanced_timestamp_extraction_strategies(self):
         """Test all 10 enhanced timestamp extraction strategies comprehensively."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test all 10 strategies with various HTML structures
         test_cases = [
@@ -2094,7 +2039,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_participant_extraction_with_filename_fallback(self):
         """Test that MMS participant extraction works with filename-based fallback strategies."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test case 1: Filename with phone number
         filename_with_phone = (
@@ -2150,7 +2095,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_error_logging_with_filename_context(self):
         """Test that error logging includes filename context for better debugging."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test case: Message with no timestamp elements (should trigger error logging)
         test_html = '<div class="message"><q>Just text, no timestamp</q></div>'
@@ -2206,7 +2151,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_comprehensive_mms_fallback_strategies(self):
         """Test all MMS participant extraction fallback strategies comprehensively."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various scenarios that should trigger different fallback strategies
         test_cases = [
@@ -2269,7 +2214,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_edge_case_timestamp_extraction(self):
         """Test timestamp extraction with extreme edge cases and malformed HTML."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test extreme edge cases
         edge_cases = [
@@ -2335,7 +2280,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_filename_based_participant_extraction(self):
         """Test that participant extraction from filename patterns works correctly."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various filename patterns
         filename_patterns = [
@@ -2386,7 +2331,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_timestamp_extraction_performance_with_filename(self):
         """Test that timestamp extraction performance is maintained with filename parameter."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create a complex message with multiple timestamp candidates
         complex_html = """
@@ -2435,7 +2380,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_filename_based_timestamp_extraction(self):
         """Test that timestamps can be extracted from filename patterns."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various filename timestamp patterns
         test_cases = [
@@ -2506,7 +2451,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_enhanced_filename_participant_extraction(self):
         """Test enhanced participant extraction from various filename patterns."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various filename participant patterns
         test_cases = [
@@ -2571,7 +2516,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_filename_based_sms_alias_extraction(self):
         """Test that SMS processing uses filename information for better alias extraction."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that SMS processing can extract aliases from filenames
         test_filename = "Susan Nowak Tang - Text - 2025-08-13T12_08_52Z.html"
@@ -2609,7 +2554,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_comprehensive_filename_parsing_edge_cases(self):
         """Test filename parsing with various edge cases and malformed patterns."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test edge cases
         edge_cases = [
@@ -2694,7 +2639,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_filename_timestamp_performance(self):
         """Test that filename-based timestamp extraction is performant."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test performance of filename timestamp extraction
         test_filename = "Performance Test - Text - 2025-08-13T12_08_52Z.html"
@@ -2729,7 +2674,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_numeric_filename_handling(self):
         """Test handling of numeric-only filenames that currently get skipped."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test numeric-only filenames that should be handled gracefully
         test_cases = [
@@ -2781,7 +2726,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_improved_name_extraction_from_filenames(self):
         """Test that name extraction from filenames works better than generic name_hashes."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test cases that should extract actual names instead of generic hashes
         test_cases = [
@@ -2834,7 +2779,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_participant_extraction_improvements(self):
         """Test that MMS participant extraction works better and doesn't skip messages."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that MMS messages with name-based filenames get proper participants
         test_filename = "Charles Tang - Text - 2025-08-13T12_08_52Z.html"
@@ -2878,7 +2823,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_filename_timestamp_extraction_edge_cases(self):
         """Test timestamp extraction from various filename timestamp formats."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various timestamp formats found in filenames
         test_cases = [
@@ -2946,7 +2891,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_conversation_file_generation_quality(self):
         """Test that conversation files are generated with proper names and content."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that conversation files get proper names instead of generic hashes
         test_cases = [
@@ -3001,7 +2946,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_performance_with_filename_extraction(self):
         """Test that filename-based extraction doesn't impact performance significantly."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test performance of filename-based extraction
         test_filename = "Performance Test - Text - 2025-08-13T12_08_52Z.html"
@@ -3047,7 +2992,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_error_handling_for_malformed_filenames(self):
         """Test that malformed filenames are handled gracefully without crashing."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various malformed filename scenarios
         malformed_cases = [
@@ -3111,7 +3056,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_conversation_id_generation_consistency(self):
         """Test that conversation IDs are generated consistently for the same participants."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that the same participants always generate the same conversation ID
         test_participants = ["+15551234567", "Susan Nowak Tang"]
@@ -3166,7 +3111,7 @@ class TestSMSIntegration(unittest.TestCase):
 
         # Test default behavior (service codes filtered out)
         sms.INCLUDE_SERVICE_CODES = False
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Service codes should be skipped by default
         test_cases = [
@@ -3187,7 +3132,7 @@ class TestSMSIntegration(unittest.TestCase):
 
         # Test with service codes enabled
         sms.INCLUDE_SERVICE_CODES = True
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Service codes should NOT be skipped when enabled
         for filename in test_cases:
@@ -3201,7 +3146,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_date_filtering_functionality(self):
         """Test that date filtering works correctly for messages."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test older-than filter
         sms.DATE_FILTER_OLDER_THAN = datetime(2023, 1, 1)
@@ -3279,7 +3224,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_date_filtering_edge_cases(self):
         """Test edge cases for date filtering."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test with no filters (should not skip anything)
         sms.DATE_FILTER_OLDER_THAN = None
@@ -3313,7 +3258,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_corrupted_filename_detection(self):
         """Test that corrupted Google Voice filenames are properly detected and handled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test cases for corrupted filenames
         corrupted_cases = [
@@ -3426,7 +3371,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_corrupted_filename_cleaning_edge_cases(self):
         """Test edge cases for corrupted filename cleaning."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test edge cases
         edge_cases = [
@@ -3475,7 +3420,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_numeric_filename_processing_fixes(self):
         """Test that numeric filenames are now filtered out by default (service codes)."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test cases that are now filtered out by default (service codes)
         test_cases = [
@@ -3541,7 +3486,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_improved_name_based_participants(self):
         """Test that name-based participants use actual names instead of generic hashes."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test cases that should create meaningful participant names
         test_cases = [
@@ -3608,7 +3553,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_mms_progress_counter_fix(self):
         """Test that MMS progress counter doesn't exceed 100% due to variable name collision."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create mock MMS messages for testing
         mock_messages = []
@@ -3654,7 +3599,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_service_code_filename_support(self):
         """Test that service codes and short codes are filtered out by default but can be enabled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various service code patterns that should be processed
         service_codes = [
@@ -3709,7 +3654,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_corrupted_filename_handling(self):
         """Test that truly corrupted filenames are still properly skipped."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test filenames that should still be skipped
         corrupted_filenames = [
@@ -3743,7 +3688,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_legitimate_google_voice_export_patterns(self):
         """Test that legitimate Google Voice export patterns with file parts are properly handled."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test legitimate Google Voice export patterns with file parts
         legitimate_files = [
@@ -3820,7 +3765,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_legitimate_google_voice_export_with_file_parts_processing(self):
         """Test that legitimate Google Voice export files with file parts are processed correctly."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test files with legitimate file part patterns
         test_cases = [
@@ -3861,7 +3806,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_hash_based_fallback_phone_numbers(self):
         """Test that files without phone numbers generate hash-based fallback numbers."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test files that don't contain phone numbers
         test_cases = [
@@ -3899,7 +3844,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_enhanced_phone_number_extraction_strategies(self):
         """Test all phone number extraction strategies including hash-based fallbacks."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various filename patterns
         test_cases = [
@@ -3952,7 +3897,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_phone_number_validation_with_hash_based_numbers(self):
         """Test that phone number validation accepts hash-based fallback numbers."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various number types
         test_cases = [
@@ -3982,7 +3927,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_legitimate_google_voice_export_edge_cases(self):
         """Test edge cases for legitimate Google Voice export detection."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test various patterns
         test_cases = [
@@ -4033,7 +3978,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_corrupted_filename_cleaning_preserves_legitimate_parts(self):
         """Test that corrupted filename cleaning preserves legitimate file parts."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Test that legitimate file parts are preserved during cleaning
         test_cases = [
@@ -4073,7 +4018,7 @@ class TestSMSIntegration(unittest.TestCase):
     def test_group_conversation_message_grouping_fix(self):
         """Test that all messages in a group conversation are properly grouped together."""
         test_dir = Path(self.test_dir)
-        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
 
         # Create a test HTML file that simulates the reported issue
         # This represents a group conversation where messages from different participants

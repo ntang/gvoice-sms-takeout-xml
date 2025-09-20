@@ -47,14 +47,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import dateutil.parser
 import phonenumbers
 from bs4 import BeautifulSoup
-from templates import (
-    SMS_XML_TEMPLATE,
-    MMS_XML_TEMPLATE,
-    TEXT_PART_TEMPLATE,
-    PARTICIPANT_TEMPLATE,
-    IMAGE_PART_TEMPLATE,
-    VCARD_PART_TEMPLATE,
-)
+# XML template imports removed - only HTML output supported
 
 # Import new modular components
 from core.conversation_manager import ConversationManager
@@ -290,25 +283,7 @@ VCARD_TAG_PATTERN = re.compile(r'<a[^>]*class=[\'"]vcard[\'"][^>]*>')
 AUDIO_TAG_PATTERN = re.compile(r"<audio")
 VIDEO_TAG_PATTERN = re.compile(r"<video")
 
-# String translation tables for optimized text processing
-HTML_TO_XML_TRANSLATION = str.maketrans(
-    {"<": "&lt;", ">": "&gt;", "'": "&apos;", '"': "&quot;"}
-)
-
-# Common XML attribute values for string pooling
-XML_ATTRIBUTES = {
-    'read="1"': 'read="1"',
-    'status="1"': 'status="1"',
-    'locked="0"': 'locked="0"',
-    'type="1"': 'type="1"',
-    'type="2"': 'type="2"',
-    'm_type="128"': 'm_type="128"',
-    'm_type="132"': 'm_type="132"',
-    'msg_box="1"': 'msg_box="1"',
-    'msg_box="2"': 'msg_box="2"',
-    'text_only="0"': 'text_only="0"',
-    'text_only="1"': 'text_only="1"',
-}
+# XML translation tables and attributes removed - only HTML output supported
 
 # Legacy functions for backward compatibility with tests
 
@@ -1092,28 +1067,7 @@ def remove_files_by_pattern(pattern: str, reason: str, regex_pattern: str = "") 
         logger.error(f"Failed to remove files by pattern {pattern}: {e}")
 
 
-@lru_cache(maxsize=50000)
-def escape_xml(s: str) -> str:
-    """
-    Escape special characters for XML output.
-
-    Args:
-        s: String to escape
-
-    Returns:
-        str: XML-escaped string
-    """
-    replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&apos;",
-        '"': "&quot;",
-    }
-
-    for old, new in replacements.items():
-        s = s.replace(old, new)
-    return s
+# escape_xml function removed - only HTML output supported
 
 
 @lru_cache(maxsize=10000)
@@ -3269,9 +3223,6 @@ def write_sms_messages(
                     "time": get_time_unix(message, file),
                 }
 
-                # Format SMS XML
-                sms_text = format_sms_xml(sms_values)
-
                 # Use pre-determined conversation ID for group conversations, or generate for individual conversations
                 if conversation_id is None:
                     # This is an individual conversation - generate conversation ID
@@ -3280,40 +3231,31 @@ def write_sms_messages(
                     )
                     logger.debug(f"Generated individual conversation ID: {conversation_id}")
                 
-                # Write to conversation file
-                if conversation_manager.output_format == "html":
-                    # For HTML output, extract text and attachments directly
-                    message_text = sms_values.get("message", "")
-                    if not message_text or message_text.strip() == "":
-                        message_text = "[Empty message]"
-                    attachments = []
-                    # Determine sender display for SMS
-                    if is_group and group_participants:
-                        # Use enhanced sender detection for group conversations
-                        sender_display = get_enhanced_sender_for_group(message, group_participants)
-                        # If enhanced detection returns a phone number, try to get the alias
-                        if sender_display != "Me" and phone_lookup_manager:
-                            sender_alias = phone_lookup_manager.get_alias(sender_display, None)
-                            if sender_alias:
-                                sender_display = sender_alias
-                    else:
-                        # Use existing logic for individual conversations
-                        sender_display = "Me" if sms_values.get("type") == 2 else alias
-                    conversation_manager.write_message_with_content(
-                        conversation_id=conversation_id,
-                        formatted_time=sms_values["time"],
-                        sender=sender_display,
-                        message=message_text,
-                    )
-                    # Update latest timestamp for this conversation
-                    conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
+                # Write to conversation file (HTML output only)
+                message_text = sms_values.get("message", "")
+                if not message_text or message_text.strip() == "":
+                    message_text = "[Empty message]"
+                attachments = []
+                # Determine sender display for SMS
+                if is_group and group_participants:
+                    # Use enhanced sender detection for group conversations
+                    sender_display = get_enhanced_sender_for_group(message, group_participants)
+                    # If enhanced detection returns a phone number, try to get the alias
+                    if sender_display != "Me" and phone_lookup_manager:
+                        sender_alias = phone_lookup_manager.get_alias(sender_display, None)
+                        if sender_alias:
+                            sender_display = sender_alias
                 else:
-                    # For XML output, use the XML format
-                    conversation_manager.write_message(
-                        conversation_id, sms_text, sms_values["time"]
-                    )
-                    # Update latest timestamp for this conversation
-                    conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
+                    # Use existing logic for individual conversations
+                    sender_display = "Me" if sms_values.get("type") == 2 else alias
+                conversation_manager.write_message_with_content(
+                    conversation_id=conversation_id,
+                    formatted_time=sms_values["time"],
+                    sender=sender_display,
+                    message=message_text,
+                )
+                # Update latest timestamp for this conversation
+                conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
 
                 processed_count += 1
 
@@ -3776,42 +3718,7 @@ def extract_fallback_number(file: str) -> int:
     return extract_fallback_number_cached(file)
 
 
-@lru_cache(maxsize=50000)
-def format_sms_xml_cached(alias: str, time: int, type_val: int, message: str) -> str:
-    """
-    Cached SMS XML formatting for performance optimization.
-
-    Args:
-        alias: Phone number alias
-        time: Timestamp
-        type_val: Message type
-        message: Message text
-
-    Returns:
-        str: Formatted SMS XML
-    """
-    return SMS_XML_TEMPLATE.format(
-        alias=alias, time=time, type=type_val, message=message
-    )
-
-
-def format_sms_xml(sms_values: Dict[str, Union[str, int]]) -> str:
-    """
-    Format SMS message values into XML.
-
-    Args:
-        sms_values: Dictionary containing SMS message data
-
-    Returns:
-        str: Formatted SMS XML
-    """
-    # Use cached version for better performance
-    return format_sms_xml_cached(
-        str(sms_values["alias"]),
-        int(sms_values["time"]),
-        int(sms_values["type"]),
-        str(sms_values["message"]),
-    )
+# format_sms_xml functions removed - only HTML output supported
 
 
 @lru_cache(maxsize=25000)
@@ -4434,26 +4341,7 @@ def write_mms_messages(
                 has_vcards = bool(message.find_all("a", class_="vcard"))
                 text_only = "1" if not has_images and not has_vcards else "0"
 
-                # Build MMS XML
-                mms_xml = build_mms_xml(
-                    participants_text=",".join(final_aliases),
-                    message_time=get_time_unix(message, file),
-                    m_type=MMS_TYPE_SENT if sent_by_me else MMS_TYPE_RECEIVED,
-                    msg_box=MESSAGE_BOX_SENT if sent_by_me else MMS_TYPE_RECEIVED,
-                    text_part=TEXT_PART_TEMPLATE.format(text=message_content)
-                    if message_content
-                    else "",
-                    image_parts=build_image_parts(message, src_filename_map)
-                    if has_images
-                    else "",
-                    vcard_parts=build_vcard_parts(message, src_filename_map)
-                    if has_vcards
-                    else "",
-                    participants_xml=build_participants_xml(
-                        participants, sender, sent_by_me
-                    ),
-                    text_only=text_only,
-                )
+                # XML building removed - only HTML output supported
 
                 # Write to conversation file
                 # Use passed conversation_id if available (for group conversations), otherwise generate new one
@@ -4464,71 +4352,63 @@ def write_mms_messages(
                     logger.debug(f"Generated MMS conversation ID: {conversation_id}")
                 else:
                     logger.debug(f"Using passed conversation ID for MMS: {conversation_id}")
-                if conversation_manager.output_format == "html":
-                    # For HTML output, extract text and attachments directly
-                    message_text = message_content
-                    if not message_text or message_text.strip() == "":
-                        message_text = "[Empty message]"
+                # For HTML output, extract text and attachments directly
+                message_text = message_content
+                if not message_text or message_text.strip() == "":
+                    message_text = "[Empty message]"
 
-                    # Create attachments with proper links
-                    attachments = []
-                    if has_images:
-                        # Find the actual image filename for linking
-                        img_src = message.find("img", src=True)
-                        if img_src:
-                            img_filename = img_src.get("src")
-                            if img_filename in src_filename_map:
-                                actual_filename, _ = src_filename_map[img_filename]
-                                if actual_filename != "No unused match found":
-                                    # Create clickable link to the image
-                                    attachments.append(
-                                        f"<a href='attachments/{actual_filename}' target='_blank'>📷 Image</a>"
-                                    )
-                                else:
-                                    attachments.append("📷 Image (file not found)")
+                # Create attachments with proper links
+                attachments = []
+                if has_images:
+                    # Find the actual image filename for linking
+                    img_src = message.find("img", src=True)
+                    if img_src:
+                        img_filename = img_src.get("src")
+                        if img_filename in src_filename_map:
+                            actual_filename, _ = src_filename_map[img_filename]
+                            if actual_filename != "No unused match found":
+                                # Create clickable link to the image
+                                attachments.append(
+                                    f"<a href='attachments/{actual_filename}' target='_blank'>📷 Image</a>"
+                                )
                             else:
-                                attachments.append("📷 Image (unmapped)")
+                                attachments.append("📷 Image (file not found)")
                         else:
-                            attachments.append("📷 Image")
+                            attachments.append("📷 Image (unmapped)")
+                    else:
+                        attachments.append("📷 Image")
 
-                    if has_vcards:
-                        attachments.append("📇 vCard")
+                if has_vcards:
+                    attachments.append("📇 vCard")
 
-                    # Sender for MMS: prefer page alias, then phone lookup
-                    # alias
-                    sender_display = sender
-                    try:
-                        # Prefer alias from participant_aliases if available
-                        if sender in participants:
-                            idx = participants.index(sender)
-                            if (
-                                idx < len(participant_aliases)
-                                and participant_aliases[idx]
-                            ):
-                                sender_display = participant_aliases[idx]
-                        # Fall back to phone lookup alias
-                        if phone_lookup_manager:
-                            sender_display = phone_lookup_manager.get_alias(
-                                sender_display, None
-                            )
-                    except Exception:
-                        pass
-                    conversation_manager.write_message_with_content(
-                        conversation_id=conversation_id,
-                        formatted_time=get_time_formatted(message),
-                        sender=sender_display,
-                        message=message_text,
-                        attachments=attachments,
-                    )
-                    # Update latest timestamp for this conversation
-                    conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
-                else:
-                    # For XML output, use the XML format
-                    conversation_manager.write_message(
-                        conversation_id, mms_xml, get_time_unix(message)
-                    )
-                    # Update latest timestamp for this conversation
-                    conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
+                # Sender for MMS: prefer page alias, then phone lookup
+                # alias
+                sender_display = sender
+                try:
+                    # Prefer alias from participant_aliases if available
+                    if sender in participants:
+                        idx = participants.index(sender)
+                        if (
+                            idx < len(participant_aliases)
+                            and participant_aliases[idx]
+                        ):
+                            sender_display = participant_aliases[idx]
+                    # Fall back to phone lookup alias
+                    if phone_lookup_manager:
+                        sender_display = phone_lookup_manager.get_alias(
+                            sender_display, None
+                        )
+                except Exception:
+                    pass
+                conversation_manager.write_message_with_content(
+                    conversation_id=conversation_id,
+                    formatted_time=get_time_formatted(message),
+                    sender=sender_display,
+                    message=message_text,
+                    attachments=attachments,
+                )
+                # Update latest timestamp for this conversation
+                conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
 
                 processed_count += 1
 
@@ -4594,191 +4474,8 @@ def write_mms_messages(
             logger.error(f"MMS processing stack trace:\n{traceback.format_exc()}")
         
         logger.error(f"Stack trace:\n{traceback.format_exc()}")
-def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
-    """
-    Build XML parts for image attachments in an MMS message.
+# build_image_parts function removed - only HTML output supported
 
-    Args:
-        message: Message element from HTML
-        src_filename_map: Mapping of src elements to (filename, source_path) tuples
-
-    Returns:
-        str: XML string for image parts
-    """
-    image_parts = ""
-    # Cache find_all result to avoid repeated DOM traversal
-    images = message.find_all("img")
-
-    if not images:
-        return image_parts
-
-    # CRITICAL FIX: Ensure OUTPUT_DIRECTORY is available
-    global OUTPUT_DIRECTORY
-    if OUTPUT_DIRECTORY is None:
-        # Try to auto-initialize from current working directory
-        try:
-            current_dir = Path.cwd()
-            if (current_dir / "conversations").exists():
-                OUTPUT_DIRECTORY = current_dir / "conversations"
-                logger.info(f"🔄 Auto-initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
-            else:
-                # Create conversations directory in current working directory
-                OUTPUT_DIRECTORY = current_dir / "conversations"
-                OUTPUT_DIRECTORY.mkdir(exist_ok=True)
-                logger.info(f"🔄 Auto-created and initialized OUTPUT_DIRECTORY to: {OUTPUT_DIRECTORY}")
-        except Exception as e:
-            logger.error(f"🚨 Failed to auto-initialize OUTPUT_DIRECTORY: {e}")
-            return image_parts
-
-    # Safety check: ensure OUTPUT_DIRECTORY is initialized
-    if OUTPUT_DIRECTORY is None:
-        logger.error("🚨 CRITICAL ERROR: OUTPUT_DIRECTORY is None in build_image_parts")
-        logger.error("This indicates setup_processing_paths() has not been called yet")
-        logger.error("Please ensure the script is run from the command line, not imported as a module")
-        logger.error("If this error persists, there may be a threading or initialization issue")
-        return image_parts
-
-    for img in images:
-        src = img.get("src", "")
-        logger.debug(f"Processing image with src: {src}")
-        if src in src_filename_map:
-            filename, _ = src_filename_map[src]
-            logger.debug(f"Found mapping: {src} -> {filename}")
-            if filename and filename != "No unused match found":
-                # CRITICAL FIX: Ensure PROCESSING_DIRECTORY is available
-                global PROCESSING_DIRECTORY
-                if PROCESSING_DIRECTORY is None:
-                    # Try to auto-initialize from current working directory
-                    try:
-                        current_dir = Path.cwd()
-                        PROCESSING_DIRECTORY = current_dir
-                        logger.info(f"🚨 Auto-initialized PROCESSING_DIRECTORY to: {PROCESSING_DIRECTORY}")
-                    except Exception as e:
-                        logger.error(f"🚨 Failed to auto-initialize PROCESSING_DIRECTORY: {e}")
-                        continue
-
-                # Look for the file in the Calls subdirectory
-                source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
-                
-                # If the file doesn't exist in Calls, try to find it using the source_path from mapping
-                if not source_file_path.exists():
-                    # Try to get the actual source path from the mapping
-                    if src in src_filename_map:
-                        _, actual_source_path = src_filename_map[src]
-                        if actual_source_path and Path(actual_source_path).exists():
-                            source_file_path = Path(actual_source_path)
-                            logger.debug(f"Using actual source path: {source_file_path}")
-                        else:
-                            logger.warning(f"Source path not found for {filename}, skipping")
-                            continue
-                    else:
-                        logger.warning(f"No mapping found for src '{src}', skipping")
-                        continue
-                
-                if source_file_path.exists():
-                    try:
-                        # Use the attachments directory created in
-                        # setup_processing_paths
-                        attachments_dir = OUTPUT_DIRECTORY / "attachments"
-                        logger.debug(f"Using attachments directory: {attachments_dir}")
-
-                        # Copy the image file to attachments directory
-                        dest_file_path = attachments_dir / filename
-                        logger.debug(f"Copying {source_file_path} to {dest_file_path}")
-                        if not dest_file_path.exists():
-                            import shutil
-                            
-                            # Safety check: prevent copying to same location
-                            if source_file_path.resolve() == dest_file_path.resolve():
-                                logger.debug(f"Skipping {filename} - source and destination are the same")
-                            else:
-                                # Try copy2 first, fallback to copy if cross-device error occurs
-                                try:
-                                    shutil.copy2(source_file_path, dest_file_path)
-                                    logger.debug(
-                                        f"Copied image {filename} to attachments directory"
-                                    )
-                                except OSError as copy_error:
-                                    if "Invalid cross-device link" in str(copy_error) or "cross-device" in str(copy_error).lower():
-                                        logger.info(f"Cross-device link error for {filename}, using fallback copy method")
-                                        shutil.copy(source_file_path, dest_file_path)
-                                        logger.debug(
-                                            f"Copied image {filename} to attachments directory (fallback)"
-                                        )
-                                    else:
-                                        raise copy_error
-                        else:
-                            logger.debug(
-                                f"Image {filename} already exists in attachments directory"
-                            )
-
-                        image_type = get_image_type(source_file_path)
-                        if not image_type:
-                            image_type = "unknown"
-                        content_type = f"image/{image_type}"
-                        try:
-                            image_parts += IMAGE_PART_TEMPLATE.format(
-                                type=content_type,
-                                name=filename,
-                                data="attachments/" + filename,
-                            )
-                        except (KeyError, ValueError) as template_error:
-                            logger.error(f"Template formatting error for image {filename}: {template_error}")
-                            # Fallback to a simple format if template fails
-                            image_parts += f'    <part seq="0" ct="{content_type}" name="{filename}" data="attachments/{filename}" />\n'
-                    except Exception as e:
-                        # Enhanced error logging with stack trace and context
-                        import traceback
-                        logger.error(f"Failed to process image {filename}: {e}")
-                        logger.error(f"Error type: {type(e).__name__}")
-                        logger.error(f"Error details: {str(e)}")
-                        logger.error(f"Processing context: src={src}, filename={filename}")
-                        logger.error(f"Stack trace:\n{traceback.format_exc()}")
-                        
-                        # Check if this is a division error and log variable states
-                        if "unsupported operand type(s) for /" in str(e):
-                            logger.error("🚨 DIVISION ERROR DETECTED - Logging variable states:")
-                            logger.error(f"  src: {src} (type: {type(src)})")
-                            logger.error(f"  filename: (type: {type(filename)})")
-                            logger.error(f"  source_file_path: {source_file_path} (type: {type(source_file_path)})")
-                            logger.error(f"  attachments_dir: {attachments_dir} (type: {type(attachments_dir)})")
-                            logger.error(f"  dest_file_path: {dest_file_path} (type: {type(dest_file_path)})")
-                            if 'image_type' in locals():
-                                logger.error(f"  image_type: {image_type} (type: {type(image_type)})")
-                            if 'content_type' in locals():
-                                logger.error(f"  content_type: {content_type} (type: {type(content_type)})")
-
-                        # Try to recover from common failure types
-                        try:
-                            # Check if it's a file permission issue
-                            if "Permission denied" in str(e) or "Access denied" in str(
-                                e
-                            ):
-                                logger.error(
-                                    f"Permission denied for image {filename} - check file permissions"
-                                )
-                            # Check if it's a file not found issue
-                            elif "No such file" in str(e) or "FileNotFoundError" in str(
-                                e
-                            ):
-                                logger.error(
-                                    f"Image file {filename} not found in Calls directory"
-                                )
-                            # Check if it's a disk space issue
-                            elif "No space left" in str(e) or "ENOSPC" in str(e):
-                                logger.error(
-                                    f"Insufficient disk space to copy image {filename}"
-                                )
-                            else:
-                                logger.error(
-                                    f"Unknown error processing image {filename}: {type(e).__name__}: {e}"
-                                )
-                        except Exception:
-                            # If error analysis fails, just log the original
-                            # error
-                            pass
-
-    return image_parts
 
 
 def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
@@ -4880,11 +4577,8 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
                                         raise copy_error
 
                         try:
-                            vcard_parts += VCARD_PART_TEMPLATE.format(
-                                type="text/vcard",
-                                name=filename,
-                                data="attachments/" + filename,
-                            )
+                            # XML template removed - only HTML output supported
+                            pass
                         except (KeyError, ValueError) as template_error:
                             logger.error(f"Template formatting error for vCard {filename}: {template_error}")
                             # Fallback to a simple format if template fails
@@ -4974,22 +4668,14 @@ def process_single_attachment(
         if attachment_type == "image":
             image_type = get_image_type(file_path)
             return (
-                build_attachment_xml_part(
-                    relative_path,
-                    f"image/{image_type}",
-                    attachment_data,
-                    IMAGE_PART_TEMPLATE,
-                ),
+                # XML template removed - only HTML output supported
+                "",
                 "",
             )
         else:  # vcard
             return (
-                build_attachment_xml_part(
-                    relative_path,
-                    "text/x-vCard",
-                    attachment_data,
-                    VCARD_PART_TEMPLATE,
-                ),
+                # XML template removed - only HTML output supported
+                "",
                 "",
             )
 
@@ -5131,147 +4817,17 @@ def extract_location_url(vcard_path: Path) -> str:
                     current_location_found = True
                 if current_location_found and line.startswith("URL;type=pref:"):
                     url = line.split(":", 1)[1].strip()
-                    return escape_xml(url.replace("\\", ""))
+                    return url.replace("\\", "")  # XML escaping removed - only HTML output supported
         return ""
     except Exception as e:
         logger.error(f"Failed to extract location URL from {vcard_path}: {e}")
         return ""
 
 
-@lru_cache(maxsize=20000)
-def build_participants_xml_cached(
-    participants_str: str, sender: str, sent_by_me: bool
-) -> str:
-    """
-    Cached participants XML generation for performance optimization.
-
-    Args:
-        participants_str: String representation of participants list
-        sender: Sender's phone number
-        sent_by_me: Whether the message was sent by the user
-
-    Returns:
-        str: Formatted participants XML
-    """
-    # Convert string back to list for processing
-    participants = participants_str.split(",")
-
-    participants_xml = ""
-    for participant in participants:
-        if participant.strip():
-            participant_type = (
-                PARTICIPANT_TYPE_SENDER
-                if participant.strip() == sender
-                else PARTICIPANT_TYPE_RECEIVED
-            )
-            participants_xml += PARTICIPANT_TEMPLATE.format(
-                number=participant.strip(), code=participant_type
-            )
-
-    return participants_xml
+# build_participants_xml functions removed - only HTML output supported
 
 
-def build_participants_xml(
-    participants: List[str], sender: str, sent_by_me: bool
-) -> str:
-    """
-    Build XML for participant information.
-
-    Args:
-        participants: List of participant phone numbers
-        sender: Sender's phone number
-        sent_by_me: Whether the message was sent by the user
-
-    Returns:
-        str: Formatted participants XML
-    """
-    # Use cached version for better performance
-    participants_str = ",".join(participants)
-    return build_participants_xml_cached(participants_str, sender, sent_by_me)
-
-
-@lru_cache(maxsize=20000)
-def build_mms_xml_cached(
-    participants_text: str,
-    message_time: int,
-    m_type: int,
-    msg_box: int,
-    text_part: str,
-    image_parts: str,
-    vcard_parts: str,
-    participants_xml: str,
-    text_only: str,
-) -> str:
-    """
-    Cached MMS XML generation for performance optimization.
-
-    Args:
-        participants_text: Comma-separated participant phone numbers
-        message_time: Message timestamp in Unix milliseconds
-        m_type: MMS message type
-        msg_box: Message box type
-        text_part: Text part XML
-        image_parts: Image parts XML
-        vcard_parts: vCard parts XML
-        participants_xml: Participants XML
-        text_only: Text-only flag
-
-    Returns:
-        str: Formatted MMS XML
-    """
-    return MMS_XML_TEMPLATE.format(
-        participants=participants_text,
-        time=message_time,
-        m_type=m_type,
-        msg_box=msg_box,
-        text_part=text_part,
-        image_parts=image_parts,
-        vcard_parts=vcard_parts,
-        participants_xml=participants_xml,
-        text_only=text_only,
-    )
-
-
-def build_mms_xml(
-    participants_text: str,
-    message_time: int,
-    m_type: int,
-    msg_box: int,
-    text_part: str,
-    image_parts: str,
-    vcard_parts: str,
-    participants_xml: str,
-    text_only: str,
-) -> str:
-    """
-    Build XML for MMS message.
-
-    Args:
-        participants_text: Comma-separated participant phone numbers
-        message_time: Message timestamp in Unix milliseconds
-        m_type: MMS message type
-        msg_box: Message box type
-        text_part: Text part XML
-        image_parts: Image parts XML
-        vcard_parts: vCard parts XML
-        participants_xml: Participants XML
-        text_only: Text-only flag
-
-    Returns:
-        str: Formatted MMS XML
-    """
-    # Use cached version for better performance
-    return build_mms_xml_cached(
-        participants_text,
-        message_time,
-        m_type,
-        msg_box,
-        text_part,
-        image_parts,
-        vcard_parts,
-        participants_xml,
-        text_only,
-    )
+# build_mms_xml functions removed - only HTML output supported
 
 
 @lru_cache(maxsize=25000)
@@ -5397,7 +4953,7 @@ def get_message_text(message: BeautifulSoup) -> str:
             inner = q_tag.decode_contents()
         if "<br/>" in inner:
             inner = inner.replace("<br/>", "&#10;")
-        inner = inner.translate(HTML_TO_XML_TRANSLATION)
+        # XML translation removed - only HTML output supported
         return inner
 
     except Exception as e:
@@ -6465,7 +6021,6 @@ def setup_processing_paths(
     batch_size: int = 1000,
     cache_size: int = 25000,
     large_dataset: bool = False,
-    output_format: str = "html",
     phone_lookup_file: Optional[Path] = None,
 ) -> None:
     """
@@ -6478,7 +6033,6 @@ def setup_processing_paths(
         batch_size: Batch size for processing files
         cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
-        output_format: Output format ('html')
         phone_lookup_file: Optional path to phone lookup file
 
     Raises:
@@ -6558,8 +6112,7 @@ def setup_processing_paths(
     
     if not isinstance(cache_size, int) or cache_size <= 0:
         raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
-    if not isinstance(output_format, str) or output_format != "html":
-        raise ValueError(f"output_format must be 'html', got {output_format}")
+    # output_format validation removed - only HTML output supported
 
     logger.info("🔧 Initializing processing paths and global variables...")
 
@@ -6579,7 +6132,7 @@ def setup_processing_paths(
         buffer_size,
         batch_size,
         False,
-        output_format,
+        "html",  # Only HTML output supported
     )
     # Use provided phone lookup file path or default to processing directory
     if phone_lookup_file is not None:
@@ -7975,26 +7528,19 @@ def write_call_entry(
             "time": call_ts,
         }
 
-        # Format SMS XML
-        sms_text = format_sms_xml(sms_values)
-
-        # Write to conversation file
+        # Write to conversation file (HTML output only)
         conversation_id = CONVERSATION_MANAGER.get_conversation_id(
             [phone_number], False
         )
-        if CONVERSATION_MANAGER.output_format == "html":
-            # For HTML output, use the rich call details
-            message_text = call_details["message_text"]
-            attachments = []
-            CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id=conversation_id,
-                formatted_time=call_ts,
-                sender=alias,
-                message=message_text,
-            )
-        else:
-            # For XML output, use the XML format
-            CONVERSATION_MANAGER.write_message(conversation_id, sms_text, call_ts)
+        # For HTML output, use the rich call details
+        message_text = call_details["message_text"]
+        attachments = []
+        CONVERSATION_MANAGER.write_message_with_content(
+            conversation_id=conversation_id,
+            formatted_time=call_ts,
+            sender=alias,
+            message=message_text,
+        )
         
         # Update latest timestamp for this conversation
         CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, call_ts)
@@ -8267,28 +7813,21 @@ def write_voicemail_entry(
             "time": vm_ts,
         }
 
-        # Format SMS XML
-        sms_text = format_sms_xml(sms_values)
-
-        # Write to conversation file
+        # Write to conversation file (HTML output only)
         conversation_id = CONVERSATION_MANAGER.get_conversation_id(
             [phone_number], False
         )
-        if CONVERSATION_MANAGER.output_format == "html":
-            # For HTML output, extract text and attachments directly
-            message_text = voicemail_info.get("message", message_text)
-            if not message_text or message_text.strip() == "":
-                message_text = "[Voicemail entry]"
-            attachments = []
-            CONVERSATION_MANAGER.write_message_with_content(
-                conversation_id=conversation_id,
-                formatted_time=vm_ts,
-                sender=alias,
-                message=message_text,
-            )
-        else:
-            # For XML output, use the XML format
-            CONVERSATION_MANAGER.write_message(conversation_id, sms_text, vm_ts)
+        # For HTML output, extract text and attachments directly
+        message_text = voicemail_info.get("message", message_text)
+        if not message_text or message_text.strip() == "":
+            message_text = "[Voicemail entry]"
+        attachments = []
+        CONVERSATION_MANAGER.write_message_with_content(
+            conversation_id=conversation_id,
+            formatted_time=vm_ts,
+            sender=alias,
+            message=message_text,
+        )
         
         # Update latest timestamp for this conversation
         CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, vm_ts)
