@@ -160,9 +160,13 @@ class PhoneLookupManager:
             import shutil
             from datetime import datetime
             
+            # Create backup directory if it doesn't exist
+            backup_dir = self.lookup_file.parent / "backup"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            
             # Create backup filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = self.lookup_file.parent / f"{self.lookup_file.stem}_backup_{timestamp}{self.lookup_file.suffix}"
+            backup_file = backup_dir / f"{self.lookup_file.stem}_backup_{timestamp}{self.lookup_file.suffix}"
             
             # Copy the file
             shutil.copy2(self.lookup_file, backup_file)
