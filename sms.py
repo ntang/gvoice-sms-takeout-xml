@@ -5711,7 +5711,7 @@ def get_participant_phone_numbers_and_aliases(
                                     (
                                         phone,
                                         html_alias,
-                                    ) = extract_phone_and_alias_from_cite(cite_element)
+                                    ) = extract_phone_and_alias_from_cite(cite_element, PHONE_LOOKUP_MANAGER)
                                     if phone:
                                         participants.append(phone)
                                         aliases.append(html_alias)
@@ -5726,7 +5726,7 @@ def get_participant_phone_numbers_and_aliases(
                                     (
                                         phone,
                                         html_alias,
-                                    ) = extract_phone_and_alias_from_cite(cite_element)
+                                    ) = extract_phone_and_alias_from_cite(cite_element, PHONE_LOOKUP_MANAGER)
                                     if phone and phone not in seen_phones:
                                         participants.append(phone)
                                         aliases.append(html_alias)
@@ -5753,7 +5753,7 @@ def get_participant_phone_numbers_and_aliases(
                                 (
                                     phone,
                                     html_alias,
-                                ) = extract_phone_and_alias_from_cite(cite_element)
+                                ) = extract_phone_and_alias_from_cite(cite_element, PHONE_LOOKUP_MANAGER)
                                 if phone:
                                     participants.append(phone)
                                     aliases.append(html_alias)
@@ -5768,7 +5768,7 @@ def get_participant_phone_numbers_and_aliases(
                                 (
                                     phone,
                                     html_alias,
-                                ) = extract_phone_and_alias_from_cite(cite_element)
+                                ) = extract_phone_and_alias_from_cite(cite_element, PHONE_LOOKUP_MANAGER)
                                 if phone and phone not in seen_phones:
                                     participants.append(phone)
                                     aliases.append(html_alias)

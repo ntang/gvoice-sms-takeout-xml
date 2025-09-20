@@ -1210,7 +1210,7 @@ class TestSMSIntegration(unittest.TestCase):
         self.assertTrue(html_file.exists())
         content = html_file.read_text(encoding="utf-8")
         self.assertIn("<th>Sender</th>", content)
-        self.assertIn("class='sender'", content)
+        self.assertIn('class="sender"', content)
 
     def test_html_output_sms_sender_display(self):
         """Verify SMS sender display shows 'Me' for sent and alias for received."""
@@ -1221,17 +1221,127 @@ class TestSMSIntegration(unittest.TestCase):
         conversation_id = "sms_sender_display"
         # Simulate two messages: sent by Me and received from Alice
         manager.write_message_with_content(
-            conversation_id, "Hi", [], 1640995200000, sender="Me"
+            conversation_id, "2022-01-01 00:00:00", "Me", "Hi", []
         )
         manager.write_message_with_content(
-            conversation_id, "Hello", [], 1640995300000, sender="Alice"
+            conversation_id, "2022-01-01 00:01:40", "Alice", "Hello", []
         )
         manager.finalize_conversation_files()
 
         html_file = manager.output_dir / f"{conversation_id}.html"
         content = html_file.read_text(encoding="utf-8")
-        self.assertIn("<td class='sender'>Me</td>", content)
-        self.assertIn("<td class='sender'>Alice</td>", content)
+        self.assertIn('<td class="sender">Me</td>', content)
+        self.assertIn('<td class="sender">Alice</td>', content)
+
+    def test_html_output_comprehensive_regression(self):
+        """Comprehensive regression test for all HTML output fixes."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "html")
+        manager = sms.CONVERSATION_MANAGER
+
+        conversation_id = "regression_test"
+        
+        # Test 1: XML parsing with raw XML strings
+        test_xml = '<sms protocol="0" address="+15551234567" type="1" subject="null" body="Hello from XML" toa="null" sc_toa="null" date="1640995200000" read="1" status="-1" locked="0" />'
+        manager.write_message(conversation_id, test_xml, 1640995200000)
+        
+        # Test 2: Dictionary-based messages with sender information
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:01:00", "Alice", "Hello from dict", []
+        )
+        
+        # Test 3: Message with attachments
+        manager.write_message_with_content(
+            conversation_id, "2022-01-01 00:02:00", "Bob", "Message with attachment", 
+            [{"filename": "test_image.jpg", "content_type": "image/jpeg"}]
+        )
+        
+        manager.finalize_conversation_files()
+
+        html_file = manager.output_dir / f"{conversation_id}.html"
+        self.assertTrue(html_file.exists())
+        content = html_file.read_text(encoding="utf-8")
+        
+        # Verify all fixes are working:
+        # 1. Sender column exists
+        self.assertIn("<th>Sender</th>", content)
+        
+        # 2. XML parsing works (raw XML message shows up)
+        self.assertIn("Hello from XML", content)
+        
+        # 3. Dictionary messages work with sender
+        self.assertIn('<td class="sender">Alice</td>', content)
+        self.assertIn("Hello from dict", content)
+        
+        # 4. Attachments are displayed
+        self.assertIn("test_image.jpg", content)
+        self.assertIn('<td class="sender">Bob</td>', content)
+        
+        # 5. Message count is correct
+        self.assertIn("Total Messages: 3", content)
+
+    def test_index_generation_regression(self):
+        """Regression test for index generation with missing conversation stats."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False, "xml")
+        manager = sms.CONVERSATION_MANAGER
+
+        # Create conversation files manually (simulating the scenario from the failing test)
+        conversation_id1 = "manual_conversation_1"
+        conversation_id2 = "manual_conversation_2"
+
+        file1 = manager.output_dir / f"{conversation_id1}.xml"
+        file2 = manager.output_dir / f"{conversation_id2}.xml"
+
+        # Ensure output directory exists
+        manager.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Add test conversations with file objects (without populating conversation_stats)
+        manager.conversation_files[conversation_id1] = {
+            "messages": [
+                (1234567890, '<sms protocol="0" address="+15551234567" type="1" subject="null" body="Hello World" toa="null" sc_toa="null" date="1234567890" read="1" status="-1" locked="0" />'),
+            ],
+            "file": open(file1, "w", encoding="utf-8"),
+        }
+
+        manager.conversation_files[conversation_id2] = {
+            "messages": [
+                (1234567891, '<sms protocol="0" address="+15559876543" type="2" subject="null" body="Goodbye World" toa="null" sc_toa="null" date="1234567891" read="1" status="-1" locked="0" />'),
+            ],
+            "file": open(file2, "w", encoding="utf-8"),
+        }
+
+        # Finalize conversation files first
+        manager.finalize_conversation_files()
+
+        # Test index.html generation
+        test_stats = {
+            "num_sms": 2,
+            "num_calls": 1,
+            "num_voicemails": 0,
+            "num_img": 0,
+            "num_vcf": 0,
+        }
+        elapsed_time = 1.5
+
+        manager.generate_index_html(test_stats, elapsed_time)
+
+        # Check that index.html was created
+        index_file = manager.output_dir / "index.html"
+        self.assertTrue(index_file.exists())
+
+        # Check index.html content - should include conversation files even without cached stats
+        with open(index_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            self.assertIn("Google Voice Conversations", content)
+            self.assertIn("Processing completed in 1.5", content)
+            self.assertIn("Output format: XML", content)
+            self.assertIn("Total conversations: 2", content)
+            self.assertIn("SMS Messages", content)
+            self.assertIn("Call Logs", content)
+            # These should now be present due to our fix
+            self.assertIn("manual_conversation_1", content)
+            self.assertIn("manual_conversation_2", content)
 
     def test_call_voicemail_timestamp_parsing(self):
         """Verify call and voicemail timestamps are extracted from HTML, not file mtime."""
