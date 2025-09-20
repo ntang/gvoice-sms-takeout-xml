@@ -2112,6 +2112,53 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                         f"Filename parsing should extract correct name for {test_case['description']}",
                     )
 
+    def test_timestamp_extraction_performance_with_filename(self):
+        """Test that timestamp extraction performance is maintained with filename parameter."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Create a complex message with multiple timestamp candidates
+        complex_html = """
+        <div class="message">
+            <abbr class="dt" title="2024-01-15T10:30:00Z">Jan 15</abbr>
+            <q>Test message</q>
+            <span class="timestamp">2024-01-15 10:30:00</span>
+            <time datetime="2024-01-15T10:30:00Z">Jan 15</time>
+            <div data-timestamp="2024-01-15T10:30:00Z">Extra info</div>
+        </div>
+        """
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(complex_html, "html.parser")
+        message = soup.find("div", class_="message")
+
+        # Test performance: should still use Strategy 1 (fastest) even with filename parameter
+        import time as time_module
+        from datetime import datetime, timezone
+
+        start_time = time_module.time()
+        result1 = sms.get_time_unix(message, "performance_test.html")
+        end_time = time_module.time()
+
+        execution_time = end_time - start_time
+
+        # Should execute quickly (within 100ms)
+        self.assertLess(
+            execution_time,
+            0.1,
+            "Timestamp extraction should be fast even with filename parameter",
+        )
+
+        # Should return the correct timestamp (Strategy 1 should win)
+        expected_time = int(
+            datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc).timestamp() * 1000
+        )
+        # Allow for timezone differences (within 6 hours)
+        time_diff = abs(result1 - expected_time)
+        self.assertLess(
+            time_diff, 21600000, "Should extract correct timestamp from Strategy 1"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
