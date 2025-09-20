@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# XML template imports removed - only HTML output supported
+# HTML output only
 
 # Import new modular components
 
@@ -301,7 +301,7 @@ VCARD_TAG_PATTERN = re.compile(r'<a[^>]*class=[\'"]vcard[\'"][^>]*>')
 AUDIO_TAG_PATTERN = re.compile(r"<audio")
 VIDEO_TAG_PATTERN = re.compile(r"<video")
 
-# XML translation tables and attributes removed - only HTML output supported
+# HTML output only
 
 # Legacy functions removed - migration complete
 
@@ -1132,7 +1132,7 @@ def remove_files_by_pattern(
         logger.error(f"Failed to remove files by pattern {pattern}: {e}")
 
 
-# escape_xml function removed - only HTML output supported
+# HTML output only
 
 
 @lru_cache(maxsize=10000)
@@ -3785,7 +3785,7 @@ def extract_fallback_number(file: str) -> int:
     return extract_fallback_number_cached(file)
 
 
-# format_sms_xml functions removed - only HTML output supported
+# HTML output only
 
 
 @lru_cache(maxsize=25000)
@@ -4408,7 +4408,7 @@ def write_mms_messages(
                 has_vcards = bool(message.find_all("a", class_="vcard"))
                 text_only = "1" if not has_images and not has_vcards else "0"
 
-                # XML building removed - only HTML output supported
+                # HTML output only
 
                 # Write to conversation file
                 # Use passed conversation_id if available (for group conversations), otherwise generate new one
@@ -4835,7 +4835,7 @@ def extract_location_url(vcard_path: Path) -> str:
                     current_location_found = True
                 if current_location_found and line.startswith("URL;type=pref:"):
                     url = line.split(":", 1)[1].strip()
-                    return url.replace("\\", "")  # XML escaping removed - only HTML output supported
+                    return url.replace("\\", "")  # HTML output only
         return ""
     except Exception as e:
         logger.error(f"Failed to extract location URL from {vcard_path}: {e}")
@@ -4972,7 +4972,7 @@ def get_message_text(message: BeautifulSoup) -> str:
             inner = q_tag.decode_contents()
         if "<br/>" in inner:
             inner = inner.replace("<br/>", "&#10;")
-        # XML translation removed - only HTML output supported
+        # HTML output only
         return inner
 
     except Exception as e:
@@ -6036,9 +6036,6 @@ def create_attachment_backup(original_path: Path, backup_dir: Path) -> Optional[
 def setup_processing_paths(
     processing_dir: Path,
     enable_phone_prompts: bool = False,
-    buffer_size: int = 8192,
-    batch_size: int = 1000,
-    cache_size: int = 25000,
     large_dataset: bool = False,
     phone_lookup_file: Optional[Path] = None,
 ) -> None:
@@ -6050,11 +6047,11 @@ def setup_processing_paths(
     Args:
         processing_dir: Path to the processing directory
         enable_phone_prompts: Whether to enable phone number alias prompts
-        buffer_size: Buffer size for file I/O operations
-        batch_size: Batch size for processing files
-        cache_size: Cache size for performance optimization
         large_dataset: Whether this is a large dataset
         phone_lookup_file: Optional path to phone lookup file
+        
+    Note: Performance settings (buffer_size, batch_size, cache_size) are now
+    hardcoded in shared_constants.py for optimal defaults.
 
     Raises:
         ValueError: If parameters are invalid
@@ -6073,10 +6070,7 @@ def setup_processing_paths(
         raise TypeError(
             f"processing_dir must be a Path, got {type(processing_dir).__name__}"
         )
-    if not isinstance(buffer_size, int) or buffer_size <= 0:
-        raise ValueError(f"buffer_size must be a positive integer, got {buffer_size}")
-    if not isinstance(batch_size, int) or batch_size <= 0:
-        raise ValueError(f"batch_size must be a positive integer, got {batch_size}")
+    # Performance parameter validation removed - now hardcoded in shared_constants.py
     
     # Validate that the processing directory exists and has the expected structure
     if not processing_dir.exists():
@@ -6131,8 +6125,7 @@ def setup_processing_paths(
     
     logger.info("✅ Comprehensive startup validation completed")
     
-    if not isinstance(cache_size, int) or cache_size <= 0:
-        raise ValueError(f"cache_size must be a positive integer, got {cache_size}")
+    # cache_size validation removed - now hardcoded in shared_constants.py
     # output_format validation removed - only HTML output supported
 
     logger.info("🔧 Initializing processing paths and global variables...")
@@ -6156,8 +6149,8 @@ def setup_processing_paths(
     CONVERSATION_MANAGER = strict_call(
         ConversationManager,
         OUTPUT_DIRECTORY,
-        buffer_size,
-        batch_size,
+        BUFFER_SIZE_OPTIMAL,
+        BATCH_SIZE_OPTIMAL,
         False,
         "html",  # Only HTML output supported
     )

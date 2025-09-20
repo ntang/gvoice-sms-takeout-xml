@@ -216,13 +216,11 @@ class ConfigurationIntegrator:
             return {
                 'max_workers': config.max_workers,
                 'chunk_size': config.chunk_size,
-                # batch_size is now hardcoded in shared_constants.py
-                # buffer_size is now hardcoded in shared_constants.py
-                # cache_size is now hardcoded in shared_constants.py
-                'memory_threshold': config.memory_threshold,
-                'enable_parallel_processing': config.enable_parallel_processing,
-                'enable_streaming_parsing': config.enable_streaming_parsing,
-                'enable_mmap_for_large_files': config.enable_mmap_for_large_files,
+                # Performance settings now hardcoded in shared_constants.py
+                # 'memory_threshold': config.memory_threshold,  # Removed - hardcoded
+                # 'enable_parallel_processing': config.enable_parallel_processing,  # Removed - hardcoded
+                # 'enable_streaming_parsing': config.enable_streaming_parsing,  # Removed - hardcoded
+                # 'enable_mmap_for_large_files': config.enable_mmap_for_large_files,  # Removed - hardcoded
             }
         except Exception as e:
             logger.warning(f"Failed to get performance settings: {e}")

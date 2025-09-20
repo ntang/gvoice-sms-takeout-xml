@@ -43,12 +43,12 @@ class ConfigurationMigrationHelper:
             'CACHE_SIZE': 'cache_size',
             'MEMORY_THRESHOLD': 'memory_threshold',
             
-            # Feature flags
-            'ENABLE_PARALLEL_PROCESSING': 'enable_parallel_processing',
-            'ENABLE_STREAMING_PARSING': 'enable_streaming_parsing',
-            'ENABLE_MMAP_FOR_LARGE_FILES': 'enable_mmap_for_large_files',
-            'ENABLE_PERFORMANCE_MONITORING': 'enable_performance_monitoring',
-            'ENABLE_PROGRESS_LOGGING': 'enable_progress_logging',
+            # Feature flags - performance settings now hardcoded
+            # 'ENABLE_PARALLEL_PROCESSING': 'enable_parallel_processing',  # Removed - hardcoded
+            # 'ENABLE_STREAMING_PARSING': 'enable_streaming_parsing',  # Removed - hardcoded
+            # 'ENABLE_MMAP_FOR_LARGE_FILES': 'enable_mmap_for_large_files',  # Removed - hardcoded
+            # 'ENABLE_PERFORMANCE_MONITORING': 'enable_performance_monitoring',  # Removed - hardcoded
+            # 'ENABLE_PROGRESS_LOGGING': 'enable_progress_logging',  # Removed - hardcoded
             
             # Validation settings
             'ENABLE_PATH_VALIDATION': 'enable_path_validation',

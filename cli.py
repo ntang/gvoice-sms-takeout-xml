@@ -18,7 +18,7 @@ import dateutil.parser
 from core.processing_config import ProcessingConfig, ConfigurationBuilder
 from core.configuration_manager import get_configuration_manager, set_global_configuration
 from core.sms_patch import patch_sms_module, unpatch_sms_module, is_sms_module_patched
-from core.shared_constants import BUFFER_SIZE_OPTIMAL, BATCH_SIZE_OPTIMAL
+# Performance constants imported where needed
 
 # Import the main conversion logic from sms.py - moved to avoid circular import
 
@@ -153,8 +153,7 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     default=Path.cwd().parent / "gvoice-convert",
     help="Directory containing Google Voice export files (default: ../gvoice-convert)"
 )
-# Performance options removed - now hardcoded in shared_constants.py
-# All performance options removed - now hardcoded in shared_constants.py for optimal defaults
+# Performance options now hardcoded in shared_constants.py for optimal defaults
 @click.option(
     '--enable-path-validation/--no-path-validation',
     default=True,
@@ -317,7 +316,7 @@ def convert(ctx):
         
         # Log configuration
         logger.info("=" * 60)
-        logger.info("Starting Google Voice SMS Takeout XML Conversion")
+        logger.info("Starting Google Voice SMS Takeout HTML Conversion")
         logger.info("=" * 60)
         logger.info(f"Processing directory: {config.processing_dir}")
         logger.info(f"Output format: {config.output_format}")
@@ -516,8 +515,7 @@ def show_config(ctx):
     click.echo(f"Test mode: {config.test_mode}")
     if config.test_mode:
         click.echo(f"Test limit: {config.test_limit}")
-    click.echo(f"Max workers: {config.max_workers}")
-    click.echo(f"Chunk size: {config.chunk_size}")
+    from core.shared_constants import BUFFER_SIZE_OPTIMAL, BATCH_SIZE_OPTIMAL
     click.echo(f"Buffer size: {BUFFER_SIZE_OPTIMAL} (hardcoded)")
     click.echo(f"Cache size: N/A (removed during performance optimization)")
     click.echo(f"Batch size: {BATCH_SIZE_OPTIMAL} (hardcoded)")

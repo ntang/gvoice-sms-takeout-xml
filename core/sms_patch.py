@@ -159,8 +159,7 @@ class SMSModulePatcher:
                     original_func = self._original_values.get('setup_processing_paths')
                     if original_func:
                         original_func(
-                            processing_dir, enable_phone_prompts, buffer_size,
-                            batch_size, cache_size, large_dataset, phone_lookup_file
+                            processing_dir, enable_phone_prompts, large_dataset, phone_lookup_file
                         )
                     else:
                         logger.error("❌ Original function not available")
