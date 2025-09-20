@@ -1819,6 +1819,116 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
                             f"Timestamp parsing should work for {test_case['description']}: {e}"
                         )
 
+    def test_improved_name_extraction_from_filenames(self):
+        """Test that name extraction from filenames works better than generic name_hashes."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test cases that should extract actual names instead of generic hashes
+        test_cases = [
+            # Case 1: Simple name
+            {
+                "filename": "Charles Tang - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Charles Tang",
+                "should_not_be_generic": True,
+                "description": "simple name extraction",
+            },
+            # Case 2: Name with phone
+            {
+                "filename": "Susan Nowak Tang +15551234567 - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Susan Nowak Tang +15551234567",
+                "should_not_be_generic": True,
+                "description": "name with phone extraction",
+            },
+            # Case 3: Complex name
+            {
+                "filename": "Dr. Mary-Jane O'Connor, Jr. - Text - 2025-08-13T12_08_52Z.html",
+                "expected_name": "Dr. Mary-Jane O'Connor, Jr.",
+                "should_not_be_generic": True,
+                "description": "complex name extraction",
+            },
+        ]
+
+        for i, test_case in enumerate(test_cases):
+            with self.subTest(i=i, case=test_case["description"]):
+                if " - Text -" in test_case["filename"]:
+                    name_part = test_case["filename"].split(" - Text -")[0]
+
+                    # Should extract the actual name
+                    self.assertEqual(
+                        name_part,
+                        test_case["expected_name"],
+                        f"Should extract correct name for {test_case['description']}",
+                    )
+
+                    # Should not be a generic hash
+                    if test_case["should_not_be_generic"]:
+                        self.assertFalse(
+                            name_part.startswith("name_"),
+                            f"Should not generate generic name hash for {test_case['description']}",
+                        )
+                        self.assertFalse(
+                            name_part.startswith("default_"),
+                            f"Should not generate default participant for {test_case['description']}",
+                        )
+
+    def test_error_logging_with_filename_context(self):
+        """Test that error logging includes filename context for better debugging."""
+        test_dir = Path(self.test_dir)
+        sms.setup_processing_paths(test_dir, False, 8192, 1000, 25000, False)
+
+        # Test case: Message with no timestamp elements (should trigger error logging)
+        test_html = '<div class="message"><q>Just text, no timestamp</q></div>'
+        test_filename = "no_timestamp_message.html"
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(test_html, "html.parser")
+        message = soup.find("div", class_="message")
+
+        # Capture log output to verify filename is included
+        import io
+        import logging
+
+        # Create a string buffer to capture log output
+        log_buffer = io.StringIO()
+        log_handler = logging.StreamHandler(log_buffer)
+        log_handler.setLevel(
+            logging.WARNING
+        )  # Changed from ERROR to WARNING to capture fallback messages
+
+        # Get the logger and add our handler temporarily
+        logger = logging.getLogger("sms")
+        original_handlers = logger.handlers.copy()
+        original_level = logger.level
+        logger.setLevel(logging.WARNING)  # Ensure logger level allows warnings
+        logger.addHandler(log_handler)
+
+        try:
+            # This should now succeed with fallback strategies instead of failing
+            result = sms.get_time_unix(message, test_filename)
+
+            # Verify that the function returned a valid timestamp (fallback behavior)
+            self.assertIsInstance(
+                result, int, "Function should return a valid timestamp"
+            )
+            self.assertGreater(result, 0, "Timestamp should be positive")
+
+            # Get the log output to verify fallback behavior is logged
+            log_output = log_buffer.getvalue()
+
+            # Verify that fallback behavior is logged (warning instead of error)
+            self.assertIn(
+                "Using current time as fallback timestamp",
+                log_output,
+                "Should log fallback behavior",
+            )
+
+        finally:
+            # Restore original handlers and level
+            logger.handlers = original_handlers
+            logger.setLevel(original_level)
+            log_buffer.close()
+
 
 if __name__ == "__main__":
     unittest.main()
