@@ -1,13 +1,24 @@
-"""Google Voice SMS Takeout HTML Converter.
+"""Google Voice SMS Takeout HTML Converter - Core Processing Module.
 
-This script converts Google Voice HTML export files into organized HTML conversation files
-that can be viewed in any web browser.
+This module provides the core processing functionality for converting Google Voice HTML 
+export files into organized HTML conversation files that can be viewed in any web browser.
 
-The script processes:
+IMPORTANT: This module is designed to be imported, not run directly.
+Use the CLI interface instead: python cli.py --help
+
+The module processes:
 - Individual SMS conversations
 - Group MMS conversations
 - Images and vCard attachments
 - Location sharing pins
+- Call and voicemail entries
+
+Usage:
+    from sms import setup_processing_paths, process_html_files
+    # ... use the functions programmatically
+
+For command-line usage, use cli.py instead:
+    python cli.py --full-run convert
 
 Author: [Your Name]
 Date: [Date]
@@ -7777,3 +7788,23 @@ def write_voicemail_entry(
 
     except Exception as e:
         logger.error(f"Failed to write voicemail entry: {e}")
+
+
+# ====================================================================
+# MODULE GUARD - PREVENT DIRECT EXECUTION
+# ====================================================================
+if __name__ == "__main__":
+    print("=" * 60)
+    print("ERROR: This module is not designed to be run directly!")
+    print("=" * 60)
+    print()
+    print("This is a library module that should be imported, not executed.")
+    print("Use the command-line interface instead:")
+    print()
+    print("  python cli.py --help")
+    print()
+    print("For programmatic usage, import the functions you need:")
+    print("  from sms import setup_processing_paths, process_html_files")
+    print()
+    print("=" * 60)
+    sys.exit(1)
