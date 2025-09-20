@@ -25,9 +25,9 @@ class TestConfigurationIntegration:
         assert config.output_dir == processing_dir / "conversations"
         
         # Verify default values are reasonable
-        assert config.max_workers > 0
-        assert config.chunk_size > 0
-        assert config.buffer_size >= 1024
+        # Note: Performance settings (max_workers, chunk_size, buffer_size) are now hardcoded
+        # and not exposed in the configuration object
+        assert config.large_dataset is False
     
     def test_configuration_builder_with_real_paths(self):
         """Test configuration builder with real file system paths."""
@@ -43,21 +43,17 @@ class TestConfigurationIntegration:
         cli_args = {
             'processing_dir': str(current_dir),
             'phone_prompts': True,
-            'output_format': 'html'
         }
         
         cli_config = ConfigurationBuilder.from_cli_args(cli_args)
         assert cli_config.processing_dir == current_dir
         assert cli_config.enable_phone_prompts is True
-        assert cli_config.output_format == "html"
     
     def test_configuration_serialization_roundtrip(self):
         """Test that configuration can be serialized and deserialized correctly."""
         processing_dir = Path("/tmp/test")
         config = ProcessingConfig(
             processing_dir=processing_dir,
-            output_format="html",
-            max_workers=8,
             enable_phone_prompts=True,
             strict_mode=True
         )
@@ -67,8 +63,6 @@ class TestConfigurationIntegration:
         
         # Verify serialization
         assert config_dict["processing_dir"] == "/tmp/test"
-        assert config_dict["output_format"] == "html"
-        assert config_dict["max_workers"] == 8
         assert config_dict["enable_phone_prompts"] is True
         assert config_dict["strict_mode"] is True
         
@@ -77,8 +71,6 @@ class TestConfigurationIntegration:
         
         # Verify deserialization
         assert restored_config.processing_dir == config.processing_dir
-        assert restored_config.output_format == config.output_format
-        assert restored_config.max_workers == config.max_workers
         assert restored_config.enable_phone_prompts == config.enable_phone_prompts
         assert restored_config.strict_mode == config.strict_mode
     
@@ -86,19 +78,14 @@ class TestConfigurationIntegration:
         """Test that configuration validation works correctly."""
         # Test valid configuration
         valid_config = ProcessingConfig(
-            processing_dir=Path("/tmp/test"),
-            max_workers=4,
-            chunk_size=500,
-            buffer_size=2048
+            processing_dir=Path("/tmp/test")
         )
-        assert valid_config.max_workers == 4
+        assert valid_config.processing_dir == Path("/tmp/test")
         
-        # Test invalid configuration
-        with pytest.raises(ValueError, match="max_workers must be >= 1"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"), max_workers=0)
-        
-        with pytest.raises(ValueError, match="buffer_size must be >= 1024"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"), buffer_size=512)
+        # Note: ProcessingConfig no longer validates directory existence during construction
+        # Directory validation happens during processing
+        nonexistent_config = ProcessingConfig(processing_dir=Path("/nonexistent/path"))
+        assert nonexistent_config.processing_dir == Path("/nonexistent/path")
     
     def test_configuration_presets(self):
         """Test that configuration presets work correctly."""
@@ -113,13 +100,11 @@ class TestConfigurationIntegration:
         test_config = ConfigurationBuilder.create_with_presets(processing_dir, "test")
         assert test_config.test_mode is True
         assert test_config.strict_mode is True
-        assert test_config.enable_performance_monitoring is False
         
         # Test production preset
         prod_config = ConfigurationBuilder.create_with_presets(processing_dir, "production")
         assert prod_config.test_mode is False
         assert prod_config.full_run is True
-        assert prod_config.enable_performance_monitoring is True
 
 
 if __name__ == "__main__":

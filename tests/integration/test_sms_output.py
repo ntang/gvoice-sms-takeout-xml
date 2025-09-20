@@ -3231,10 +3231,225 @@ def create_test_suite(test_type="basic", test_limit=100):
     elif test_type == "integration":
         # Integration tests only
         suite.addTest(unittest.makeSuite(TestSMSIntegration))
+    elif args.test_type == "regression":
+        # Regression tests only
+        suite.addTest(unittest.makeSuite(TestHTMLOutputRegression))
     else:  # Default to basic
         suite.addTest(unittest.makeSuite(TestSMSBasic))
+        # Always include regression tests
+        suite.addTest(unittest.makeSuite(TestHTMLOutputRegression))
 
     return suite
+
+
+class TestHTMLOutputRegression(BaseSMSTest):
+    """Regression tests for HTML output generation to prevent future issues."""
+
+    def test_html_output_regression_multiple_messages(self):
+        """Regression test: Ensure multiple messages are processed and displayed correctly."""
+        # Create test HTML with multiple messages (sent and received)
+        test_html = """<!DOCTYPE html>
+<html>
+<head>
+    <title>SMS Conversation</title>
+</head>
+<body>
+    <div class="conversation">
+        <div class="message">
+            <abbr class="dt" title="2025-01-20T12:00:00Z">Jan 20</abbr>
+            <cite><a href="tel:+1234567890">+1234567890</a></cite>
+            <q>Hello, this is a test message</q>
+        </div>
+        <div class="message">
+            <abbr class="dt" title="2025-01-20T12:05:00Z">Jan 20</abbr>
+            <cite>Me</cite>
+            <q>This is my response</q>
+        </div>
+    </div>
+</body>
+</html>"""
+        
+        # Create test file
+        test_file = self.test_dir / "Calls" / "Test User - Text - 2025-01-20T12_00_00Z.html"
+        test_file.write_text(test_html, encoding="utf-8")
+        
+        # Setup processing paths
+        sms.setup_processing_paths(self.test_dir)
+        
+        # Process the HTML file
+        stats = sms.process_html_files({})
+        
+        # Verify processing stats
+        self.assertEqual(stats['num_sms'], 2, "Should process 2 SMS messages")
+        
+        # Check conversation files were created
+        html_files = list(sms.CONVERSATION_MANAGER.output_dir.glob('*.html'))
+        self.assertEqual(len(html_files), 1, "Should create 1 conversation HTML file")
+        
+        # Verify HTML content
+        content = html_files[0].read_text(encoding="utf-8")
+        self.assertGreater(len(content), 2000, "HTML file should have substantial content")
+        
+        # Check for required elements
+        required_elements = [
+            '<table>',
+            '<td class="timestamp">',
+            '<td class="sender">', 
+            '<td class="message">',
+            'Date Range:',
+            'Total Messages:',
+            'Hello, this is a test message',
+            'This is my response',
+            '+1234567890',
+            'Me'
+        ]
+        
+        for element in required_elements:
+            self.assertIn(element, content, f"HTML should contain: {element}")
+        
+        # Verify message count
+        self.assertIn('Total Messages: 2', content, "Should show correct message count")
+        
+        # Verify message order (chronological)
+        first_pos = content.find('Hello, this is a test message')
+        second_pos = content.find('This is my response')
+        self.assertLess(first_pos, second_pos, "Messages should be in chronological order")
+        
+        print("✅ HTML output regression test passed - multiple messages processed correctly")
+
+    def test_html_output_regression_message_type_detection(self):
+        """Regression test: Ensure message type detection works correctly for sent vs received messages."""
+        from bs4 import BeautifulSoup
+        
+        # Test HTML structures
+        received_message_html = """<div class="message">
+            <abbr class="dt" title="2025-01-20T12:00:00Z">Jan 20</abbr>
+            <cite><a href="tel:+1234567890">+1234567890</a></cite>
+            <q>Hello, this is a received message</q>
+        </div>"""
+        
+        sent_message_html = """<div class="message">
+            <abbr class="dt" title="2025-01-20T12:05:00Z">Jan 20</abbr>
+            <cite>Me</cite>
+            <q>This is a sent message</q>
+        </div>"""
+        
+        # Parse messages
+        received_soup = BeautifulSoup(received_message_html, 'html.parser')
+        sent_soup = BeautifulSoup(sent_message_html, 'html.parser')
+        
+        received_message = received_soup.find('div', class_='message')
+        sent_message = sent_soup.find('div', class_='message')
+        
+        # Test message type detection
+        received_type = sms.get_message_type(received_message)
+        sent_type = sms.get_message_type(sent_message)
+        
+        # Verify types
+        self.assertEqual(received_type, 1, "Received message should be type 1")
+        self.assertEqual(sent_type, 2, "Sent message should be type 2")
+        
+        print("✅ Message type detection regression test passed")
+
+    def test_html_output_regression_sender_display(self):
+        """Regression test: Ensure sender display logic works correctly."""
+        # Create test HTML with both sent and received messages
+        test_html = """<!DOCTYPE html>
+<html>
+<head>
+    <title>SMS Conversation</title>
+</head>
+<body>
+    <div class="conversation">
+        <div class="message">
+            <abbr class="dt" title="2025-01-20T12:00:00Z">Jan 20</abbr>
+            <cite><a href="tel:+1234567890">+1234567890</a></cite>
+            <q>Hello from +1234567890</q>
+        </div>
+        <div class="message">
+            <abbr class="dt" title="2025-01-20T12:05:00Z">Jan 20</abbr>
+            <cite>Me</cite>
+            <q>Hello from Me</q>
+        </div>
+    </div>
+</body>
+</html>"""
+        
+        # Create test file
+        test_file = self.test_dir / "Calls" / "Sender Test - Text - 2025-01-20T12_00_00Z.html"
+        test_file.write_text(test_html, encoding="utf-8")
+        
+        # Setup processing paths
+        sms.setup_processing_paths(self.test_dir)
+        
+        # Process the HTML file
+        stats = sms.process_html_files({})
+        self.assertEqual(stats['num_sms'], 2, "Should process 2 SMS messages")
+        
+        # Check conversation files
+        html_files = list(sms.CONVERSATION_MANAGER.output_dir.glob('*.html'))
+        self.assertEqual(len(html_files), 1, "Should create 1 conversation HTML file")
+        
+        # Verify sender display
+        content = html_files[0].read_text(encoding="utf-8")
+        
+        # Check that both senders are present and correctly displayed
+        self.assertIn('+1234567890', content, "Should contain sender phone number")
+        self.assertIn('Me', content, "Should contain 'Me' for sent messages")
+        
+        # Verify sender appears in the correct context (in table cells)
+        self.assertIn('<td class="sender">+1234567890</td>', content, "Phone number should be in sender cell")
+        self.assertIn('<td class="sender">Me</td>', content, "'Me' should be in sender cell")
+        
+        print("✅ Sender display regression test passed")
+
+    def test_html_output_regression_finalization(self):
+        """Regression test: Ensure conversation finalization works correctly."""
+        # Create test HTML
+        test_html = """<!DOCTYPE html>
+<html>
+<head>
+    <title>SMS Conversation</title>
+</head>
+<body>
+    <div class="conversation">
+        <div class="message">
+            <abbr class="dt" title="2025-01-20T12:00:00Z">Jan 20</abbr>
+            <cite><a href="tel:+1234567890">+1234567890</a></cite>
+            <q>Test message for finalization</q>
+        </div>
+    </div>
+</body>
+</html>"""
+        
+        # Create test file
+        test_file = self.test_dir / "Calls" / "Finalization Test - Text - 2025-01-20T12_00_00Z.html"
+        test_file.write_text(test_html, encoding="utf-8")
+        
+        # Setup processing paths
+        sms.setup_processing_paths(self.test_dir)
+        
+        # Check conversation manager state before processing
+        initial_files = len(sms.CONVERSATION_MANAGER.conversation_files)
+        
+        # Process the HTML file
+        stats = sms.process_html_files({})
+        self.assertEqual(stats['num_sms'], 1, "Should process 1 SMS message")
+        
+        # Check conversation manager state after processing
+        final_files = len(sms.CONVERSATION_MANAGER.conversation_files)
+        
+        # Verify that conversation files were created and finalized
+        html_files = list(sms.CONVERSATION_MANAGER.output_dir.glob('*.html'))
+        self.assertEqual(len(html_files), 1, "Should create 1 conversation HTML file")
+        
+        # Verify HTML content is properly formatted
+        content = html_files[0].read_text(encoding="utf-8")
+        self.assertIn('<!DOCTYPE html>', content, "Should have proper HTML structure")
+        self.assertIn('<table>', content, "Should have table structure")
+        self.assertIn('Test message for finalization', content, "Should contain message content")
+        
+        print("✅ Conversation finalization regression test passed")
 
 
 def main():

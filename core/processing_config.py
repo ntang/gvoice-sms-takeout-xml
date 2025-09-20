@@ -277,7 +277,6 @@ class ConfigurationDefaults:
             "full_run": False,
             "enable_phone_prompts": False,
             "strict_mode": True,
-            "enable_performance_monitoring": False,
         }
     
     @staticmethod
@@ -286,8 +285,6 @@ class ConfigurationDefaults:
         return {
             "test_mode": False,
             "full_run": True,
-            "enable_performance_monitoring": True,
-            "enable_progress_logging": True,
             "strict_mode": False,
         }
 
