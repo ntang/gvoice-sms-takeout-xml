@@ -2040,12 +2040,16 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
 
         for i, html_file in enumerate(all_files):
             try:
+                # Use context managers if available, otherwise fall back to global managers
+                conversation_manager = context.conversation_manager if context else CONVERSATION_MANAGER
+                phone_lookup_manager = context.phone_lookup_manager if context else PHONE_LOOKUP_MANAGER
+                
                 file_stats = process_single_html_file(
                     html_file,
                     src_filename_map,
                     own_number,
-                    context.conversation_manager,
-                    context.phone_lookup_manager,
+                    conversation_manager,
+                    phone_lookup_manager,
                     config,
                     context=context,
                 )
@@ -4590,74 +4594,6 @@ def write_mms_messages(
             logger.error(f"MMS processing stack trace:\n{traceback.format_exc()}")
         
         logger.error(f"Stack trace:\n{traceback.format_exc()}")
-
-
-def process_attachments(
-    attachments: List,
-    file: str,
-    src_filename_map: Dict[str, str],
-    attachment_type: str,
-) -> Tuple[str, Optional[str]]:
-    """
-    Process attachments and return XML parts and extracted URL.
-
-    Args:
-        attachments: List of attachment elements
-        file: HTML filename being processed
-        src_filename_map: Mapping of src elements to filenames
-        attachment_type: Type of attachment ('image' or 'vcard')
-
-    Returns:
-        tuple: (XML parts string, extracted URL or None)
-    """
-    parts = ""
-    extracted_url = None
-
-    for attachment in attachments:
-        src = attachment.get("src" if attachment_type == "image" else "href", "")
-        if src in src_filename_map:
-            filename, _ = src_filename_map[src]
-            if filename and filename != "No unused match found":
-                file_path = Path(filename)
-                if file_path.exists():
-                    try:
-                        if attachment_type == "image":
-                            image_type = get_image_type(file_path)
-                            if not image_type:
-                                image_type = "unknown"
-                            content_type = f"image/{image_type}"
-                            data = encode_file_content(file_path)
-                            if data:
-                                try:
-                                    parts += IMAGE_PART_TEMPLATE.format(
-                                        type=content_type, name=filename, data=data
-                                    )
-                                except (KeyError, ValueError) as template_error:
-                                    logger.error(f"Template formatting error for image {filename}: {template_error}")
-                                    # Fallback to a simple format if template fails
-                                    parts += f'    <part seq="0" ct="{content_type}" name="{filename}" data="{data}" />\n'
-                        else:  # vcard
-                            data = encode_file_content(file_path)
-                            if data:
-                                try:
-                                    parts += VCARD_PART_TEMPLATE.format(
-                                        type="text/vcard", name=filename, data=data
-                                    )
-                                except (KeyError, ValueError) as template_error:
-                                    logger.error(f"Template formatting error for vCard {filename}: {template_error}")
-                                    # Fallback to a simple format if template fails
-                                    parts += f'    <part seq="0" ct="text/vcard" name="{filename}" data="{data}" />\n'
-
-                        # Extract URL for location pins
-                        if not extracted_url:
-                            extracted_url = src
-
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to process {attachment_type} {filename}: {e}"
-                        )
-
-    return parts, extracted_url
 def build_image_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[str, str]]) -> str:
     """
     Build XML parts for image attachments in an MMS message.
@@ -5996,7 +5932,6 @@ def get_time_formatted(message: BeautifulSoup, filename: str = "unknown") -> str
             return "Unknown"
     except Exception:
         return "Unknown"
-
 def get_time_unix(message: BeautifulSoup, filename: str = "unknown") -> int:
     """
     Extract and convert message timestamp to Unix milliseconds.
@@ -6795,7 +6730,6 @@ def create_sample_config():
 # │   └── ...
 # ├── Phones.vcf
 # └── other_files...
-
 # Usage examples:
 # python sms.py /path/to/your/data
 # python sms.py /path/to/your/data --output my-sms-backup.xml
@@ -6991,6 +6925,11 @@ def process_html_files_parallel(
             except Exception as e:
                 logger.error(f"Failed to process chunk: {e}")
                 continue
+    
+    # After parallel processing, get total stats from the conversation manager
+    if CONVERSATION_MANAGER:
+        total_stats = CONVERSATION_MANAGER.get_total_stats()
+        stats.update(total_stats)
 
     # Memory monitoring for parallel processing completion
     if ENABLE_PERFORMANCE_MONITORING:
@@ -7011,41 +6950,53 @@ def process_chunk_parallel(
     html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None
 ) -> Dict[str, int]:
     """Process a chunk of HTML files for parallel processing."""
-    chunk_stats = {
+    stats = {
         "num_sms": 0,
         "num_img": 0,
         "num_vcf": 0,
         "num_calls": 0,
         "num_voicemails": 0,
     }
+    own_number = None
+
+    # Use the global conversation manager from the context
+    conversation_manager = context.conversation_manager if context else None
+    phone_lookup_manager = context.phone_lookup_manager if context else None
+    
+    if not conversation_manager:
+        logger.error("ConversationManager not available in parallel chunk")
+        return stats
 
     for html_file in html_files:
         try:
-            # Thread-safe access to global managers
-            with CONVERSATION_MANAGER_LOCK:
-                conversation_manager = CONVERSATION_MANAGER
-            with PHONE_LOOKUP_MANAGER_LOCK:
-                phone_lookup_manager = PHONE_LOOKUP_MANAGER
-
             file_stats = process_single_html_file(
                 html_file,
                 src_filename_map,
-                None,
+                own_number,
                 conversation_manager,
                 phone_lookup_manager,
                 config,
                 context=context,
             )
 
-            # Update chunk statistics
-            for key in chunk_stats:
-                chunk_stats[key] += file_stats.get(key, 0)
+            # Aggregate statistics for the chunk
+            stats["num_sms"] += file_stats.get("num_sms", 0)
+            stats["num_img"] += file_stats.get("num_img", 0)
+            stats["num_vcf"] += file_stats.get("num_vcf", 0)
+            stats["num_calls"] += file_stats.get("num_calls", 0)
+            stats["num_voicemails"] += file_stats.get("num_voicemails", 0)
+
+            if own_number is None:
+                own_number = file_stats.get("own_number")
 
         except Exception as e:
-            logger.error(f"Failed to process {html_file}: {e}")
+            logger.error(f"Failed to process {html_file} in parallel chunk: {e}")
             continue
+    
+    if own_number:
+        stats["own_number"] = own_number
 
-    return chunk_stats
+    return stats
 
 
 def process_call_file(
@@ -7978,7 +7929,6 @@ def write_call_entry(
             alias = context.phone_lookup_manager.get_alias(phone_number, soup)
         else:
             # Fallback to global for backward compatibility
-            from core.shared_constants import PHONE_LOOKUP_MANAGER
             alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Extract call details from the already parsed soup if available,
@@ -8279,7 +8229,6 @@ def write_voicemail_entry(
             alias = context.phone_lookup_manager.get_alias(phone_number, soup)
         else:
             # Fallback to global for backward compatibility
-            from core.shared_constants import PHONE_LOOKUP_MANAGER
             alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
 
         # Create voicemail message content
