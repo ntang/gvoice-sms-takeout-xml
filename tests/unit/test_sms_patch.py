@@ -100,11 +100,6 @@ class TestSMSModulePatcher:
         # Create test configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            memory_threshold=20000,
-            batch_size=2000,
-            enable_parallel_processing=True,
-            enable_streaming_parsing=True,
-            enable_mmap_for_large_files=True,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=True,
@@ -138,7 +133,7 @@ class TestSMSModulePatcher:
         
         # Check that variables were patched
         assert mock_sms.PROCESSING_DIRECTORY == Path('/tmp/test')
-        assert mock_sms.MAX_WORKERS == 32
+        assert mock_sms.MAX_WORKERS == 16
         assert mock_sms.CHUNK_SIZE_OPTIMAL == 2000
         assert mock_sms.MEMORY_EFFICIENT_THRESHOLD == 20000
         assert mock_sms.BUFFER_SIZE_OPTIMAL == 16384

@@ -104,7 +104,6 @@ class TestSetupProcessingPaths:
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            batch_size=500,
             large_dataset=True,
         )
         
@@ -113,11 +112,13 @@ class TestSetupProcessingPaths:
         # Verify global configuration was set
         mock_set_global.assert_called_once_with(config)
         
-        # Verify original function was called with correct parameters
+        # Verify original function was called with correct parameters (including hardcoded defaults)
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            batch_size=500,
+            buffer_size=65536,
+            batch_size=1000,
+            cache_size=25000,
             large_dataset=True,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
@@ -194,17 +195,13 @@ class TestConfigurationOverrides:
         """Test setup_processing_paths_with_config with parameter overrides."""
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            enable_phone_prompts=False,  # Default value
-            # Default value
-  # Default value
+            enable_phone_prompts=False,
         )
         
         # Call with overrides
         setup_processing_paths_with_config(
             config,
-            enable_phone_prompts=True,  # Override
-            # Override
-  # Override
+            enable_phone_prompts=True,
         )
         
         # Verify global configuration was set
@@ -213,11 +210,11 @@ class TestConfigurationOverrides:
         # Verify original function was called with override values
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
-            enable_phone_prompts=True,  # Override value
-            # Override value
-            batch_size=1000,  # Default from config
-            # Default from config
-            large_dataset=False,  # Default from config
+            enable_phone_prompts=True,
+            buffer_size=65536,
+            batch_size=1000,
+            cache_size=25000,
+            large_dataset=False,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
     
@@ -228,7 +225,6 @@ class TestConfigurationOverrides:
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            batch_size=500,
             large_dataset=True,
         )
         
@@ -241,11 +237,11 @@ class TestConfigurationOverrides:
         # Verify original function was called with config values
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
-            enable_phone_prompts=True,  # From config
-            # From config
-            batch_size=500,  # From config
-            # From config
-            large_dataset=True,  # From config
+            enable_phone_prompts=True,
+            buffer_size=65536,
+            batch_size=1000,
+            cache_size=25000,
+            large_dataset=True,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
         )
 

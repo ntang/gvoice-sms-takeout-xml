@@ -61,15 +61,14 @@ class TestProcessingConfig:
         # Test valid values
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
-            batch_size=1,
-            memory_threshold=100
-        )        # Test invalid max_workers
-        with pytest.raises(ValueError, match="max_workers must be >= 1"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"))
+            test_limit=50
+        )
+        assert config.test_limit == 50
         
-        # Test invalid buffer_size
-        with pytest.raises(ValueError, match="buffer_size must be >= 1024"):
-            ProcessingConfig(processing_dir=Path("/tmp/test"))
+        # Test invalid test_limit (validation happens in get_validation_errors, not constructor)
+        config = ProcessingConfig(processing_dir=Path("/tmp/test"), test_limit=0)
+        errors = config.get_validation_errors()
+        assert any("test_limit must be positive" in error for error in errors)
     
     def test_date_range_validation(self):
         """Test date range validation."""
@@ -139,8 +138,6 @@ class TestProcessingConfig:
         assert config_dict["processing_dir"] == "/tmp/test"
 
         assert config_dict["output_format"] == "html"
-        assert config_dict["max_workers"] == 8
-
         assert config_dict["enable_phone_prompts"] is True
         
         # Test from_dict
@@ -148,7 +145,7 @@ class TestProcessingConfig:
         assert restored_config.processing_dir == config.processing_dir
 
         assert restored_config.output_format == config.output_format
-        assert restored_config.max_workers == config.max_workers
+        assert restored_config.enable_phone_prompts == config.enable_phone_prompts
 
         assert restored_config.enable_phone_prompts == config.enable_phone_prompts
 
@@ -160,12 +157,11 @@ class TestConfigurationDefaults:
         """Test default configuration values."""
         defaults = ConfigurationDefaults.get_defaults()
         
-        assert defaults["max_workers"] == 16
-
-        assert defaults["chunk_size"] == 1000
         assert defaults["enable_phone_prompts"] is False
         assert defaults["strict_mode"] is False
         assert defaults["test_mode"] is False
+        assert defaults["test_limit"] == 100
+        assert defaults["skip_filtered_contacts"] is True
     
     def test_test_presets(self):
         """Test test mode preset values."""
@@ -177,7 +173,6 @@ class TestConfigurationDefaults:
         assert test_presets["enable_phone_prompts"] is False
         assert test_presets["strict_mode"] is True
 
-        assert test_presets["enable_performance_monitoring"] is False
     
     def test_production_presets(self):
         """Test production mode preset values."""
@@ -185,8 +180,6 @@ class TestConfigurationDefaults:
         
         assert prod_presets["test_mode"] is False
         assert prod_presets["full_run"] is True
-        assert prod_presets["enable_performance_monitoring"] is True
-        assert prod_presets["enable_progress_logging"] is True
         assert prod_presets["strict_mode"] is False
 
 

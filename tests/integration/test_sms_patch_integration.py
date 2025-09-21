@@ -170,11 +170,6 @@ class TestSMSModulePatchRealWorld:
         # Create production-like configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/production'),
-            memory_threshold=10000,
-            batch_size=1000,
-            enable_parallel_processing=True,
-            enable_streaming_parsing=True,
-            enable_mmap_for_large_files=True,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=False,
@@ -199,11 +194,6 @@ class TestSMSModulePatchRealWorld:
         # Create test configuration
         config = ProcessingConfig(
             processing_dir=Path('/tmp/test'),
-            memory_threshold=1000,
-            batch_size=100,
-            enable_parallel_processing=False,
-            enable_streaming_parsing=False,
-            enable_mmap_for_large_files=False,
             enable_path_validation=True,
             enable_runtime_validation=True,
             test_mode=True,

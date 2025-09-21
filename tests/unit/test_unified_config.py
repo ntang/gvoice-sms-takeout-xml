@@ -172,13 +172,13 @@ class TestAppConfig:
         
         # Test to_dict
         config_dict = config.to_dict()
-        assert config_dict['max_workers'] == 8
+        assert config_dict['max_workers'] == 16
 
         assert config_dict['test_limit'] == 50
         
         # Test to_env_file
         env_content = config.to_env_file()
-        assert "MAX_WORKERS=8" in env_content
+        assert "MAX_WORKERS=16" in env_content
         assert "TEST_LIMIT=50" in env_content
     
     @patch('pathlib.Path.exists')
