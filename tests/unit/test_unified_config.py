@@ -298,7 +298,10 @@ class TestConfigurationIntegration:
     def test_environment_variable_override(self):
         """Test that environment variables override defaults."""
         with patch.dict('os.environ', {'GVOICE_MAX_WORKERS': '8'}):
-            config = AppConfig()    def test_environment_variable_processing_dir(self):
+            config = AppConfig()
+            assert config.max_workers == 8
+    
+    def test_environment_variable_processing_dir(self):
         """Test that environment variable for processing directory works."""
         with patch.dict('os.environ', {'GVOICE_PROCESSING_DIR': '/env/path'}):
             config = AppConfig()
@@ -341,7 +344,9 @@ class TestConfigurationIntegration:
         config = AppConfig()
         original_workers = config.max_workers
         
-        config.max_workers = 8        assert config.max_workers != original_workers
+        config.max_workers = 8
+        assert config.max_workers != original_workers
+        assert config.max_workers == 8
         
         # Test that other properties are unaffected
         assert config.chunk_size == 1000  # Default unchanged

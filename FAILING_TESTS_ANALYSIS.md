@@ -1,7 +1,75 @@
 # Failing Tests Analysis and Rebuild Plan
 
-## Overview
-63 tests are currently failing due to test isolation issues. These tests pass individually but fail when run together, indicating complex state dependencies. Instead of trying to fix the isolation issues, we'll rebuild these tests cleanly from scratch.
+## Current Status Update (September 21, 2025)
+
+### Test Run Results
+- **Total Tests**: 574 tests collected  
+- **Passed**: 550 tests (95.8%)
+- **Failed**: 24 tests (4.2%)
+- **Status**: Much better than originally documented!
+
+### Key Findings
+The situation is significantly better than the original analysis indicated. Only 24 tests are failing (not 63), and many appear to be configuration-related issues rather than complex state dependencies.
+
+## Current Failing Tests (24 total)
+
+### Configuration-Related Failures (12 tests)
+These are primarily due to ProcessingConfig interface changes:
+- `TestSMSModulePatchRealWorld.test_production_configuration_patch`
+- `TestSMSModulePatchRealWorld.test_test_configuration_patch`
+- `TestSetupProcessingPaths.test_setup_processing_paths_with_config`
+- `TestProcessingConfig.test_numeric_validation`
+- `TestProcessingConfig.test_serialization_methods`
+- `TestConfigurationDefaults.test_default_values`
+- `TestConfigurationDefaults.test_test_presets`
+- `TestConfigurationDefaults.test_production_presets`
+- `TestSMSModulePatcher.test_patch_global_variables`
+- `TestConfigurationOverrides.test_setup_processing_paths_with_config_overrides`
+- `TestConfigurationOverrides.test_setup_processing_paths_with_config_no_overrides`
+- `TestAppConfig.test_serialization`
+
+**Root Cause**: ProcessingConfig constructor signature changed, removing parameters like `memory_threshold`, `batch_size`, `max_workers`.
+
+### Integration Test Failures (11 tests)
+These appear to be related to HTML generation and statistics tracking:
+- `TestEndToEndProcessingPipeline.test_conversation_file_has_proper_table_structure`
+- `TestEndToEndProcessingPipeline.test_index_html_generation_with_conversations`
+- `TestEndToEndProcessingPipeline.test_processing_statistics_flow`
+- `TestStatisticsFlowIntegration.test_statistics_disconnect_detection`
+- `TestStatisticsSynchronization.test_complete_pipeline_statistics_flow`
+- `TestStatisticsSynchronization.test_html_file_content_corresponds_to_statistics`
+- `TestStatisticsTrackingIntegration.test_empty_conversation_files_when_statistics_zero`
+- `TestStatisticsTrackingIntegration.test_sms_message_processing_updates_statistics`
+
+**Root Cause**: HTML output format changes and statistics tracking disconnects.
+
+### Refactoring Test Failures (2 tests)
+- `TestGetLimitedFileListRefactor.test_get_limited_file_list_equivalence`
+- `TestGetLimitedFileListRefactor.test_get_limited_file_list_performance`
+
+**Root Cause**: Expected behavior differences between old and new implementations.
+
+### State Management Failures (1 test)
+- `TestSMSModulePatchIntegration.test_patcher_lifecycle_management`
+- `TestSMSModulePatchFunctions.test_is_sms_module_patched_true`
+
+**Root Cause**: Global state not being properly cleaned up between tests.
+
+## Revised Strategy
+
+### IMMEDIATE PRIORITY - Configuration Fixes (2-3 hours)
+Fix the 12 configuration-related tests by updating ProcessingConfig usage patterns. These are straightforward interface fixes.
+
+### MEDIUM PRIORITY - Integration Tests (4-5 hours)  
+Fix the 11 integration tests by addressing HTML output format expectations and statistics tracking.
+
+### LOW PRIORITY - Refactoring Tests (1 hour)
+Fix the 2 refactoring tests by adjusting performance expectations and equivalence logic.
+
+## Original Analysis (Outdated)
+~~63 tests are currently failing due to test isolation issues. These tests pass individually but fail when run together, indicating complex state dependencies. Instead of trying to fix the isolation issues, we'll rebuild these tests cleanly from scratch.~~
+
+**Update**: The original analysis was overly pessimistic. Most issues are straightforward configuration interface changes, not complex isolation problems.
 
 ## Test Categories and Intent
 

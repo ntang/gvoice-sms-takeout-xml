@@ -1,34 +1,46 @@
 # TODO - Current Work Items
 
-## 🔴 CRITICAL - Test Suite Rebuild
+## 🔴 CRITICAL - Test Suite Fixes (REVISED)
 
-### Overview
-63 tests are currently failing due to test isolation issues. These tests pass individually but fail when run together, indicating complex state dependencies. The tests need to be rebuilt cleanly from scratch.
+### ✅ Current Status: MUCH BETTER THAN EXPECTED!
+- **Total Tests**: 574 tests
+- **Passed**: 550 tests (95.8%)
+- **Failed**: 24 tests (4.2%)
+- **Status**: Only targeted fixes needed, not full rebuild!
 
-### Current Status: PLANNING PHASE
-- **Analysis Complete**: Test categories and rebuild plan documented
-- **Risk Assessment**: Phase-by-phase approach with LOW/MEDIUM/HIGH risk categorization
-- **Next Action**: Begin with LOW RISK phases to build momentum
+### 🎯 IMMEDIATE PRIORITY - Configuration Fixes (2-3 hours)
+**12 tests failing due to ProcessingConfig interface changes**
+- Fix constructor calls removing deprecated parameters (`memory_threshold`, `batch_size`, `max_workers`)
+- Update test expectations for new configuration interface
+- These are straightforward interface fixes, not complex rebuilds
 
-### Phase-by-Phase Rebuild Plan
+**Failing Tests**:
+- TestSMSModulePatchRealWorld (2 tests)
+- TestSetupProcessingPaths (1 test)  
+- TestProcessingConfig (5 tests)
+- TestSMSModulePatcher (1 test)
+- TestConfigurationOverrides (2 tests)
+- TestAppConfig (1 test)
 
-#### 🟢 LOW RISK PHASES (Tackle First - 6-10 hours)
-- **Phase 2**: HTML Output Tests (4 tests) - 1-2 hours
-- **Phase 3**: Index Generation Tests (2 tests) - 30-60 minutes  
-- **Phase 9**: Call and Voicemail Tests (2 tests) - 1-2 hours
-- **Phase 10**: Date Filtering Tests (2 tests) - 1-2 hours
-- **Phase 11**: Service Code Tests (2 tests) - 1-2 hours
-- **Phase 13**: Conversation Management Tests (2 tests) - 1-2 hours
+### 🟡 MEDIUM PRIORITY - Integration Test Fixes (4-5 hours)
+**11 tests failing due to HTML output format changes and statistics tracking**
+- Update HTML output expectations (table structure changes)
+- Fix statistics tracking disconnects
+- Address index generation parameter mismatches
 
-#### 🟡 MEDIUM RISK PHASES (11-15 hours)
-- **Phase 4**: Timestamp Extraction Tests (8 tests) - 3-4 hours
-- **Phase 5**: Phone Number and Alias Extraction Tests (12 tests) - 4-5 hours
-- **Phase 8**: Group Conversation Tests (3 tests) - 2-3 hours
-- **Phase 12**: Message Type and Processing Tests (3 tests) - 2-3 hours
+**Failing Tests**:
+- TestEndToEndProcessingPipeline (3 tests)
+- TestStatisticsFlowIntegration (1 test)
+- TestStatisticsSynchronization (2 tests)
+- TestStatisticsTrackingIntegration (2 tests)
 
-#### 🔴 HIGH RISK PHASES (Save for Last - 11-14 hours)
-- **Phase 6**: MMS Processing Tests (8 tests) - 5-6 hours
-- **Phase 7**: Filename Processing Tests (15 tests) - 6-8 hours
+### 🟢 LOW PRIORITY - Minor Fixes (1-2 hours)
+**3 tests with specific implementation issues**
+- Fix refactoring test equivalence logic (2 tests)
+- Fix state management cleanup (1 test)
+
+### ~~Original Rebuild Plan~~ (OBSOLETE)
+~~The original analysis was overly pessimistic. Most issues are straightforward interface changes, not complex isolation problems requiring full rebuilds.~~
 
 ### References
 - **FAILING_TESTS_ANALYSIS.md**: Detailed test categories and intent
