@@ -627,6 +627,39 @@ def get_limited_file_list(limit: int) -> List[Path]:
     return html_files
 
 
+def get_limited_file_list_param(processing_dir: Path, limit: int) -> List[Path]:
+    """
+    Get a limited list of HTML files for test mode (parameter-based version).
+
+    Args:
+        processing_dir: Directory to search for HTML files
+        limit: Maximum number of files to return
+
+    Returns:
+        List of Path objects for HTML files, limited to the specified count
+    """
+    html_files = []
+    
+    # Handle edge case: limit=0 should return empty list
+    if limit <= 0:
+        return html_files
+    
+    calls_dir = processing_dir / "Calls"
+    
+    if not calls_dir.exists():
+        logger.warning(f"Calls directory not found: {calls_dir}")
+        return html_files
+    
+    for html_file in calls_dir.rglob("*.html"):
+        html_files.append(html_file)
+        if len(html_files) >= limit:
+            break
+
+    logger.info(
+        f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
+    return html_files
+
+
 def main(config: Optional["ProcessingConfig"] = None,
      context: Optional["ProcessingContext"] = None):
     """Main conversion function with comprehensive progress logging and performance optimization."""
@@ -650,6 +683,9 @@ def main(config: Optional["ProcessingConfig"] = None,
         logger.info(f"Processing directory: {context.processing_dir}")
         logger.info(f"Output directory: {context.output_dir}")
 
+        # THE FIX: Declare global variables at the start
+        global LIMITED_HTML_FILES, TEST_MODE, TEST_LIMIT
+        
         # Test mode indicator
         if context.test_mode:
             logger.info(
@@ -657,11 +693,17 @@ def main(config: Optional["ProcessingConfig"] = None,
             # Create limited file list for test mode
             context.limited_html_files = get_limited_file_list(
                 context.test_limit)
+            # THE FIX: Sync the global variables so process_html_files can use them
+            LIMITED_HTML_FILES = context.limited_html_files
+            TEST_MODE = True
+            TEST_LIMIT = context.test_limit
             logger.info(
                 f"🧪 TEST MODE: Created limited file list with {len(context.limited_html_files)} files")
         else:
             logger.info("🚀 FULL RUN MODE - Processing all files")
             context.limited_html_files = None
+            LIMITED_HTML_FILES = None
+            TEST_MODE = False
 
         # Critical validation: ensure context is properly initialized
         if context.output_dir is None:
@@ -839,7 +881,15 @@ def main(config: Optional["ProcessingConfig"] = None,
         # Process HTML files
         logger.info("Processing HTML files...")
         processing_start = time.time()
-        stats = process_html_files(src_filename_map, config, context)
+        stats = process_html_files_param(
+            processing_dir=context.processing_dir,
+            src_filename_map=src_filename_map,
+            conversation_manager=context.conversation_manager,
+            phone_lookup_manager=context.phone_lookup_manager,
+            config=config,
+            context=context,
+            limited_files=context.limited_html_files if context.test_mode else None
+        )
         processing_time = time.time() - processing_start
         logger.info(
             f"Processed {stats['num_sms']} SMS, {stats['num_img']} images, {stats['num_vcf']} vCards in {processing_time:.2f}s"
@@ -2129,6 +2179,194 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
     
     # Memory monitoring for file processing completion
     if ENABLE_PERFORMANCE_MONITORING:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("html_processing_complete", {
+                "processed_files": filtered_files,
+                "final_stats": stats,
+                "processing_mode": "batch"
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for HTML processing completion failed: {e}")
+    
+    return stats
+
+
+def process_html_files_param(
+    processing_dir: Path,
+    src_filename_map: Dict[str, str],
+    conversation_manager: "ConversationManager",
+    phone_lookup_manager: "PhoneLookupManager",
+    config: Optional["ProcessingConfig"] = None,
+    context: Optional["ProcessingContext"] = None,
+    limited_files: Optional[List[Path]] = None,
+    large_dataset_threshold: int = 5000,
+    batch_size_optimal: int = 1000,
+    enable_performance_monitoring: bool = True
+) -> Dict[str, int]:
+    """
+    Process all HTML files and return statistics (parameter-based version).
+    
+    This function eliminates global variable dependencies by accepting all required
+    parameters explicitly. It provides identical behavior to process_html_files()
+    but with better testability and maintainability.
+    
+    Args:
+        processing_dir: Directory containing the Calls subdirectory with HTML files
+        src_filename_map: Mapping of source filenames to conversation names
+        conversation_manager: Manager for handling conversation output
+        phone_lookup_manager: Manager for phone number lookups
+        config: Processing configuration object
+        context: Processing context object
+        limited_files: Optional list of files to process (for test mode)
+        large_dataset_threshold: Threshold for switching to batch processing
+        batch_size_optimal: Optimal batch size for large datasets
+        enable_performance_monitoring: Whether to enable memory monitoring
+        
+    Returns:
+        Dictionary with processing statistics
+    """
+    stats = {
+        "num_sms": 0,
+        "num_img": 0,
+        "num_vcf": 0,
+        "num_calls": 0,
+        "num_voicemails": 0,
+    }
+    own_number = None
+    
+    # Memory monitoring for file processing
+    if enable_performance_monitoring:
+        try:
+            from utils.memory_monitor import monitor_memory_usage
+            monitor_memory_usage("html_processing_start", {
+                "src_filename_map_size": len(src_filename_map),
+                "processing_mode": "batch"
+            })
+        except Exception as e:
+            logger.debug(f"Memory monitoring for HTML processing start failed: {e}")
+
+    # Get HTML files from the Calls subdirectory
+    calls_directory = processing_dir / "Calls"
+    if not calls_directory.exists():
+        logger.error(f"Calls directory not found: {calls_directory}")
+        return stats
+
+    # Handle limited files (test mode) or get all files
+    if limited_files is not None:
+        logger.info(f"🧪 TEST MODE: Using provided limited file list with {len(limited_files)} files")
+        # Filter to only include files from the Calls directory
+        html_files_list = [f for f in limited_files if "Calls" in str(f)]
+        total_files = len(html_files_list)
+        logger.info(f"🧪 TEST MODE: Found {total_files} files in Calls directory from limited list")
+    else:
+        # Get HTML files as generator for memory efficiency
+        html_files_gen = calls_directory.rglob("*.html")
+
+        # Count files first for progress tracking (this is the only time we need
+        # the full list)
+        html_files_list = list(html_files_gen)
+        total_files = len(html_files_list)
+
+    if total_files == 0:
+        logger.error(f"No HTML files found in Calls directory: {calls_directory}")
+        return stats
+
+    # Process all files, not just SMS/MMS files
+    all_files = html_files_list
+    filtered_files = len(all_files)
+
+    logger.info(
+        f"Found {total_files} HTML files, processing all types including calls and voicemails"
+    )
+
+    # Use batch processing for large datasets
+    if filtered_files > large_dataset_threshold:
+        logger.info(
+            f"Using batch processing for large dataset ({filtered_files} files)"
+        )
+        stats = process_html_files_batch(
+            all_files, src_filename_map, batch_size=batch_size_optimal, config=config, context=context
+        )
+    else:
+        # Process files individually for smaller datasets
+        last_reported_progress = 0
+        processed_count = 0
+        skipped_count = 0
+
+        for i, html_file in enumerate(all_files):
+            try:
+                # Use provided managers (no global fallback needed)
+                file_stats = process_single_html_file(
+                    html_file,
+                    src_filename_map,
+                    own_number,
+                    conversation_manager,
+                    phone_lookup_manager,
+                    config,
+                    context=context,
+                )
+
+                # Update statistics
+                stats["num_sms"] += file_stats["num_sms"]
+                stats["num_img"] += file_stats["num_img"]
+                stats["num_vcf"] += file_stats["num_vcf"]
+                stats["num_calls"] += file_stats["num_calls"]
+                stats["num_voicemails"] += file_stats["num_voicemails"]
+                processed_count += 1
+
+                # Extract own number from first file if not already found
+                if own_number is None:
+                    own_number = file_stats.get("own_number")
+
+                # Report progress using utility function
+                current_progress = i + 1
+                if should_report_progress(
+                    current_progress, filtered_files, last_reported_progress
+                ):
+                    additional_info = f"SMS: {stats['num_sms']}, Images: {stats['num_img']}, vCards: {stats['num_vcf']}, Calls: {stats['num_calls']}, Voicemails: {stats['num_voicemails']}"
+                    progress_msg = format_progress_message(
+                        current_progress,
+                        filtered_files,
+                        "File processing",
+                        additional_info,
+                    )
+                    logger.info(progress_msg)
+                    last_reported_progress = current_progress
+
+            except Exception as e:
+                # Enhanced error logging for file processing
+                import traceback
+                logger.error(f"Failed to process {html_file}: {e}")
+                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Error details: {str(e)}")
+                logger.error(f"Processing context: file={html_file}, progress={i+1}/{filtered_files}")
+                
+                # Check if this is a division error and log variable states
+                if "unsupported operand type(s) for /" in str(e):
+                    logger.error("🚨 DIVISION ERROR DETECTED in file processing - Logging variable states:")
+                    logger.error(f"  html_file: {html_file}")
+                    logger.error(f"  i: {i} (type: {type(i)})")
+                    logger.error(f"  filtered_files: {filtered_files} (type: {type(filtered_files)})")
+                    logger.error(f"  current_progress: {i+1} (type: {type(i+1)})")
+                    logger.error(f"File processing stack trace:\n{traceback.format_exc()}")
+                
+                logger.error(f"Stack trace:\n{traceback.format_exc()}")
+                skipped_count += 1
+                continue
+
+    logger.info(
+        f"Completed processing {filtered_files} files. "
+        f"Final stats - SMS: {stats['num_sms']}, Images: {stats['num_img']}, vCards: {stats['num_vcf']}, Calls: {stats['num_calls']}, Voicemails: {stats['num_voicemails']}"
+    )
+    
+    # Finalize conversation files using provided manager
+    if conversation_manager:
+        logger.info("Finalizing conversation files...")
+        conversation_manager.finalize_conversation_files()
+    
+    # Memory monitoring for file processing completion
+    if enable_performance_monitoring:
         try:
             from utils.memory_monitor import monitor_memory_usage
             monitor_memory_usage("html_processing_complete", {

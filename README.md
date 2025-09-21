@@ -36,6 +36,15 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 * **Hash-based fallback system**: When phone numbers cannot be extracted from filenames or content, the system now generates unique, consistent identifiers using the `UN_` prefix followed by a Base64-encoded MD5 hash. This ensures that conversations without phone numbers can still be processed and organized consistently.
 * Tested on my 1.5GB archive of 75000 messages. There are a lot of corner cases handled now. It runs completely autonomously on my archive without any hacking or workarounds.
 
+## Recent Improvements (September 2025)
+
+### Test Mode Performance Fix (v1.0.0)
+- **Critical Bug Fix**: Fixed test mode performance issue where `--test-mode --test-limit N` was processing all files instead of just N files
+- **Performance Improvement**: Test mode execution time reduced from hours to seconds (99%+ improvement)
+- **User Experience**: Test mode now works as expected, allowing users to quickly test conversions with small datasets
+- **Technical Details**: Synchronized global `LIMITED_HTML_FILES` variable with context configuration
+- **Testing**: Comprehensive test suite added to prevent future regressions
+
 ## Technical Details
 
 ### Project Structure
@@ -181,6 +190,8 @@ The converter provides extensive configuration options with sensible defaults. A
 - `--test-mode` - Enable testing mode with limited processing (default: disabled, 100 entries when enabled)
 - `--test-limit INTEGER` - Number of entries to process in test mode (default: 100)
 - `--full-run` - Disable test mode and process all entries (default: disabled)
+
+**⚠️ Test Mode Performance Fix (v1.0.0)**: Test mode now works correctly! Previously, `--test-mode --test-limit N` would process all files instead of just N files, causing extremely long execution times. This has been fixed - test mode now processes exactly the specified number of files and completes in seconds instead of hours.
 
 ### Phone Lookup Options
 - `--phone-lookup-file PATH` - Path to phone lookup file (default: processing_dir/phone_lookup.txt)

@@ -210,13 +210,13 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
 @click.option(
     '--test-mode/--no-test-mode',
     default=False,
-    help="Enable testing mode with limited processing (default: disabled, 100 entries when enabled)"
+    help="Enable testing mode with limited processing (default: disabled, 100 entries when enabled). FIXED: Now processes exactly the specified number of files instead of all files."
 )
 @click.option(
     '--test-limit',
     type=int,
     default=100,
-    help="Number of entries to process in test mode (default: 100)"
+    help="Number of entries to process in test mode (default: 100). FIXED: Now correctly limits processing to this number of files."
 )
 @click.option(
     '--full-run/--no-full-run',

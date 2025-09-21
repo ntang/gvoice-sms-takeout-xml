@@ -288,6 +288,12 @@ class ConversationManager:
             file_info["messages"].append((timestamp, message_data))  # Use actual timestamp
             file_info["buffer_size"] += len(message)
 
+            # Update conversation statistics
+            if conversation_id in self.conversation_stats:
+                self.conversation_stats[conversation_id]['sms_count'] += 1
+                self.conversation_stats[conversation_id]['latest_timestamp'] = timestamp
+                self.conversation_stats[conversation_id]['latest_message_time'] = formatted_time
+
             # Memory-only buffering: No premature flushing to files
             # All messages are kept in memory until finalization
 
@@ -915,19 +921,23 @@ class ConversationManager:
             "real_attachments": 0,
         }
 
-        # Count from conversation stats
+        # Count from conversation stats (with proper key mapping)
         for stats in self.conversation_stats.values():
-            for key in total_stats:
-                total_stats[key] += stats.get(key, 0)
+            total_stats["num_sms"] += stats.get('sms_count', 0)
+            total_stats["num_calls"] += stats.get('calls_count', 0)
+            total_stats["num_voicemails"] += stats.get('voicemails_count', 0)
+            total_stats["num_img"] += stats.get('attachments_count', 0)
+            total_stats["real_attachments"] += stats.get('attachments_count', 0)
 
-        # Also count from actual message counts if available
+        # Fallback: Count from actual message counts if statistics are missing
         total_messages = 0
         for conversation_id, file_info in self.conversation_files.items():
             if "messages" in file_info:
                 total_messages += len(file_info["messages"])
 
-        # If we have message counts but no SMS stats, estimate from messages
+        # If we have message counts but no SMS stats, use fallback (should rarely happen now)
         if total_messages > 0 and total_stats["num_sms"] == 0:
+            logger.warning(f"Statistics tracking failed - using fallback count: {total_messages} messages")
             total_stats["num_sms"] = total_messages
 
         return total_stats
