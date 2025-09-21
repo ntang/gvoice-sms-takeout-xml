@@ -1543,6 +1543,111 @@ def is_valid_vcard_href(href: str) -> bool:
     return False
 
 
+def extract_src_with_source_files_cached(
+    html_directory: str = None,
+    sample_files: List[str] = None,
+    cache = None,
+) -> Dict[str, List[str]]:
+    """
+    Cached version of extract_src_with_source_files for performance optimization.
+    
+    Args:
+        html_directory: Directory to search for HTML files
+        sample_files: Optional list of specific files to process
+        cache: HTMLMetadataCache instance for caching
+        
+    Returns:
+        dict: Mapping from src/href values to list of HTML files that contain them
+    """
+    if html_directory is None:
+        html_directory = str(PROCESSING_DIRECTORY)
+    
+    src_to_files = {}
+    
+    try:
+        # Get HTML files to process
+        if sample_files:
+            html_files = [Path(f) for f in sample_files]
+            total_files = len(html_files)
+            logger.info(f"🧪 Processing {total_files} sample HTML files with caching")
+        else:
+            html_files = list(Path(html_directory).rglob("*.html"))
+            total_files = len(html_files)
+            logger.info(f"Processing {total_files} HTML files with caching")
+        
+        if total_files == 0:
+            logger.error(f"No HTML files found in {html_directory}")
+            return src_to_files
+        
+        cache_hits = 0
+        cache_misses = 0
+        
+        for i, html_file in enumerate(html_files):
+            try:
+                # Try cache first if available
+                cached_metadata = None
+                if cache:
+                    cached_metadata = cache.get_metadata(html_file)
+                
+                if cached_metadata and "src_elements" in cached_metadata:
+                    # Cache hit - use cached src elements
+                    cached_src_elements = cached_metadata["src_elements"]
+                    for src in cached_src_elements:
+                        if src not in src_to_files:
+                            src_to_files[src] = []
+                        src_to_files[src].append(str(html_file.name))
+                    cache_hits += 1
+                else:
+                    # Cache miss - parse file and cache results
+                    with open(html_file, "r", encoding="utf-8", buffering=FILE_READ_BUFFER_SIZE) as file:
+                        soup = BeautifulSoup(file, HTML_PARSER)
+                    
+                    # Extract src elements
+                    img_srcs = [
+                        img["src"] for img in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["img_src"])
+                        if img.get("src")
+                    ]
+                    vcard_hrefs = [
+                        a["href"] for a in soup.select(STRING_POOL.ADDITIONAL_SELECTORS["vcard_links"])
+                        if a.get("href")
+                    ]
+                    
+                    all_src_elements = img_srcs + vcard_hrefs
+                    
+                    # Store in result
+                    for src in all_src_elements:
+                        if src not in src_to_files:
+                            src_to_files[src] = []
+                        src_to_files[src].append(str(html_file.name))
+                    
+                    # Cache the results if cache is available
+                    if cache:
+                        metadata_to_cache = {
+                            "src_elements": all_src_elements,
+                            "file_type": "sms" if "Text" in html_file.name else "other",
+                            "extracted_at": time.time()
+                        }
+                        cache.store_metadata(html_file, metadata_to_cache)
+                    
+                    cache_misses += 1
+                
+                # Report progress
+                if (i + 1) % 1000 == 0 or (i + 1) == total_files:
+                    logger.info(f"Src extraction progress: {i+1}/{total_files} files processed (Cache: {cache_hits} hits, {cache_misses} misses)")
+                    
+            except Exception as e:
+                logger.error(f"Failed to process {html_file}: {e}")
+                continue
+        
+        logger.info(f"✅ Completed cached src extraction from {total_files} files. Cache performance: {cache_hits} hits, {cache_misses} misses")
+        logger.info(f"Total unique src elements: {len(src_to_files)}")
+        
+    except Exception as e:
+        logger.error(f"Failed to extract src with caching from {html_directory}: {e}")
+    
+    return src_to_files
+
+
 def extract_src_with_source_files(
     html_directory: str = None,
 ) -> Dict[str, List[str]]:
@@ -5403,6 +5508,56 @@ def get_first_phone_number_cached(
     Returns a tuple of (fallback_number, "dummy_participant") for compatibility with tests.
     """
     return fallback_number, "dummy_participant"
+
+
+def get_first_phone_number_cached(
+    messages: List, 
+    fallback_number: Union[str, int],
+    html_file: Path = None,
+    cache = None,
+) -> Tuple[Union[str, int], BeautifulSoup]:
+    """
+    Cached version of get_first_phone_number for performance optimization.
+    
+    Args:
+        messages: List of message elements
+        fallback_number: Fallback number from filename
+        html_file: Path to HTML file for caching
+        cache: HTMLMetadataCache instance for caching
+        
+    Returns:
+        tuple: (phone_number, participant_raw)
+    """
+    try:
+        # Try cache first if available
+        if cache and html_file:
+            cached_metadata = cache.get_metadata(html_file)
+            if cached_metadata and "phone_numbers" in cached_metadata:
+                phone_numbers = cached_metadata["phone_numbers"]
+                if phone_numbers:
+                    primary_phone = phone_numbers[0]
+                    logger.debug(f"Cache hit for phone extraction: {primary_phone}")
+                    return primary_phone, create_dummy_participant(primary_phone)
+        
+        # Cache miss - extract phone numbers and cache results
+        extracted_phone, participant = get_first_phone_number(messages, fallback_number)
+        
+        # Cache the results if cache is available and we found a valid phone
+        if cache and html_file and extracted_phone and extracted_phone != 0:
+            phone_list = [str(extracted_phone)] if extracted_phone != 0 else []
+            metadata_to_cache = {
+                "phone_numbers": phone_list,
+                "primary_phone": str(extracted_phone) if extracted_phone != 0 else None,
+                "extracted_at": time.time()
+            }
+            cache.update_metadata(html_file, metadata_to_cache)
+        
+        return extracted_phone, participant
+        
+    except Exception as e:
+        logger.error(f"Failed to extract phone number with caching: {e}")
+        # Fallback to original function
+        return get_first_phone_number(messages, fallback_number)
 
 
 def get_first_phone_number(

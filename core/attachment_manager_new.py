@@ -381,7 +381,7 @@ def build_attachment_mapping_with_progress_new(
 
 def extract_src_with_source_files_new(html_directory: Path, sample_files: List[str] = None) -> Dict[str, List[str]]:
     """
-    New implementation of src extraction using Path objects.
+    New implementation of src extraction using Path objects with caching optimization.
     
     Args:
         html_directory: Directory to search for HTML files
@@ -394,14 +394,24 @@ def extract_src_with_source_files_new(html_directory: Path, sample_files: List[s
     src_to_files = {}
     
     try:
+        # Initialize HTML metadata cache for performance
+        try:
+            from .html_metadata_cache import get_html_cache
+            cache = get_html_cache(html_directory)
+            logger.info("✅ HTML metadata cache initialized for src extraction")
+        except Exception as e:
+            logger.debug(f"HTML cache initialization failed, proceeding without cache: {e}")
+            cache = None
+        
         # Get total count of HTML files for progress tracking
         if sample_files:
             html_files = [Path(f) for f in sample_files if Path(f).exists()]
             total_files = len(html_files)
-            logger.info(f"🧪 TEST MODE: Processing {total_files} sample HTML files")
+            logger.info(f"🧪 TEST MODE: Processing {total_files} sample HTML files with caching")
         else:
             html_files = list(html_directory.rglob("*.html"))
             total_files = len(html_files)
+            logger.info(f"Processing {total_files} HTML files with caching")
         
         if html_files == 0:
             logger.error(f"No HTML files found in {html_directory}")
@@ -411,36 +421,66 @@ def extract_src_with_source_files_new(html_directory: Path, sample_files: List[s
             f"Starting src extraction with source tracking from {total_files} HTML files"
         )
         
+        cache_hits = 0
+        cache_misses = 0
+        
         for i, html_file in enumerate(html_files):
             try:
-                with open(
-                    html_file,
-                    "r",
-                    encoding="utf-8",
-                    buffering=32768,  # Use standard buffer size
-                ) as file:
-                    from bs4 import BeautifulSoup
-                    soup = BeautifulSoup(file, "html.parser")
-                    
-                    # Extract image src attributes
-                    img_srcs = [
-                        img["src"]
-                        for img in soup.select("img[src]")
-                    ]
-                    for src in img_srcs:
+                # Try cache first if available
+                cached_metadata = None
+                if cache:
+                    cached_metadata = cache.get_metadata(html_file)
+                
+                if cached_metadata and "src_elements" in cached_metadata:
+                    # Cache hit - use cached src elements
+                    cached_src_elements = cached_metadata["src_elements"]
+                    for src in cached_src_elements:
                         if src not in src_to_files:
                             src_to_files[src] = []
                         src_to_files[src].append(html_file.name)
-                    
-                    # Extract vCard href attributes
-                    vcard_hrefs = [
-                        a["href"]
-                        for a in soup.select("a[href$='.vcf']")
-                    ]
-                    for src in vcard_hrefs:
-                        if src not in src_to_files:
-                            src_to_files[src] = []
-                        src_to_files[src].append(html_file.name)
+                    cache_hits += 1
+                else:
+                    # Cache miss - parse file and cache results
+                    with open(
+                        html_file,
+                        "r",
+                        encoding="utf-8",
+                        buffering=32768,  # Use standard buffer size
+                    ) as file:
+                        from bs4 import BeautifulSoup
+                        soup = BeautifulSoup(file, "html.parser")
+                        
+                        # Extract image src attributes
+                        img_srcs = [
+                            img["src"]
+                            for img in soup.select("img[src]")
+                        ]
+                        for src in img_srcs:
+                            if src not in src_to_files:
+                                src_to_files[src] = []
+                            src_to_files[src].append(html_file.name)
+                        
+                        # Extract vCard href attributes
+                        vcard_hrefs = [
+                            a["href"]
+                            for a in soup.select("a[href$='.vcf']")
+                        ]
+                        for src in vcard_hrefs:
+                            if src not in src_to_files:
+                                src_to_files[src] = []
+                            src_to_files[src].append(html_file.name)
+                        
+                        # Cache the results if cache is available
+                        if cache:
+                            all_src_elements = img_srcs + vcard_hrefs
+                            metadata_to_cache = {
+                                "src_elements": all_src_elements,
+                                "file_type": "sms" if "Text" in html_file.name else "other",
+                                "extracted_at": time.time()
+                            }
+                            cache.store_metadata(html_file, metadata_to_cache)
+                        
+                        cache_misses += 1
                 
                 # Report progress every 100 files
                 if (i + 1) % 100 == 0:
@@ -452,9 +492,22 @@ def extract_src_with_source_files_new(html_directory: Path, sample_files: List[s
                 logger.warning(f"Failed to process {html_file}: {e}")
                 continue
         
-        logger.info(
-            f"✅ Completed src extraction with source tracking from {total_files} files. Total unique src elements: {len(src_to_files)}"
-        )
+        # Log cache performance and save cache
+        if cache:
+            cache_hit_rate = (cache_hits / max(total_files, 1)) * 100
+            logger.info(
+                f"✅ Completed cached src extraction from {total_files} files. "
+                f"Cache performance: {cache_hits} hits, {cache_misses} misses ({cache_hit_rate:.1f}% hit rate)"
+            )
+            # Ensure cache is saved after processing
+            cache._save_cache()
+            logger.debug("Cache saved after src extraction")
+        else:
+            logger.info(
+                f"✅ Completed src extraction from {total_files} files (no cache)"
+            )
+        
+        logger.info(f"Total unique src elements: {len(src_to_files)}")
         
     except Exception as e:
         logger.error(
