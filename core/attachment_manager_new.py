@@ -9,6 +9,8 @@ import os
 import shutil
 import logging
 import time
+import json
+import hashlib
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def build_file_location_index_new(filenames: List[str], path_manager: PathManager) -> Dict[str, Path]:
     """
-    New implementation of file location index using PathManager.
+    New implementation of file location index using PathManager with caching optimization.
     
     Args:
         filenames: List of attachment filenames to index
@@ -31,6 +33,15 @@ def build_file_location_index_new(filenames: List[str], path_manager: PathManage
     """
     
     try:
+        # PERFORMANCE OPTIMIZATION: Try to use cached index first
+        cache_file = path_manager.processing_dir / ".attachment_cache.json"
+        cached_index = _try_load_cached_index(cache_file, path_manager.processing_dir, filenames)
+        
+        if cached_index is not None:
+            logger.info(f"✅ Using cached attachment index with {len(cached_index)} files")
+            return cached_index
+        
+        # Cache miss or invalid - build fresh index
         filename_set = set(filenames)
         file_index = {}
         
@@ -47,11 +58,122 @@ def build_file_location_index_new(filenames: List[str], path_manager: PathManage
                             logger.info(f"Indexed {len(file_index)}/{len(filenames)} files...")
         
         logger.info(f"✅ File location index completed: {len(file_index)}/{len(filenames)} files found")
+        
+        # PERFORMANCE OPTIMIZATION: Save to cache for future runs
+        _save_cached_index(cache_file, path_manager.processing_dir, file_index)
+        
         return file_index
         
     except Exception as e:
         logger.error(f"❌ Error building file location index: {e}")
         raise
+
+
+def _try_load_cached_index(cache_file: Path, processing_dir: Path, filenames: List[str]) -> Optional[Dict[str, Path]]:
+    """
+    Try to load cached attachment index if valid.
+    
+    Args:
+        cache_file: Path to cache file
+        processing_dir: Processing directory to validate against
+        filenames: List of filenames being requested
+        
+    Returns:
+        Cached index dict or None if cache is invalid/missing
+    """
+    try:
+        if not cache_file.exists():
+            return None
+        
+        # Load cache data
+        cache_data = json.loads(cache_file.read_text())
+        
+        # Validate cache structure
+        required_fields = ["scan_time", "file_count", "directory_hash", "index"]
+        if not all(field in cache_data for field in required_fields):
+            logger.debug("Cache invalid: missing required fields")
+            return None
+        
+        # Validate directory hasn't changed (using hash of directory modification times)
+        current_dir_hash = _compute_directory_hash(processing_dir)
+        if cache_data["directory_hash"] != current_dir_hash:
+            logger.debug("Cache invalid: directory structure changed")
+            return None
+        
+        # Validate file count hasn't changed significantly
+        if abs(cache_data["file_count"] - len(filenames)) > len(filenames) * 0.1:  # 10% tolerance
+            logger.debug("Cache invalid: file count changed significantly")
+            return None
+        
+        # Convert cached paths back to Path objects
+        cached_index = {}
+        for filename, path_str in cache_data["index"].items():
+            if filename in filenames:  # Only return requested files
+                cached_index[filename] = Path(path_str)
+        
+        logger.debug(f"Cache hit: loaded {len(cached_index)} files from cache")
+        return cached_index
+        
+    except Exception as e:
+        logger.debug(f"Cache load failed: {e}")
+        return None
+
+
+def _save_cached_index(cache_file: Path, processing_dir: Path, file_index: Dict[str, Path]) -> None:
+    """
+    Save attachment index to cache file.
+    
+    Args:
+        cache_file: Path to cache file
+        processing_dir: Processing directory
+        file_index: File index to cache
+    """
+    try:
+        cache_data = {
+            "scan_time": time.time(),
+            "file_count": len(file_index),
+            "directory_hash": _compute_directory_hash(processing_dir),
+            "index": {filename: str(path) for filename, path in file_index.items()}
+        }
+        
+        # Write cache atomically
+        temp_cache = cache_file.with_suffix('.tmp')
+        temp_cache.write_text(json.dumps(cache_data, indent=2))
+        temp_cache.replace(cache_file)
+        
+        logger.debug(f"Saved attachment index cache with {len(file_index)} files")
+        
+    except Exception as e:
+        logger.debug(f"Failed to save cache: {e}")
+        # Don't fail the whole operation if caching fails
+
+
+def _compute_directory_hash(processing_dir: Path) -> str:
+    """
+    Compute a hash of the directory structure for cache validation.
+    
+    Args:
+        processing_dir: Directory to hash
+        
+    Returns:
+        Hash string representing directory state
+    """
+    try:
+        # Use directory modification time and file count as a simple hash
+        # This is much faster than hashing all file contents
+        dir_stat = processing_dir.stat()
+        calls_dir = processing_dir / "Calls"
+        calls_stat = calls_dir.stat() if calls_dir.exists() else None
+        
+        hash_input = f"{dir_stat.st_mtime}_{dir_stat.st_size}"
+        if calls_stat:
+            hash_input += f"_{calls_stat.st_mtime}_{calls_stat.st_size}"
+        
+        return hashlib.md5(hash_input.encode()).hexdigest()[:16]  # Short hash for performance
+        
+    except Exception:
+        # If hashing fails, return random hash to force cache invalidation
+        return "invalid"
 
 
 def copy_mapped_attachments_new(
@@ -146,6 +268,14 @@ def build_attachment_mapping_with_progress_new(
         src_to_files = extract_src_with_source_files_new(path_manager.processing_dir)
     
     src_elements = list(src_to_files.keys())
+    
+    # PERFORMANCE OPTIMIZATION: Early exit if no src elements found
+    if not src_elements:
+        logger.info("✅ No src elements found in HTML files - skipping attachment scanning for performance")
+        logger.info("✅ Completed attachment mapping. Created 0 mappings from 0 src elements and 0 attachment files")
+        return {}
+    
+    logger.info(f"Found {len(src_elements)} src elements, proceeding with attachment scanning...")
     
     # Step 2: Build file location index using PathManager
     att_filenames = list_att_filenames_with_progress_new(path_manager.processing_dir)
