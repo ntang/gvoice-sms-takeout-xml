@@ -8,9 +8,9 @@ for different senders/groups during SMS/MMS conversion.
 import logging
 import threading
 import hashlib
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from datetime import datetime
 
 # Template imports removed - not used in this module
 
@@ -325,6 +325,117 @@ class ConversationManager:
     def generate_index_html(self, stats: Dict[str, int], elapsed_time: float):
         """Generate an index.html file with summary stats and conversation file links."""
         try:
+            # Use template-based generation for consistency and maintainability
+            return self._generate_index_html_with_template(stats, elapsed_time)
+        except Exception as e:
+            logger.error(f"Template-based index generation failed: {e}")
+            logger.info("Falling back to manual HTML generation")
+            return self._generate_index_html_manual(stats, elapsed_time)
+    
+    def _generate_index_html_with_template(self, stats: Dict[str, int], elapsed_time: float):
+        """Generate index.html using the template (preferred method)."""
+        try:
+            # Load the index template
+            template_path = Path(__file__).parent.parent / "templates" / "index.html"
+            if not template_path.exists():
+                raise FileNotFoundError(f"Index template not found: {template_path}")
+            
+            template_content = template_path.read_text()
+            
+            # Get conversation files
+            conversation_files = []
+            for file_path in self.output_dir.glob("*.html"):
+                if file_path.name != "index.html":
+                    conversation_files.append(file_path)
+            conversation_files.sort(key=lambda x: x.name)
+            
+            # Use internal stats if passed stats are empty
+            internal_stats = self.get_total_stats()
+            effective_stats = stats
+            
+            if (stats.get('num_sms', 0) == 0 and stats.get('num_calls', 0) == 0 and 
+                stats.get('num_voicemails', 0) == 0 and
+                (internal_stats.get('num_sms', 0) > 0 or internal_stats.get('num_calls', 0) > 0 or 
+                 internal_stats.get('num_voicemails', 0) > 0)):
+                logger.info("Using internal ConversationManager stats for index generation")
+                effective_stats = internal_stats
+            
+            # Build conversation rows
+            conversation_rows = self._build_conversation_rows(conversation_files)
+            
+            # Calculate total messages
+            total_messages = (
+                effective_stats.get("num_sms", 0) + 
+                effective_stats.get("num_calls", 0) + 
+                effective_stats.get("num_voicemails", 0)
+            )
+            
+            # Format template variables
+            template_vars = {
+                'elapsed_time': f"{elapsed_time:.2f}",
+                'total_conversations': len(conversation_files),
+                'num_sms': effective_stats.get('num_sms', 0),
+                'num_calls': effective_stats.get('num_calls', 0),
+                'num_voicemails': effective_stats.get('num_voicemails', 0),
+                'num_img': effective_stats.get('num_img', 0),
+                'num_vcf': effective_stats.get('num_vcf', 0),
+                'total_messages': total_messages,
+                'conversation_rows': conversation_rows,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # Replace template variables
+            html_content = template_content.format(**template_vars)
+            
+            # Write the index file
+            index_file = self.output_dir / "index.html"
+            index_file.write_text(html_content, encoding='utf-8')
+            
+            logger.info(f"Generated index.html with {len(conversation_files)} conversations using template")
+            return
+            
+        except Exception as e:
+            logger.error(f"Template-based index generation failed: {e}")
+            raise
+    
+    def _build_conversation_rows(self, conversation_files: List[Path]) -> str:
+        """Build HTML table rows for conversation files."""
+        if not conversation_files:
+            return "<tr><td colspan='8'><em>No conversation files found</em></td></tr>"
+        
+        rows = []
+        for file_path in conversation_files:
+            try:
+                # Get file stats
+                file_size = file_path.stat().st_size
+                file_size_str = f"{file_size / 1024:.1f} KB" if file_size > 0 else "0 KB"
+                
+                # Get conversation stats if available
+                conversation_id = file_path.stem
+                conv_stats = self._get_conversation_stats_accurate(conversation_id)
+                
+                # Build row
+                row = f"""
+                <tr>
+                    <td><a href='{file_path.name}' class='file-link'>{conversation_id}</a></td>
+                    <td>HTML</td>
+                    <td>{file_size_str}</td>
+                    <td>{conv_stats.get('sms_count', 0)}</td>
+                    <td>{conv_stats.get('calls_count', 0)}</td>
+                    <td>{conv_stats.get('voicemails_count', 0)}</td>
+                    <td>{conv_stats.get('attachments_count', 0)}</td>
+                    <td class='metadata'>Latest message data</td>
+                </tr>"""
+                rows.append(row)
+            except Exception as e:
+                logger.warning(f"Failed to build row for {file_path.name}: {e}")
+                continue
+        
+        return "\n".join(rows)
+    
+    def _generate_index_html_manual(self, stats: Dict[str, int], elapsed_time: float):
+        """Generate index.html manually (fallback method)."""
+        try:
             # Get all conversation files in the output directory
             conversation_files = []
             for file_path in self.output_dir.glob("*.html"):
@@ -440,11 +551,22 @@ class ConversationManager:
             )
             builder.append_line("        </div>")
 
-            # Build summary stats section
+            # Build summary stats section - use internal stats if passed stats are empty
+            internal_stats = self.get_total_stats()
+            effective_stats = stats
+            
+            # If passed stats are all zeros but we have internal stats, use internal stats
+            if (stats.get('num_sms', 0) == 0 and stats.get('num_calls', 0) == 0 and 
+                stats.get('num_voicemails', 0) == 0 and
+                (internal_stats.get('num_sms', 0) > 0 or internal_stats.get('num_calls', 0) > 0 or 
+                 internal_stats.get('num_voicemails', 0) > 0)):
+                logger.info("Using internal ConversationManager stats instead of passed stats (passed stats appear to be empty)")
+                effective_stats = internal_stats
+            
             builder.append_line("        <div class='stats-grid'>")
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
-                f"                <div class='stat-number'>{stats.get('num_sms', 0)}</div>"
+                f"                <div class='stat-number'>{effective_stats.get('num_sms', 0)}</div>"
             )
             builder.append_line(
                 "                <div class='stat-label'>SMS Messages</div>"
@@ -452,7 +574,7 @@ class ConversationManager:
             builder.append_line("            </div>")
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
-                f"                <div class='stat-number'>{stats.get('num_calls', 0)}</div>"
+                f"                <div class='stat-number'>{effective_stats.get('num_calls', 0)}</div>"
             )
             builder.append_line(
                 "                <div class='stat-label'>Call Logs</div>"
@@ -460,7 +582,7 @@ class ConversationManager:
             builder.append_line("            </div>")
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
-                f"                <div class='stat-number'>{stats.get('num_voicemails', 0)}</div>"
+                f"                <div class='stat-number'>{effective_stats.get('num_voicemails', 0)}</div>"
             )
             builder.append_line(
                 "                <div class='stat-label'>Voicemails</div>"
@@ -468,22 +590,22 @@ class ConversationManager:
             builder.append_line("            </div>")
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
-                f"                <div class='stat-number'>{stats.get('num_img', 0)}</div>"
+                f"                <div class='stat-number'>{effective_stats.get('num_img', 0)}</div>"
             )
             builder.append_line("                <div class='stat-label'>Images</div>")
             builder.append_line("            </div>")
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
-                f"                <div class='stat-number'>{stats.get('num_vcf', 0)}</div>"
+                f"                <div class='stat-number'>{effective_stats.get('num_vcf', 0)}</div>"
             )
             builder.append_line(
                 "                <div class='stat-label'>vCard Contacts</div>"
             )
             builder.append_line("            </div>")
             total_messages = (
-                stats.get("num_sms", 0)
-                + stats.get("num_calls", 0)
-                + stats.get("num_voicemails", 0)
+                effective_stats.get("num_sms", 0)
+                + effective_stats.get("num_calls", 0)
+                + effective_stats.get("num_voicemails", 0)
             )
             builder.append_line("            <div class='stat-card'>")
             builder.append_line(
