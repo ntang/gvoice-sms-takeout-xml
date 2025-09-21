@@ -110,6 +110,69 @@ class SMSModulePatcher:
             self._patched_globals.add('LARGE_DATASET')
             logger.debug(f"Patched LARGE_DATASET: {config.large_dataset}")
         
+        # Patch date filtering variables
+        if hasattr(sms, 'DATE_FILTER_OLDER_THAN'):
+            sms.DATE_FILTER_OLDER_THAN = config.older_than
+            self._patched_globals.add('DATE_FILTER_OLDER_THAN')
+            logger.debug(f"Patched DATE_FILTER_OLDER_THAN: {config.older_than}")
+        
+        if hasattr(sms, 'DATE_FILTER_NEWER_THAN'):
+            sms.DATE_FILTER_NEWER_THAN = config.newer_than
+            self._patched_globals.add('DATE_FILTER_NEWER_THAN')
+            logger.debug(f"Patched DATE_FILTER_NEWER_THAN: {config.newer_than}")
+        
+        # Patch phone filtering variables
+        if hasattr(sms, 'FILTER_NUMBERS_WITHOUT_ALIASES'):
+            sms.FILTER_NUMBERS_WITHOUT_ALIASES = config.filter_numbers_without_aliases
+            self._patched_globals.add('FILTER_NUMBERS_WITHOUT_ALIASES')
+            logger.debug(f"Patched FILTER_NUMBERS_WITHOUT_ALIASES: {config.filter_numbers_without_aliases}")
+        
+        if hasattr(sms, 'FILTER_NON_PHONE_NUMBERS'):
+            sms.FILTER_NON_PHONE_NUMBERS = config.filter_non_phone_numbers
+            self._patched_globals.add('FILTER_NON_PHONE_NUMBERS')
+            logger.debug(f"Patched FILTER_NON_PHONE_NUMBERS: {config.filter_non_phone_numbers}")
+        
+        if hasattr(sms, 'SKIP_FILTERED_CONTACTS'):
+            sms.SKIP_FILTERED_CONTACTS = config.skip_filtered_contacts
+            self._patched_globals.add('SKIP_FILTERED_CONTACTS')
+            logger.debug(f"Patched SKIP_FILTERED_CONTACTS: {config.skip_filtered_contacts}")
+        
+        if hasattr(sms, 'INCLUDE_SERVICE_CODES'):
+            sms.INCLUDE_SERVICE_CODES = config.include_service_codes
+            self._patched_globals.add('INCLUDE_SERVICE_CODES')
+            logger.debug(f"Patched INCLUDE_SERVICE_CODES: {config.include_service_codes}")
+        
+        if hasattr(sms, 'FILTER_GROUPS_WITH_ALL_FILTERED'):
+            sms.FILTER_GROUPS_WITH_ALL_FILTERED = config.filter_groups_with_all_filtered
+            self._patched_globals.add('FILTER_GROUPS_WITH_ALL_FILTERED')
+            logger.debug(f"Patched FILTER_GROUPS_WITH_ALL_FILTERED: {config.filter_groups_with_all_filtered}")
+        
+        if hasattr(sms, 'FULL_RUN'):
+            sms.FULL_RUN = config.full_run
+            self._patched_globals.add('FULL_RUN')
+            logger.debug(f"Patched FULL_RUN: {config.full_run}")
+        
+        # Also update shared_constants module to ensure consistency
+        try:
+            from core import shared_constants
+            
+            # Update date filtering variables in shared_constants
+            shared_constants.DATE_FILTER_OLDER_THAN = config.older_than
+            shared_constants.DATE_FILTER_NEWER_THAN = config.newer_than
+            
+            # Update phone filtering variables in shared_constants
+            shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = config.filter_numbers_without_aliases
+            shared_constants.FILTER_NON_PHONE_NUMBERS = config.filter_non_phone_numbers
+            shared_constants.SKIP_FILTERED_CONTACTS = config.skip_filtered_contacts
+            shared_constants.INCLUDE_SERVICE_CODES = config.include_service_codes
+            shared_constants.FILTER_GROUPS_WITH_ALL_FILTERED = config.filter_groups_with_all_filtered
+            shared_constants.FULL_RUN = config.full_run
+            
+            logger.debug("✅ Updated shared_constants module with filtering configuration")
+            
+        except ImportError as e:
+            logger.warning(f"Could not update shared_constants module: {e}")
+        
         logger.info(f"✅ Patched {len(self._patched_globals)} global variables")
     
     def patch_functions(self) -> None:
