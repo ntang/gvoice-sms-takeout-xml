@@ -112,7 +112,7 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
         sms.search_fallback_numbers_cached.cache_clear()
         sms.get_message_type_cached.cache_clear()
         sms.get_mms_sender_cached.cache_clear()
-        sms.get_first_phone_number_cached.cache_clear()
+        # sms.get_first_phone_number_cached.cache_clear()  # Function no longer uses @lru_cache due to unhashable parameters
         sms.get_participant_phone_numbers_cached.cache_clear()
         sms.parse_timestamp_cached.cache_clear()
         # sms.build_attachment_xml_part_cached.cache_clear()  # Function removed - only HTML output supported
