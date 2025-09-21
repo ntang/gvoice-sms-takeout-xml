@@ -69,16 +69,27 @@ def create_processing_context(config: 'ProcessingConfig') -> 'ProcessingContext'
         PERFORMANCE_LOG_INTERVAL
     )
     
-    # Create managers
-    conversation_manager = ConversationManager(
-        output_dir=config.output_dir,
-        output_format=config.output_format
-    )
+    # Use existing global managers to ensure consistency
+    from core.shared_constants import CONVERSATION_MANAGER
+    conversation_manager = CONVERSATION_MANAGER
     
-    phone_lookup_manager = PhoneLookupManager(
-        lookup_file=config.phone_lookup_file,
-        enable_prompts=config.enable_phone_prompts
-    )
+    # Fallback: Create new manager if global not available
+    if conversation_manager is None:
+        conversation_manager = ConversationManager(
+            output_dir=config.output_dir,
+            output_format=config.output_format
+        )
+    
+    # Use existing global phone manager to ensure consistency
+    from core.shared_constants import PHONE_LOOKUP_MANAGER
+    phone_lookup_manager = PHONE_LOOKUP_MANAGER
+    
+    # Fallback: Create new manager if global not available
+    if phone_lookup_manager is None:
+        phone_lookup_manager = PhoneLookupManager(
+            lookup_file=config.phone_lookup_file,
+            enable_prompts=config.enable_phone_prompts
+        )
     
     path_manager = PathManager(
         processing_dir=config.processing_dir,

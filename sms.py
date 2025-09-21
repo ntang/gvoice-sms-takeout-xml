@@ -898,13 +898,13 @@ def main(config: Optional["ProcessingConfig"] = None,
         # Finalize conversation files
         logger.info("Finalizing conversation files...")
         finalize_start = time.time()
-        CONVERSATION_MANAGER.finalize_conversation_files()
+        context.conversation_manager.finalize_conversation_files()
         finalize_time = time.time() - finalize_start
 
         # Calculate elapsed time and generate index
         elapsed_time = time.time() - start_time
         index_start = time.time()
-        CONVERSATION_MANAGER.generate_index_html(stats, elapsed_time)
+        context.conversation_manager.generate_index_html(stats, elapsed_time)
         index_time = time.time() - index_start
 
         # Display final results
@@ -3557,6 +3557,7 @@ def write_sms_messages(
                     timestamp=sms_values["time"],
                     sender=sender_display,
                     message=message_text,
+                    message_type="sms",
                 )
                 # Update latest timestamp for this conversation
                 conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
@@ -4765,10 +4766,11 @@ def write_mms_messages(
                         pass
                     conversation_manager.write_message_with_content(
                         conversation_id=conversation_id,
-                    timestamp=get_time_unix(message),
+                        timestamp=get_time_unix(message),
                         sender=sender_display,
                         message=message_text,
                         attachments=attachments,
+                        message_type="sms",  # MMS messages are still SMS type
                     )
                     # Update latest timestamp for this conversation
                     conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
@@ -7865,6 +7867,7 @@ def write_call_entry(
             timestamp=call_ts,
             sender=alias,
             message=message_text,
+            message_type="call",
         )
         
         # Update latest timestamp for this conversation
@@ -8152,6 +8155,7 @@ def write_voicemail_entry(
             timestamp=vm_ts,
             sender=alias,
             message=message_text,
+            message_type="voicemail",
         )
         
         # Update latest timestamp for this conversation

@@ -226,7 +226,7 @@ class ConversationManager:
                 * 2,  # Allow buffer to grow up to 2x
             }
 
-            # Initialize conversation stats
+            # Initialize conversation stats with consistent keys
             self.conversation_stats[conversation_id] = {
                 "sms_count": 0,
                 "calls_count": 0,
@@ -261,6 +261,7 @@ class ConversationManager:
         sender: str,
         message: str,
         attachments: list = None,
+        message_type: str = "sms",  # Type: "sms", "call", "voicemail"
     ):
         """Write a message to a conversation file with content."""
         with self._lock:
@@ -288,11 +289,37 @@ class ConversationManager:
             file_info["messages"].append((timestamp, message_data))  # Use actual timestamp
             file_info["buffer_size"] += len(message)
 
-            # Update conversation statistics
-            if conversation_id in self.conversation_stats:
+            # Update conversation statistics based on message type
+            # Ensure stats are initialized (defensive programming)
+            if conversation_id not in self.conversation_stats:
+                self.conversation_stats[conversation_id] = {
+                    "sms_count": 0,
+                    "calls_count": 0,
+                    "voicemails_count": 0,
+                    "attachments_count": 0,
+                    "latest_timestamp": 0,
+                    "latest_message_time": "No messages"
+                }
+            
+            # Track different message types separately
+            if message_type == "sms":
                 self.conversation_stats[conversation_id]['sms_count'] += 1
-                self.conversation_stats[conversation_id]['latest_timestamp'] = timestamp
-                self.conversation_stats[conversation_id]['latest_message_time'] = formatted_time
+                pass  # SMS count incremented
+            elif message_type == "call":
+                self.conversation_stats[conversation_id]['calls_count'] += 1
+            elif message_type == "voicemail":
+                self.conversation_stats[conversation_id]['voicemails_count'] += 1
+            else:
+                # Default to SMS for unknown types
+                self.conversation_stats[conversation_id]['sms_count'] += 1
+            
+            # Count attachments if present
+            if attachments:
+                self.conversation_stats[conversation_id]['attachments_count'] += len(attachments)
+            
+            # Update latest message info
+            self.conversation_stats[conversation_id]['latest_timestamp'] = timestamp
+            self.conversation_stats[conversation_id]['latest_message_time'] = formatted_time
 
             # Memory-only buffering: No premature flushing to files
             # All messages are kept in memory until finalization
@@ -413,6 +440,7 @@ class ConversationManager:
                 # Get conversation stats if available
                 conversation_id = file_path.stem
                 conv_stats = self._get_conversation_stats_accurate(conversation_id)
+                # Debug info removed for cleaner output
                 
                 # Build row
                 row = f"""
@@ -424,7 +452,7 @@ class ConversationManager:
                     <td>{conv_stats.get('calls_count', 0)}</td>
                     <td>{conv_stats.get('voicemails_count', 0)}</td>
                     <td>{conv_stats.get('attachments_count', 0)}</td>
-                    <td class='metadata'>Latest message data</td>
+                    <td class='metadata'>{conv_stats.get('latest_message_time', 'No messages')}</td>
                 </tr>"""
                 rows.append(row)
             except Exception as e:
@@ -1138,10 +1166,10 @@ class ConversationManager:
         if conversation_id in self.conversation_stats:
             stats = self.conversation_stats[conversation_id]
             return {
-                "sms_count": stats.get("num_sms", 0),
-                "calls_count": stats.get("num_calls", 0),
-                "voicemails_count": stats.get("num_voicemails", 0),
-                "attachments_count": stats.get("real_attachments", 0),
+                "sms_count": stats.get("sms_count", 0),
+                "calls_count": stats.get("calls_count", 0),
+                "voicemails_count": stats.get("voicemails_count", 0),
+                "attachments_count": stats.get("attachments_count", 0),
                 "latest_message_time": stats.get("latest_message_time", "No messages")
             }
         else:
