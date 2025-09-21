@@ -6884,7 +6884,7 @@ def process_call_file(
     """Process call files and return statistics."""
     try:
         # Extract call information
-        call_info = extract_call_info(html_file.name, soup)
+        call_info = extract_call_info(html_file.name, soup, config)
         if call_info:
             # Write call entry to conversation
             write_call_entry(str(html_file), call_info, own_number, soup)
@@ -6938,7 +6938,7 @@ def process_voicemail_file(
     """Process voicemail files and return statistics."""
     try:
         # Extract voicemail information
-        voicemail_info = extract_voicemail_info(html_file.name, soup)
+        voicemail_info = extract_voicemail_info(html_file.name, soup, config)
         if voicemail_info:
             # Write voicemail entry to conversation
             write_voicemail_entry(str(html_file), voicemail_info, own_number, soup)
@@ -6983,7 +6983,7 @@ def process_voicemail_file(
 
 
 def extract_call_info(
-    filename: str, soup: BeautifulSoup
+    filename: str, soup: BeautifulSoup, config: Optional["ProcessingConfig"] = None
 ) -> Optional[Dict[str, Union[str, int]]]:
     """Extract call information from HTML content."""
     try:
@@ -7176,7 +7176,7 @@ def extract_call_info(
 
 
 def extract_voicemail_info(
-    filename: str, soup: BeautifulSoup
+    filename: str, soup: BeautifulSoup, config: Optional["ProcessingConfig"] = None
 ) -> Optional[Dict[str, Union[str, int]]]:
     """Extract voicemail information from HTML content."""
     try:
