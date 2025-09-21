@@ -2158,7 +2158,8 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
                 "processing_mode": "batch"
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for HTML processing start failed: {e}")
+            logger.warning(f"Memory monitoring for HTML processing start failed: {e}")
+            logger.info("Performance monitoring disabled for this HTML processing batch")
 
     # Get HTML files from the Calls subdirectory
     calls_directory = PROCESSING_DIRECTORY / "Calls"
@@ -2292,7 +2293,8 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
                 "processing_mode": "batch"
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for HTML processing completion failed: {e}")
+            logger.warning(f"Memory monitoring for HTML processing completion failed: {e}")
+            logger.info("Performance monitoring summary incomplete for this batch")
     
     return stats
 
@@ -2349,7 +2351,8 @@ def process_html_files_param(
                 "processing_mode": "batch"
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for HTML processing start failed: {e}")
+            logger.warning(f"Memory monitoring for HTML processing start failed: {e}")
+            logger.info("Performance monitoring disabled for this HTML processing batch")
 
     # Get HTML files from the Calls subdirectory
     calls_directory = processing_dir / "Calls"
@@ -2480,7 +2483,8 @@ def process_html_files_param(
                 "processing_mode": "batch"
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for HTML processing completion failed: {e}")
+            logger.warning(f"Memory monitoring for HTML processing completion failed: {e}")
+            logger.info("Performance monitoring summary incomplete for this batch")
     
     return stats
 
@@ -3346,8 +3350,9 @@ def write_sms_messages(
                             phone_number = p
                             participant_raw = create_dummy_participant(p)
                             break
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Phone extraction fallback 1 failed for {file}: {e}")
+                    # Continue to next fallback strategy
 
             # Fallback 2: parse the source HTML file for any tel: numbers
             if not is_valid_phone_number(phone_number):
@@ -3372,10 +3377,12 @@ def write_sms_messages(
                                                 phone_number
                                             )
                                             break
-                                    except Exception:
+                                    except Exception as e:
+                                        logger.debug(f"Failed to parse phone number from tel link: {e}")
                                         continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Phone extraction fallback 2 failed for {file}: {e}")
+                    # Continue to next fallback strategy
 
             # Fallback 3: Extract phone number from filename if it contains one
             if not is_valid_phone_number(phone_number):
@@ -5498,18 +5505,6 @@ def get_mms_sender(message: BeautifulSoup, participants: List[str]) -> str:
         )
 
 
-@lru_cache(maxsize=25000)
-def get_first_phone_number_cached(
-    messages_hash: str, fallback_number: str
-) -> Tuple[str, str]:
-    """
-    Cached first phone number extraction.
-
-    Returns a tuple of (fallback_number, "dummy_participant") for compatibility with tests.
-    """
-    return fallback_number, "dummy_participant"
-
-
 def get_first_phone_number_cached(
     messages: List, 
     fallback_number: Union[str, int],
@@ -6913,7 +6908,8 @@ def process_html_files_parallel(
                 "batch_size": batch_size
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for parallel processing start failed: {e}")
+            logger.warning(f"Memory monitoring for parallel processing start failed: {e}")
+            logger.info("Performance monitoring disabled for parallel processing")
 
     # Split files into chunks for parallel processing - use generator for
     # memory efficiency
@@ -6973,7 +6969,8 @@ def process_html_files_parallel(
                 "chunks_processed": len(chunks)
             })
         except Exception as e:
-            logger.debug(f"Memory monitoring for parallel processing completion failed: {e}")
+            logger.warning(f"Memory monitoring for parallel processing completion failed: {e}")
+            logger.info("Performance monitoring summary incomplete for parallel processing")
 
     return stats
 
@@ -7043,8 +7040,15 @@ def process_call_file(
         # Extract call information
         call_info = extract_call_info(html_file.name, soup, config)
         if call_info:
-            # Write call entry to conversation
-            write_call_entry(str(html_file), call_info, own_number, soup)
+            # Write call entry to conversation using global managers as fallback
+            write_call_entry(
+                str(html_file), 
+                call_info, 
+                own_number, 
+                soup=soup,
+                conversation_manager=CONVERSATION_MANAGER,
+                phone_lookup_manager=PHONE_LOOKUP_MANAGER
+            )
             return {
                 "num_sms": 0,
                 "num_img": 0,
@@ -7097,8 +7101,15 @@ def process_voicemail_file(
         # Extract voicemail information
         voicemail_info = extract_voicemail_info(html_file.name, soup, config)
         if voicemail_info:
-            # Write voicemail entry to conversation
-            write_voicemail_entry(str(html_file), voicemail_info, own_number, soup)
+            # Write voicemail entry to conversation using global managers as fallback
+            write_voicemail_entry(
+                str(html_file), 
+                voicemail_info, 
+                own_number, 
+                soup=soup,
+                conversation_manager=CONVERSATION_MANAGER,
+                phone_lookup_manager=PHONE_LOOKUP_MANAGER
+            )
             return {
                 "num_sms": 0,
                 "num_img": 0,
@@ -7952,16 +7963,40 @@ def write_call_entry(
     own_number: Optional[str],
     soup: Optional[BeautifulSoup] = None,
     context: Optional["ProcessingContext"] = None,
+    conversation_manager: Optional["ConversationManager"] = None,
+    phone_lookup_manager: Optional["PhoneLookupManager"] = None,
 ):
     """Write a call entry to the conversation."""
     try:
+        # DEFENSIVE PROGRAMMING: Validate managers before use
+        effective_phone_manager = phone_lookup_manager or (context.phone_lookup_manager if context else PHONE_LOOKUP_MANAGER)
+        effective_conversation_manager = conversation_manager or (context.conversation_manager if context else CONVERSATION_MANAGER)
+        
+        if not effective_phone_manager:
+            logger.error(f"No valid phone lookup manager available for call entry {filename}")
+            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None}, global: {PHONE_LOOKUP_MANAGER is not None}")
+            return
+            
+        if not effective_conversation_manager:
+            logger.error(f"No valid conversation manager available for call entry {filename}")
+            logger.error(f"Manager states - conv: {conversation_manager is not None}, context: {context is not None}, global: {CONVERSATION_MANAGER is not None}")
+            return
+
+        # DEFENSIVE PROGRAMMING: Validate call_info structure
+        if not call_info or not isinstance(call_info, dict):
+            logger.error(f"Invalid call_info for {filename}: {call_info}")
+            return
+            
+        required_keys = {"phone_number"}
+        missing_keys = required_keys - set(call_info.keys())
+        if missing_keys:
+            logger.error(f"Missing required keys in call_info for {filename}: {missing_keys}")
+            logger.error(f"Available call_info keys: {list(call_info.keys())}")
+            return
+
         # Get alias for the phone number
         phone_number = str(call_info["phone_number"])
-        if context and context.phone_lookup_manager:
-            alias = context.phone_lookup_manager.get_alias(phone_number, soup)
-        else:
-            # Fallback to global configuration
-            alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
+        alias = effective_phone_manager.get_alias(phone_number, soup)
 
         # Extract call details from the already parsed soup if available,
         # otherwise from file
@@ -8011,13 +8046,11 @@ def write_call_entry(
         }
 
         # Write to conversation file (HTML output only)
-        conversation_id = CONVERSATION_MANAGER.get_conversation_id(
-            [phone_number], False
-        )
+        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False)
         # For HTML output, use the rich call details
         message_text = call_details["message_text"]
         attachments = []
-        CONVERSATION_MANAGER.write_message_with_content(
+        effective_conversation_manager.write_message_with_content(
             conversation_id=conversation_id,
             timestamp=call_ts,
             sender=alias,
@@ -8026,15 +8059,22 @@ def write_call_entry(
         )
         
         # Update latest timestamp for this conversation
-        CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, call_ts)
+        effective_conversation_manager.update_latest_timestamp(conversation_id, call_ts)
 
         # Update conversation statistics
-        CONVERSATION_MANAGER.update_stats(conversation_id, {"num_calls": 1})
+        effective_conversation_manager.update_stats(conversation_id, {"num_calls": 1})
 
         logger.info(f"Added call entry: {message_text}")
 
     except Exception as e:
         logger.error(f"Failed to write call entry: {e}")
+        logger.error(f"Call info keys: {list(call_info.keys()) if call_info else 'None'}")
+        logger.error(f"Call info content: {call_info}")
+        logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, conv: {conversation_manager is not None}")
+        logger.error(f"Context state: {context is not None}")
+        logger.error(f"Global manager states - phone: {PHONE_LOOKUP_MANAGER is not None}, conv: {CONVERSATION_MANAGER is not None}")
+        import traceback
+        logger.error(f"Full stack trace: {traceback.format_exc()}")
 
 
 def extract_call_details_from_soup(soup: BeautifulSoup) -> Dict[str, str]:
@@ -8246,16 +8286,40 @@ def write_voicemail_entry(
     own_number: Optional[str],
     soup: Optional[BeautifulSoup] = None,
     context: Optional["ProcessingContext"] = None,
+    conversation_manager: Optional["ConversationManager"] = None,
+    phone_lookup_manager: Optional["PhoneLookupManager"] = None,
 ):
     """Write a voicemail entry to the conversation."""
     try:
+        # DEFENSIVE PROGRAMMING: Validate managers before use
+        effective_phone_manager = phone_lookup_manager or (context.phone_lookup_manager if context else PHONE_LOOKUP_MANAGER)
+        effective_conversation_manager = conversation_manager or (context.conversation_manager if context else CONVERSATION_MANAGER)
+        
+        if not effective_phone_manager:
+            logger.error(f"No valid phone lookup manager available for voicemail entry {filename}")
+            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None}, global: {PHONE_LOOKUP_MANAGER is not None}")
+            return
+            
+        if not effective_conversation_manager:
+            logger.error(f"No valid conversation manager available for voicemail entry {filename}")
+            logger.error(f"Manager states - conv: {conversation_manager is not None}, context: {context is not None}, global: {CONVERSATION_MANAGER is not None}")
+            return
+
+        # DEFENSIVE PROGRAMMING: Validate voicemail_info structure
+        if not voicemail_info or not isinstance(voicemail_info, dict):
+            logger.error(f"Invalid voicemail_info for {filename}: {voicemail_info}")
+            return
+            
+        required_keys = {"phone_number"}
+        missing_keys = required_keys - set(voicemail_info.keys())
+        if missing_keys:
+            logger.error(f"Missing required keys in voicemail_info for {filename}: {missing_keys}")
+            logger.error(f"Available voicemail_info keys: {list(voicemail_info.keys())}")
+            return
+
         # Get alias for the phone number
         phone_number = str(voicemail_info["phone_number"])
-        if context and context.phone_lookup_manager:
-            alias = context.phone_lookup_manager.get_alias(phone_number, soup)
-        else:
-            # Fallback to global configuration
-            alias = PHONE_LOOKUP_MANAGER.get_alias(phone_number, soup)
+        alias = effective_phone_manager.get_alias(phone_number, soup)
 
         # Create voicemail message content
         duration = voicemail_info.get("duration", "")
@@ -8297,15 +8361,13 @@ def write_voicemail_entry(
         }
 
         # Write to conversation file (HTML output only)
-        conversation_id = CONVERSATION_MANAGER.get_conversation_id(
-            [phone_number], False
-        )
+        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False)
         # For HTML output, extract text and attachments directly
         message_text = voicemail_info.get("message", message_text)
         if not message_text or message_text.strip() == "":
             message_text = "[Voicemail entry]"
         attachments = []
-        CONVERSATION_MANAGER.write_message_with_content(
+        effective_conversation_manager.write_message_with_content(
             conversation_id=conversation_id,
             timestamp=vm_ts,
             sender=alias,
@@ -8314,15 +8376,22 @@ def write_voicemail_entry(
         )
         
         # Update latest timestamp for this conversation
-        CONVERSATION_MANAGER.update_latest_timestamp(conversation_id, vm_ts)
+        effective_conversation_manager.update_latest_timestamp(conversation_id, vm_ts)
 
         # Update conversation statistics
-        CONVERSATION_MANAGER.update_stats(conversation_id, {"num_voicemails": 1})
+        effective_conversation_manager.update_stats(conversation_id, {"num_voicemails": 1})
 
         logger.info(f"Added voicemail entry: {message_text[:50]}...")
 
     except Exception as e:
         logger.error(f"Failed to write voicemail entry: {e}")
+        logger.error(f"Voicemail info keys: {list(voicemail_info.keys()) if voicemail_info else 'None'}")
+        logger.error(f"Voicemail info content: {voicemail_info}")
+        logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, conv: {conversation_manager is not None}")
+        logger.error(f"Context state: {context is not None}")
+        logger.error(f"Global manager states - phone: {PHONE_LOOKUP_MANAGER is not None}, conv: {CONVERSATION_MANAGER is not None}")
+        import traceback
+        logger.error(f"Full stack trace: {traceback.format_exc()}")
 
 
 # ====================================================================

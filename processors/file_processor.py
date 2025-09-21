@@ -93,8 +93,32 @@ def process_single_html_file(
                 "own_number": own_number,
             }
 
+    except TypeError as e:
+        # CRITICAL: This indicates a function signature mismatch - a code bug
+        logger.error(f"🚨 CRITICAL BUG - Function signature mismatch for {html_file.name}: {e}")
+        logger.error("This is a code defect that must be fixed immediately")
+        logger.error(f"File type: {file_type}, attempting to call: process_{file_type}_file")
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
+        raise  # Don't hide this - it's a programming error that needs attention
+        
+    except (OSError, IOError) as e:
+        # File system errors - recoverable, continue processing other files
+        logger.error(f"File system error processing {html_file.name}: {e}")
+        return {
+            "num_sms": 0,
+            "num_img": 0,
+            "num_vcf": 0,
+            "num_calls": 0,
+            "num_voicemails": 0,
+            "own_number": own_number,
+        }
+        
     except Exception as e:
-        logger.error(f"Failed to process {html_file.name}: {e}")
+        # Other unexpected errors - log with details but continue processing
+        logger.error(f"Unexpected error processing {html_file.name}: {e}")
+        import traceback
+        logger.debug(f"Stack trace: {traceback.format_exc()}")
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -141,16 +165,26 @@ def process_call_file(
     phone_lookup_manager: PhoneLookupManager,
 ) -> Dict[str, Union[int, str]]:
     """
-    Process call files by calling the appropriate function from sms.py.
+    Process call files by extracting call info and writing to conversation files.
     """
-    # Import the actual function from sms.py
-    from sms import extract_call_info
+    # Import the actual functions from sms.py
+    from sms import extract_call_info, write_call_entry
 
-    # Call the function with the correct parameters (only filename and soup)
+    # Extract call information
     call_info = extract_call_info(str(html_file), soup)
 
-    # Return statistics based on whether call info was extracted
+    # If call info was extracted, write it to conversation files
     if call_info:
+        # Write call entry to conversation file using passed managers
+        write_call_entry(
+            str(html_file), 
+            call_info, 
+            own_number, 
+            soup=soup,
+            conversation_manager=conversation_manager,
+            phone_lookup_manager=phone_lookup_manager
+        )
+        
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -179,16 +213,26 @@ def process_voicemail_file(
     phone_lookup_manager: PhoneLookupManager,
 ) -> Dict[str, Union[int, str]]:
     """
-    Process voicemail files by calling the appropriate function from sms.py.
+    Process voicemail files by extracting voicemail info and writing to conversation files.
     """
-    # Import the actual function from sms.py
-    from sms import extract_voicemail_info
+    # Import the actual functions from sms.py
+    from sms import extract_voicemail_info, write_voicemail_entry
 
-    # Call the function with the correct parameters (only filename and soup)
+    # Extract voicemail information
     voicemail_info = extract_voicemail_info(str(html_file), soup)
 
-    # Return statistics based on whether voicemail info was extracted
+    # If voicemail info was extracted, write it to conversation files
     if voicemail_info:
+        # Write voicemail entry to conversation file using passed managers
+        write_voicemail_entry(
+            str(html_file), 
+            voicemail_info, 
+            own_number, 
+            soup=soup,
+            conversation_manager=conversation_manager,
+            phone_lookup_manager=phone_lookup_manager
+        )
+        
         return {
             "num_sms": 0,
             "num_img": 0,
