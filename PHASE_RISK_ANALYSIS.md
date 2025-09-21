@@ -1,10 +1,19 @@
-# Phase Risk and Scope Analysis
+# Test Fix Priority Analysis
 
-## Risk Assessment Criteria
+## Current Situation (UPDATED)
+**Original Plan**: Complex phase-based rebuild of 63 failing tests  
+**Current Reality**: Simple fixes for 24 failing tests (95.8% already passing!)
 
-**LOW RISK**: Simple functionality, minimal state dependencies, straightforward to test
-**MEDIUM RISK**: Moderate complexity, some state dependencies, requires careful test design
-**HIGH RISK**: Complex functionality, heavy state dependencies, potential for test interference
+## Priority-Based Fix Strategy
+
+**IMMEDIATE PRIORITY**: Configuration interface fixes (mechanical changes)
+**MEDIUM PRIORITY**: Integration test expectation updates  
+**LOW PRIORITY**: Minor miscellaneous fixes
+
+---
+
+## OBSOLETE ANALYSIS BELOW
+*The following analysis was based on outdated information and is kept for reference only*
 
 ## Phase Analysis
 

@@ -1,46 +1,66 @@
 # TODO - Current Work Items
 
-## 🔴 CRITICAL - Test Suite Fixes (REVISED)
+## 🎯 **Current Focus: Fix 24 Failing Tests (Simple Interface Updates)**
 
-### ✅ Current Status: MUCH BETTER THAN EXPECTED!
-- **Total Tests**: 574 tests
-- **Passed**: 550 tests (95.8%)
-- **Failed**: 24 tests (4.2%)
-- **Status**: Only targeted fixes needed, not full rebuild!
+### **Test Status**: 574 total, 550 passing (95.8%), 24 failing (4.2%)
 
-### 🎯 IMMEDIATE PRIORITY - Configuration Fixes (2-3 hours)
-**12 tests failing due to ProcessingConfig interface changes**
-- Fix constructor calls removing deprecated parameters (`memory_threshold`, `batch_size`, `max_workers`)
-- Update test expectations for new configuration interface
-- These are straightforward interface fixes, not complex rebuilds
+---
 
-**Failing Tests**:
-- TestSMSModulePatchRealWorld (2 tests)
-- TestSetupProcessingPaths (1 test)  
-- TestProcessingConfig (5 tests)
-- TestSMSModulePatcher (1 test)
-- TestConfigurationOverrides (2 tests)
-- TestAppConfig (1 test)
+## 🔥 **IMMEDIATE (Next 1-2 hours)**
 
-### 🟡 MEDIUM PRIORITY - Integration Test Fixes (4-5 hours)
-**11 tests failing due to HTML output format changes and statistics tracking**
-- Update HTML output expectations (table structure changes)
-- Fix statistics tracking disconnects
-- Address index generation parameter mismatches
+### Fix Configuration Interface Issues
+**Problem**: ProcessingConfig constructor changed, tests using old interface  
+**Solution**: Update test files to remove deprecated parameters  
+**Files to fix**: 
+- `tests/unit/test_processing_config.py` (5 tests)
+- `tests/unit/test_function_signatures.py` (3 tests) 
+- `tests/unit/test_sms_patch.py` (1 test)
+- `tests/integration/test_sms_patch_integration.py` (2 tests)
+- `tests/unit/test_unified_config.py` (1 test)
 
-**Failing Tests**:
-- TestEndToEndProcessingPipeline (3 tests)
-- TestStatisticsFlowIntegration (1 test)
-- TestStatisticsSynchronization (2 tests)
-- TestStatisticsTrackingIntegration (2 tests)
+**Action**: Remove `memory_threshold`, `batch_size`, `max_workers` from ProcessingConfig() calls
 
-### 🟢 LOW PRIORITY - Minor Fixes (1-2 hours)
-**3 tests with specific implementation issues**
-- Fix refactoring test equivalence logic (2 tests)
-- Fix state management cleanup (1 test)
+---
 
-### ~~Original Rebuild Plan~~ (OBSOLETE)
-~~The original analysis was overly pessimistic. Most issues are straightforward interface changes, not complex isolation problems requiring full rebuilds.~~
+## 🟡 **NEXT (2-3 hours after config fixes)**
+
+### Fix Integration Test Expectations  
+**Problem**: HTML output format changed, statistics tracking disconnected  
+**Solution**: Update test assertions to match current implementation  
+**Files to fix**:
+- `tests/integration/test_end_to_end_pipeline.py` (3 tests)
+- `tests/integration/test_statistics_*.py` (5 tests)
+
+**Action**: Update HTML structure expectations and statistics validation logic
+
+---
+
+## 🟢 **FINAL (30 minutes after integration fixes)**
+
+### Clean Up Minor Issues
+**Problem**: Misc test logic issues  
+**Solution**: Address individually  
+**Files to fix**:
+- `tests/test_get_limited_file_list_refactor.py` (2 tests)
+- `tests/unit/test_sms_patch.py` (1 test - state cleanup)
+
+---
+
+## ✅ **RECENTLY COMPLETED**
+- Fixed 'config is not defined' error in sms.py
+- Cleaned up completed work documentation  
+- Established this TODO system
+- Updated test analysis (found only 24 failures, not 63!)
+
+---
+
+## 🎯 **SUCCESS CRITERIA**
+- All 574 tests passing
+- No more configuration interface errors
+- Integration tests reflect current HTML output format
+- Clean test suite with no flaky tests
+
+**Estimated Total Effort**: 4-6 hours (much less than original 28-39 hour estimate)
 
 ### References
 - **FAILING_TESTS_ANALYSIS.md**: Detailed test categories and intent
