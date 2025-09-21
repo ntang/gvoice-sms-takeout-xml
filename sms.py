@@ -3467,19 +3467,18 @@ def write_sms_messages(
                 # DATE FILTERING: Skip messages outside the specified date
                 # range
                 message_timestamp = get_time_unix(message, file)
-                if should_skip_message_by_date(message_timestamp):
+                if config and should_skip_message_by_date_param(message_timestamp, config):
                     skipped_count += 1
                     continue
 
                 # PHONE FILTERING: Skip numbers without aliases if filtering is
                 # enabled
-                if FILTER_NUMBERS_WITHOUT_ALIASES and phone_lookup_manager:
-                    if not phone_lookup_manager.has_alias(str(phone_number)):
-                        logger.debug(
-                            f"Skipping message from {phone_number} - no alias found and filtering enabled"
-                        )
-                        skipped_count += 1
-                        continue
+                if config and should_skip_message_by_phone_param(phone_number, phone_lookup_manager, config):
+                    logger.debug(
+                        f"Skipping message from {phone_number} - phone filtering criteria met"
+                    )
+                    skipped_count += 1
+                    continue
 
                     # Also check if the number is explicitly excluded
                     if phone_lookup_manager.is_excluded(str(phone_number)):
@@ -4628,19 +4627,19 @@ def write_mms_messages(
                 # DATE FILTERING: Skip messages outside the specified date
                 # range
                 message_timestamp = get_time_unix(message, file)
-                if should_skip_message_by_date(message_timestamp):
+                if config and should_skip_message_by_date_param(message_timestamp, config):
                     skipped_count += 1
                     continue
 
                 # PHONE FILTERING: Skip numbers without aliases if filtering is
                 # enabled
-                if FILTER_NUMBERS_WITHOUT_ALIASES and phone_lookup_manager:
+                if config and phone_lookup_manager:
                     # Check if any participant should be filtered out
                     should_skip = False
                     for phone in participants:
-                        if not phone_lookup_manager.has_alias(str(phone)):
+                        if should_skip_message_by_phone_param(phone, phone_lookup_manager, config):
                             logger.debug(
-                                f"Skipping MMS from {phone} - no alias found and filtering enabled"
+                                f"Skipping MMS from {phone} - phone filtering criteria met"
                             )
                             should_skip = True
                             break
@@ -6880,6 +6879,7 @@ def process_call_file(
     soup: BeautifulSoup,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """Process call files and return statistics."""
     try:
@@ -6933,6 +6933,7 @@ def process_voicemail_file(
     soup: BeautifulSoup,
     own_number: Optional[str],
     src_filename_map: Dict[str, str],
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """Process voicemail files and return statistics."""
     try:
@@ -7095,18 +7096,17 @@ def extract_call_info(
 
         if phone_number:
             # DATE FILTERING: Skip calls outside the specified date range
-            if timestamp and should_skip_message_by_date(timestamp):
+            if timestamp and config and should_skip_message_by_date_param(timestamp, config):
                 logger.debug(f"Skipping call due to date filtering: {filename}")
                 return None
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
             # enabled
-            if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
-                if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
-                    logger.debug(
-                        f"Skipping call from {phone_number} - no alias found and filtering enabled"
-                    )
-                    return None
+            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(phone_number, PHONE_LOOKUP_MANAGER, config):
+                logger.debug(
+                    f"Skipping call from {phone_number} - phone filtering criteria met"
+                )
+                return None
 
                 if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
                     exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(
@@ -7252,18 +7252,17 @@ def extract_voicemail_info(
 
         if phone_number:
             # DATE FILTERING: Skip voicemails outside the specified date range
-            if timestamp and should_skip_message_by_date(timestamp):
+            if timestamp and config and should_skip_message_by_date_param(timestamp, config):
                 logger.debug(f"Skipping voicemail due to date filtering: {filename}")
                 return None
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
             # enabled
-            if FILTER_NUMBERS_WITHOUT_ALIASES and PHONE_LOOKUP_MANAGER:
-                if not PHONE_LOOKUP_MANAGER.has_alias(str(phone_number)):
-                    logger.debug(
-                        f"Skipping voicemail from {phone_number} - no alias found and filtering enabled"
-                    )
-                    return None
+            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(phone_number, PHONE_LOOKUP_MANAGER, config):
+                logger.debug(
+                    f"Skipping voicemail from {phone_number} - phone filtering criteria met"
+                )
+                return None
 
                 if PHONE_LOOKUP_MANAGER.is_excluded(str(phone_number)):
                     exclusion_reason = PHONE_LOOKUP_MANAGER.get_exclusion_reason(
