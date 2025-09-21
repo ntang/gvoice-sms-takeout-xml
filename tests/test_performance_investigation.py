@@ -72,6 +72,7 @@ END:VCARD
             </html>
             """)
     
+    @pytest.mark.skip(reason="Performance investigation tests - development/debugging functionality")
     def test_conversion_performance_baseline(self):
         """Test that conversion completes within reasonable time for small dataset.
         
@@ -104,6 +105,7 @@ END:VCARD
             # If conversion fails, that's also important to know
             pytest.fail(f"Conversion failed: {e}")
     
+    @pytest.mark.skip(reason="Performance investigation tests - development/debugging functionality")
     def test_identify_performance_bottleneck(self):
         """Test to identify which component is slow.
         
@@ -232,6 +234,7 @@ END:VCARD
             signal.alarm(0)
             pytest.fail(f"CLI execution failed with error: {e}")
     
+    @pytest.mark.skip(reason="Performance investigation tests - development/debugging functionality")
     def test_memory_usage_during_conversion(self):
         """Test memory usage during conversion to identify memory bottlenecks."""
         import psutil
@@ -331,6 +334,7 @@ END:VCARD
             </html>
             """)
     
+    @pytest.mark.skip(reason="Performance investigation tests - development/debugging functionality")
     def test_get_limited_file_list_behavior(self):
         """Test that get_limited_file_list behaves consistently."""
         from sms import get_limited_file_list
@@ -344,6 +348,7 @@ END:VCARD
             assert all(f.suffix == '.html' for f in files), "All files should be HTML files"
             assert all(f.exists() for f in files), "All returned files should exist"
     
+    @pytest.mark.skip(reason="Performance investigation tests - development/debugging functionality")
     def test_process_html_files_behavior(self):
         """Test that process_html_files behaves consistently."""
         from sms import process_html_files

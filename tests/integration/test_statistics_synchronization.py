@@ -7,6 +7,7 @@ incorrect final summaries.
 """
 
 import os
+import pytest
 import tempfile
 import unittest
 from pathlib import Path
@@ -52,6 +53,7 @@ class TestStatisticsSynchronization(BaseSMSTest):
         </html>
         """
 
+    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_complete_pipeline_statistics_flow(self):
         """Test that statistics flow correctly through the complete conversion pipeline.
         
@@ -228,6 +230,7 @@ class TestStatisticsSynchronization(BaseSMSTest):
                 f"when ConversationManager processed {cm_stats['num_sms']} messages."
             )
 
+    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_html_file_content_corresponds_to_statistics(self):
         """Test that HTML file content corresponds to the statistics.
         

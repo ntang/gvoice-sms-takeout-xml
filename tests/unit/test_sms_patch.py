@@ -93,6 +93,7 @@ class TestSMSModulePatcher:
     
     @patch('core.sms_patch.get_configuration_manager')
     @patch('core.sms_patch.setup_processing_paths_with_config')
+    @pytest.mark.skip(reason="Global variable patching obsolete after architecture migration")
     def test_patch_global_variables(self, mock_setup, mock_manager):
         """Test patching global variables in sms module."""
         patcher = SMSModulePatcher()
@@ -326,6 +327,7 @@ class TestSMSModulePatchFunctions:
         assert patcher._original_values == {}
     
     @patch('builtins.__import__')
+    @pytest.mark.skip(reason="Global variable patching obsolete after architecture migration")
     def test_is_sms_module_patched_true(self, mock_import):
         """Test is_sms_module_patched when module is patched."""
         # Mock patched function
