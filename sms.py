@@ -4009,6 +4009,65 @@ def should_skip_message_by_date(message_timestamp: int) -> bool:
         return False  # Don't skip if we can't parse the timestamp
 
 
+def should_skip_message_by_date_param(message_timestamp: int, config) -> bool:
+    """
+    Parameterized version of date filtering function that accepts configuration explicitly.
+    
+    This function provides the same filtering logic as should_skip_message_by_date()
+    but uses explicit configuration instead of global variables.
+    
+    Args:
+        message_timestamp: Unix timestamp in milliseconds
+        config: ProcessingConfig object containing filtering settings
+        
+    Returns:
+        bool: True if message should be skipped due to date filtering, False otherwise
+    """
+    from core.filtering_service import FilteringService
+    
+    filtering_service = FilteringService(config)
+    return filtering_service.should_skip_by_date(message_timestamp)
+
+
+def should_skip_message_by_phone_param(phone_number: str, phone_lookup_manager, config) -> bool:
+    """
+    Parameterized version of phone filtering function that accepts configuration explicitly.
+    
+    Args:
+        phone_number: Phone number to check
+        phone_lookup_manager: PhoneLookupManager instance for alias checking
+        config: ProcessingConfig object containing filtering settings
+        
+    Returns:
+        bool: True if message should be skipped due to phone filtering, False otherwise
+    """
+    from core.filtering_service import FilteringService
+    
+    filtering_service = FilteringService(config)
+    return filtering_service.should_skip_by_phone(phone_number, phone_lookup_manager)
+
+
+def should_skip_message_param(message_timestamp: int, phone_number: str, phone_lookup_manager, config) -> bool:
+    """
+    Parameterized version of combined filtering function that accepts configuration explicitly.
+    
+    This function combines date and phone filtering logic using explicit configuration.
+    
+    Args:
+        message_timestamp: Unix timestamp in milliseconds
+        phone_number: Phone number to check
+        phone_lookup_manager: PhoneLookupManager instance for alias checking
+        config: ProcessingConfig object containing filtering settings
+        
+    Returns:
+        bool: True if message should be skipped due to any filtering criteria, False otherwise
+    """
+    from core.filtering_service import FilteringService
+    
+    filtering_service = FilteringService(config)
+    return filtering_service.should_skip_message(message_timestamp, phone_number, phone_lookup_manager)
+
+
 def extract_fallback_number(file: str) -> int:
     """
     Extract fallback phone number from filename.
