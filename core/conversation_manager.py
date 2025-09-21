@@ -1115,11 +1115,13 @@ class ConversationManager:
                 self.conversation_stats[conversation_id][key] += value
         
         # Calculate real attachment count (only actual attachments, not placeholders)
+        # DEFENSIVE PROGRAMMING: Use .get() to handle missing keys gracefully
+        conv_stats = self.conversation_stats[conversation_id]
         self.conversation_stats[conversation_id]["real_attachments"] = (
-            self.conversation_stats[conversation_id]["num_img"] +
-            self.conversation_stats[conversation_id]["num_vcf"] +
-            self.conversation_stats[conversation_id]["num_video"] +
-            self.conversation_stats[conversation_id]["num_audio"]
+            conv_stats.get("num_img", 0) +
+            conv_stats.get("num_vcf", 0) +
+            conv_stats.get("num_video", 0) +
+            conv_stats.get("num_audio", 0)
         )
 
     def update_latest_timestamp(self, conversation_id: str, timestamp: int):
