@@ -37,7 +37,7 @@ class FilteringService:
         Returns:
             bool: True if message should be skipped due to date filtering, False otherwise
         """
-        if self.config.older_than is None and self.config.newer_than is None:
+        if self.config is None or (self.config.older_than is None and self.config.newer_than is None):
             return False  # No date filtering enabled
         
         # Convert timestamp to datetime for comparison
@@ -73,6 +73,10 @@ class FilteringService:
         """
         # Handle None or empty phone numbers
         if not phone_number:
+            return False
+        
+        # Check if config is None (backward compatibility)
+        if self.config is None:
             return False
         
         # Check if phone lookup manager is available
