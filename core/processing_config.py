@@ -51,9 +51,14 @@ class ProcessingConfig:
     filter_groups_with_all_filtered: bool = True  # Default: enabled (new behavior)
     include_call_only_conversations: bool = False  # Default: filter out call-only conversations
     
-    # Date Filtering
-    older_than: Optional[datetime] = None
-    newer_than: Optional[datetime] = None
+    # Date Filtering (Clear naming for intuitive usage)
+    exclude_older_than: Optional[datetime] = None  # Exclude messages before this date
+    exclude_newer_than: Optional[datetime] = None  # Exclude messages after this date
+    include_date_range: Optional[str] = None        # Include only messages in range (YYYY-MM-DD_YYYY-MM-DD)
+    
+    # Backward compatibility (deprecated)
+    older_than: Optional[datetime] = None  # [DEPRECATED] Use exclude_older_than
+    newer_than: Optional[datetime] = None  # [DEPRECATED] Use exclude_newer_than
     
     # Test Mode
     test_mode: bool = False
@@ -101,11 +106,63 @@ class ProcessingConfig:
         # Performance settings are now hardcoded in shared_constants.py for optimal defaults
     
     def _validate_date_ranges(self) -> None:
-        """Validate date filtering logic."""
+        """Validate date filtering logic and prevent conflicting options."""
+        # Check for conflicting date filter options
+        new_options = [self.exclude_older_than, self.exclude_newer_than, self.include_date_range]
+        old_options = [self.older_than, self.newer_than]
+        
+        new_options_used = sum(1 for opt in new_options if opt is not None)
+        old_options_used = sum(1 for opt in old_options if opt is not None)
+        
+        if new_options_used > 0 and old_options_used > 0:
+            raise ValueError(
+                "Cannot mix new date filtering options (--exclude-older-than, --exclude-newer-than, --include-date-range) "
+                "with deprecated options (--older-than, --newer-than). Use only the new options."
+            )
+        
+        # Validate include-date-range format and logic
+        if self.include_date_range:
+            if '_' not in self.include_date_range:
+                raise ValueError(
+                    f"include_date_range must be in format 'YYYY-MM-DD_YYYY-MM-DD', got: {self.include_date_range}"
+                )
+            
+            try:
+                start_str, end_str = self.include_date_range.split('_', 1)
+                start_date = datetime.strptime(start_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_str, '%Y-%m-%d')
+                
+                if start_date >= end_date:
+                    raise ValueError(
+                        f"include_date_range start date ({start_str}) must be before end date ({end_str})"
+                    )
+                    
+                # Set the equivalent exclude options for internal use
+                self.exclude_older_than = start_date
+                self.exclude_newer_than = end_date
+                
+            except ValueError as e:
+                if "include_date_range start date" in str(e):
+                    raise e
+                raise ValueError(
+                    f"Invalid date format in include_date_range '{self.include_date_range}'. "
+                    f"Use YYYY-MM-DD_YYYY-MM-DD format. Error: {e}"
+                )
+        
+        # Validate exclude options logic
+        if self.exclude_older_than and self.exclude_newer_than:
+            if self.exclude_older_than >= self.exclude_newer_than:
+                raise ValueError(
+                    f"exclude_older_than ({self.exclude_older_than.strftime('%Y-%m-%d')}) must be before "
+                    f"exclude_newer_than ({self.exclude_newer_than.strftime('%Y-%m-%d')})"
+                )
+        
+        # Backward compatibility validation (deprecated)
         if self.older_than and self.newer_than:
             if self.older_than >= self.newer_than:
                 raise ValueError(
-                    f"older_than ({self.older_than}) must be before newer_than ({self.newer_than})"
+                    f"[DEPRECATED] older_than ({self.older_than}) must be before newer_than ({self.newer_than}). "
+                    f"Consider using --exclude-older-than and --exclude-newer-than instead."
                 )
     
     def _validate_output_format(self) -> None:
@@ -156,7 +213,14 @@ class ProcessingConfig:
         if "phone_lookup_file" in config_dict and config_dict["phone_lookup_file"]:
             config_dict["phone_lookup_file"] = Path(config_dict["phone_lookup_file"])
         
-        # Convert string dates back to datetime objects
+        # Convert string dates back to datetime objects (new clear options)
+        if "exclude_older_than" in config_dict and config_dict["exclude_older_than"]:
+            config_dict["exclude_older_than"] = datetime.fromisoformat(config_dict["exclude_older_than"])
+        
+        if "exclude_newer_than" in config_dict and config_dict["exclude_newer_than"]:
+            config_dict["exclude_newer_than"] = datetime.fromisoformat(config_dict["exclude_newer_than"])
+        
+        # Backward compatibility (deprecated options)
         if "older_than" in config_dict and config_dict["older_than"]:
             config_dict["older_than"] = datetime.fromisoformat(config_dict["older_than"])
         
@@ -195,6 +259,15 @@ class ProcessingConfig:
         """Get output directory path."""
         return self.output_dir
     
+    def validate(self) -> None:
+        """Validate configuration and raise ValueError if invalid."""
+        try:
+            self._validate_date_ranges()
+            self._validate_numeric_constraints()
+            self._validate_output_format()
+        except ValueError as e:
+            raise e
+
     def get_validation_errors(self) -> List[str]:
         """Get validation errors for the configuration.
         
@@ -348,11 +421,31 @@ class ConfigurationBuilder:
             if cli_key in cli_args:
                 config_kwargs[config_key] = cli_args[cli_key]
         
-        # Handle date filtering
+        # Handle date filtering (new clear options)
+        if cli_args.get('exclude_older_than'):
+            try:
+                from dateutil import parser
+                config_kwargs['exclude_older_than'] = parser.parse(cli_args['exclude_older_than'])
+            except Exception as e:
+                logger.warning(f"Failed to parse exclude_older_than date: {e}")
+        
+        if cli_args.get('exclude_newer_than'):
+            try:
+                from dateutil import parser
+                config_kwargs['exclude_newer_than'] = parser.parse(cli_args['exclude_newer_than'])
+            except Exception as e:
+                logger.warning(f"Failed to parse exclude_newer_than date: {e}")
+        
+        if cli_args.get('include_date_range'):
+            # Store as string - validation and parsing happens in _validate_date_ranges
+            config_kwargs['include_date_range'] = cli_args['include_date_range']
+        
+        # Handle backward compatibility (deprecated options)
         if cli_args.get('older_than'):
             try:
                 from dateutil import parser
                 config_kwargs['older_than'] = parser.parse(cli_args['older_than'])
+                logger.warning("--older-than is deprecated. Use --exclude-older-than instead.")
             except Exception as e:
                 logger.warning(f"Failed to parse older_than date: {e}")
         
@@ -360,6 +453,7 @@ class ConfigurationBuilder:
             try:
                 from dateutil import parser
                 config_kwargs['newer_than'] = parser.parse(cli_args['newer_than'])
+                logger.warning("--newer-than is deprecated. Use --exclude-newer-than instead.")
             except Exception as e:
                 logger.warning(f"Failed to parse newer_than date: {e}")
         

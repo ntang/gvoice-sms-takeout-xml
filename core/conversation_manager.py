@@ -1227,20 +1227,41 @@ class ConversationManager:
         Returns:
             bool: True if message should be skipped due to date filtering, False otherwise
         """
-        if not config or (config.older_than is None and config.newer_than is None):
+        if not config:
+            return False  # No config provided
+        
+        # Check if any date filtering is enabled (new or deprecated options)
+        has_new_filters = (config.exclude_older_than is not None or 
+                          config.exclude_newer_than is not None or 
+                          config.include_date_range is not None)
+        has_old_filters = (config.older_than is not None or config.newer_than is not None)
+        
+        if not has_new_filters and not has_old_filters:
             return False  # No date filtering enabled
         
         try:
             from datetime import datetime
             message_date = datetime.fromtimestamp(timestamp / 1000.0)
             
-            # Check older-than filter (skip messages before this date)
-            if config.older_than and message_date < config.older_than:
-                return True
+            # Use new clear options (preferred)
+            if has_new_filters:
+                # Check exclude-older-than filter (skip messages before this date)
+                if config.exclude_older_than and message_date < config.exclude_older_than:
+                    return True
+                
+                # Check exclude-newer-than filter (skip messages after this date)
+                if config.exclude_newer_than and message_date > config.exclude_newer_than:
+                    return True
             
-            # Check newer-than filter (skip messages after this date)
-            if config.newer_than and message_date > config.newer_than:
-                return True
+            # Backward compatibility with deprecated options
+            elif has_old_filters:
+                # Check older-than filter (skip messages before this date)
+                if config.older_than and message_date < config.older_than:
+                    return True
+                
+                # Check newer-than filter (skip messages after this date)
+                if config.newer_than and message_date > config.newer_than:
+                    return True
                 
             return False
         except Exception:

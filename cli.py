@@ -239,14 +239,29 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     help="Filter out toll-free numbers and non-US numbers (default: enabled)"
 )
 @click.option(
+    '--exclude-older-than',
+    type=str,
+    help="Exclude messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS). Messages before this date will be filtered out."
+)
+@click.option(
+    '--exclude-newer-than',
+    type=str,
+    help="Exclude messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS). Messages after this date will be filtered out."
+)
+@click.option(
+    '--include-date-range',
+    type=str,
+    help="Include only messages within specified date range (YYYY-MM-DD_YYYY-MM-DD). Format: start_date_end_date. Example: 2022-08-01_2025-06-01"
+)
+@click.option(
     '--older-than',
     type=str,
-    help="Filter out messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)"
+    help="[DEPRECATED] Use --exclude-older-than instead. Filter out messages older than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)"
 )
 @click.option(
     '--newer-than',
     type=str,
-    help="Filter out messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)"
+    help="[DEPRECATED] Use --exclude-newer-than instead. Filter out messages newer than specified date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)"
 )
 @click.option(
     '--enable-phone-prompts/--no-enable-phone-prompts',
