@@ -10,7 +10,10 @@ import threading
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.processing_config import ProcessingConfig
 
 # Template imports removed - not used in this module
 
@@ -262,9 +265,15 @@ class ConversationManager:
         message: str,
         attachments: list = None,
         message_type: str = "sms",  # Type: "sms", "call", "voicemail"
+        config: Optional["ProcessingConfig"] = None,  # Add config for date filtering
     ):
         """Write a message to a conversation file with content."""
         with self._lock:
+            # ENHANCEMENT: Apply date filtering at message write time
+            if self._should_skip_by_date_filter(timestamp, config):
+                logger.debug(f"Skipping message due to date filter: timestamp={timestamp}")
+                return  # Don't write the message
+            
             # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
                 # This case should ideally not be hit if get_conversation_id is always called first
@@ -1091,6 +1100,36 @@ class ConversationManager:
             total_stats["num_sms"] = total_messages
 
         return total_stats
+
+    def _should_skip_by_date_filter(self, timestamp: int, config: Optional["ProcessingConfig"]) -> bool:
+        """
+        Determine if a message should be skipped based on date filtering configuration.
+        
+        Args:
+            timestamp: Unix timestamp in milliseconds
+            config: ProcessingConfig containing date filter settings
+            
+        Returns:
+            bool: True if message should be skipped due to date filtering, False otherwise
+        """
+        if not config or (config.older_than is None and config.newer_than is None):
+            return False  # No date filtering enabled
+        
+        try:
+            from datetime import datetime
+            message_date = datetime.fromtimestamp(timestamp / 1000.0)
+            
+            # Check older-than filter (skip messages at or after this date)
+            if config.older_than and message_date >= config.older_than:
+                return True
+            
+            # Check newer-than filter (skip messages at or before this date)  
+            if config.newer_than and message_date <= config.newer_than:
+                return True
+                
+            return False
+        except Exception:
+            return False  # Don't skip on parsing errors
 
     def update_stats(self, conversation_id: str, stats: Dict[str, int]):
         """Update statistics for a conversation with enhanced attachment tracking."""

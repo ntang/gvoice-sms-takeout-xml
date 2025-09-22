@@ -296,10 +296,10 @@ class TestConversationManagerDateFilteringMethods:
         old_timestamp = int(datetime(2015, 1, 1).timestamp() * 1000)
         new_timestamp = int(datetime(2024, 1, 1).timestamp() * 1000)
         
-        # Old message should not be skipped (within range)
-        assert cm._should_skip_by_date_filter(old_timestamp, self.config_with_filters) == False
+        # Old message (2015) should be skipped (before older_than=2020)
+        assert cm._should_skip_by_date_filter(old_timestamp, self.config_with_filters) == True
         
-        # New message should be skipped (outside range)
+        # New message (2024) should be skipped (after newer_than=2023)
         assert cm._should_skip_by_date_filter(new_timestamp, self.config_with_filters) == True
 
     def test_should_skip_by_date_filter_no_config_returns_false(self):
