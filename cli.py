@@ -33,10 +33,9 @@ def setup_logging(config: ProcessingConfig) -> None:
     else:
         log_level = getattr(logging, config.log_level.upper())
     
-    # EMERGENCY FIX: Use single-threaded logging to prevent corruption
-    # Disable parallel processing logging entirely until we can fix the root cause
+    # CRITICAL FIX: Disable file logging entirely to prevent corruption
+    # Use console-only logging for maximum stability
     import threading
-    from logging.handlers import RotatingFileHandler
     
     # Create formatter
     formatter = logging.Formatter(
@@ -48,41 +47,20 @@ def setup_logging(config: ProcessingConfig) -> None:
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    handlers = []
-    
-    # Console handler (thread-safe by default)
+    # ONLY use console handler - no file logging to prevent corruption
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     console_handler.setLevel(log_level)
-    handlers.append(console_handler)
     
-    # EMERGENCY: Use a completely thread-safe file handler with global lock
-    if config.log_filename:
-        log_file = config.processing_dir / config.log_filename
-        
-        # Create a custom handler with a global lock
-        class UltraSafeFileHandler(logging.FileHandler):
-            _global_lock = threading.RLock()  # Use RLock for nested calls
-            
-            def emit(self, record):
-                with self._global_lock:
-                    try:
-                        super().emit(record)
-                        self.flush()  # Force immediate write
-                    except Exception:
-                        pass  # Silently ignore logging errors to prevent cascading failures
-        
-        file_handler = UltraSafeFileHandler(log_file, mode='a', encoding='utf-8')
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(log_level)
-        handlers.append(file_handler)
-    
-    # Configure root logger
+    # Configure root logger with ONLY console output
     logging.basicConfig(
         level=log_level,
-        handlers=handlers,
+        handlers=[console_handler],
         force=True  # Force reconfiguration
     )
+    
+    # Log that file logging is disabled for stability
+    logging.info("🔧 File logging disabled for maximum stability - using console output only")
     
     # Set module-specific logging levels
     if config.debug:
