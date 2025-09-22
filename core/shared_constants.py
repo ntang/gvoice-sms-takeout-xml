@@ -66,8 +66,8 @@ TEST_LIMIT = 100
 # Performance configuration - Optimized for high-end systems (16GB+ RAM, 8+ cores, 20-50k files)
 # All performance optimizations are enabled by default for maximum throughput
 LARGE_DATASET_THRESHOLD = 5000  # Files (increased for better large dataset handling)
-BATCH_SIZE_OPTIMAL = 1000  # Files per batch (optimized for large datasets)
-BUFFER_SIZE_OPTIMAL = 65536  # 64KB buffer (doubled for better I/O performance)
+BATCH_SIZE_OPTIMAL = 2000  # Files per batch (increased for better efficiency)
+BUFFER_SIZE_OPTIMAL = 131072  # 128KB buffer (doubled for better I/O performance)
 
 # EMERGENCY: Disable parallel processing to fix thread safety issues
 # TODO: Re-enable once logging race conditions are resolved

@@ -904,20 +904,48 @@ def main(config: Optional["ProcessingConfig"] = None,
                 sample_html_files = get_limited_file_list(TEST_LIMIT)
                 sample_html_files = [str(f) for f in sample_html_files]
 
-            # Only process attachments that are referenced by the sample HTML
-            # files
-            src_filename_map = build_attachment_mapping_with_progress_new(
-                context.path_manager, sample_files=sample_html_files
-            )
+            # Use optimized attachment mapping for better performance
+            try:
+                from core.performance_optimizations import build_attachment_mapping_optimized
+                logger.info("🚀 Using optimized attachment mapping for better performance")
+                src_filename_map = build_attachment_mapping_optimized(
+                    context.path_manager.processing_dir, 
+                    sample_files=sample_html_files,
+                    use_cache=True
+                )
+            except ImportError:
+                # Fallback to original implementation
+                logger.info("Using standard attachment mapping")
+                src_filename_map = build_attachment_mapping_with_progress_new(
+                    context.path_manager, sample_files=sample_html_files
+                )
         else:
-            src_filename_map = build_attachment_mapping_with_progress_new(
-                context.path_manager
-            )
+            # Use optimized attachment mapping for full runs
+            try:
+                from core.performance_optimizations import build_attachment_mapping_optimized
+                logger.info("🚀 Using optimized attachment mapping for better performance")
+                src_filename_map = build_attachment_mapping_optimized(
+                    context.path_manager.processing_dir,
+                    use_cache=True
+                )
+            except ImportError:
+                # Fallback to original implementation
+                logger.info("Using standard attachment mapping")
+                src_filename_map = build_attachment_mapping_with_progress_new(
+                    context.path_manager
+                )
 
         mapping_time = time.time() - mapping_start
         logger.info(
             f"Found {len(src_filename_map)} attachment mappings in {mapping_time:.2f}s"
         )
+        
+        # Apply additional performance optimizations
+        try:
+            from core.performance_optimizations import apply_all_performance_optimizations
+            perf_opts = apply_all_performance_optimizations(config)
+        except ImportError:
+            logger.debug("Performance optimizations module not available")
 
         # Copy all mapped attachments
         logger.info("Copying mapped attachments...")
@@ -6887,14 +6915,13 @@ def process_html_files_batch(
         if batch_number % 10 == 0 and 'validate_runtime_paths' in globals():
             validate_runtime_paths()
 
+        # PERFORMANCE OPTIMIZATION: Get managers once per batch instead of per file
+        conversation_manager = CONVERSATION_MANAGER
+        phone_lookup_manager = PHONE_LOOKUP_MANAGER
+        
         for html_file in batch_files:
             try:
-                # Thread-safe access to global managers
-                with CONVERSATION_MANAGER_LOCK:
-                    conversation_manager = CONVERSATION_MANAGER
-                with PHONE_LOOKUP_MANAGER_LOCK:
-                    phone_lookup_manager = PHONE_LOOKUP_MANAGER
-
+                # No locks needed since we're single-threaded now
                 file_stats = process_single_html_file(
                     html_file,
                     src_filename_map,

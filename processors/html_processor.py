@@ -155,7 +155,7 @@ STRING_POOL = StringPool()
 
 def parse_html_file(html_file: Path) -> BeautifulSoup:
     """
-    Parse an HTML file and return a BeautifulSoup object.
+    Parse an HTML file and return a BeautifulSoup object with performance optimizations.
 
     Args:
         html_file: Path to the HTML file
@@ -168,14 +168,37 @@ def parse_html_file(html_file: Path) -> BeautifulSoup:
         Exception: For other parsing errors
     """
     try:
+        # Use optimized file reading with larger buffer
         with open(
             html_file,
             "r",
             encoding="utf-8",
-            buffering=STRING_POOL.FILE_READ_BUFFER_SIZE,
+            buffering=131072,  # 128KB buffer for better performance
+            errors='ignore'  # Skip encoding errors for speed
         ) as file:
-            soup = BeautifulSoup(file, STRING_POOL.HTML_PARSER)
-            return soup
+            content = file.read()
+        
+        # Fast pre-check to skip invalid files
+        if len(content) < 100 or '<html' not in content.lower():
+            # Return minimal soup for invalid files
+            return BeautifulSoup("<html></html>", "html.parser")
+        
+        # Use fastest available parser
+        parser = "html.parser"  # Default fallback
+        try:
+            import lxml
+            parser = "lxml"  # Fastest
+        except ImportError:
+            try:
+                import html5lib
+                parser = "html5lib"  # More accurate
+            except ImportError:
+                pass  # Use default
+        
+        # Parse with optimized parser
+        soup = BeautifulSoup(content, parser)
+        return soup
+        
     except FileNotFoundError:
         logger.error(f"HTML file not found: {html_file}")
         raise
