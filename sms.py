@@ -65,6 +65,7 @@ from pathlib import Path
 
 # Import shared constants to break circular imports
 from core.shared_constants import *
+from core import shared_constants
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
