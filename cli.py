@@ -33,20 +33,55 @@ def setup_logging(config: ProcessingConfig) -> None:
     else:
         log_level = getattr(logging, config.log_level.upper())
     
-    # Configure thread-safe logging
-    from utils.thread_safe_logging import setup_thread_safe_logging
+    # EMERGENCY FIX: Use single-threaded logging to prevent corruption
+    # Disable parallel processing logging entirely until we can fix the root cause
+    import threading
+    from logging.handlers import RotatingFileHandler
     
-    # Determine log file path
-    log_file = None
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - [%(threadName)s] - %(message)s"
+    )
+    
+    # Clear any existing handlers to prevent conflicts
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    handlers = []
+    
+    # Console handler (thread-safe by default)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(log_level)
+    handlers.append(console_handler)
+    
+    # EMERGENCY: Use a completely thread-safe file handler with global lock
     if config.log_filename:
         log_file = config.processing_dir / config.log_filename
+        
+        # Create a custom handler with a global lock
+        class UltraSafeFileHandler(logging.FileHandler):
+            _global_lock = threading.RLock()  # Use RLock for nested calls
+            
+            def emit(self, record):
+                with self._global_lock:
+                    try:
+                        super().emit(record)
+                        self.flush()  # Force immediate write
+                    except Exception:
+                        pass  # Silently ignore logging errors to prevent cascading failures
+        
+        file_handler = UltraSafeFileHandler(log_file, mode='a', encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(log_level)
+        handlers.append(file_handler)
     
-    # Set up thread-safe logging
-    setup_thread_safe_logging(
-        log_level=log_level,
-        log_file=log_file,
-        console_logging=True,
-        include_thread_name=True
+    # Configure root logger
+    logging.basicConfig(
+        level=log_level,
+        handlers=handlers,
+        force=True  # Force reconfiguration
     )
     
     # Set module-specific logging levels

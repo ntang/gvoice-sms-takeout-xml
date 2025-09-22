@@ -69,8 +69,9 @@ LARGE_DATASET_THRESHOLD = 5000  # Files (increased for better large dataset hand
 BATCH_SIZE_OPTIMAL = 1000  # Files per batch (optimized for large datasets)
 BUFFER_SIZE_OPTIMAL = 65536  # 64KB buffer (doubled for better I/O performance)
 
-# High-performance parallel processing - optimized for multi-core systems
-MAX_WORKERS = 16  # Fixed at 16 workers for high-end systems (8+ cores)
+# EMERGENCY: Disable parallel processing to fix thread safety issues
+# TODO: Re-enable once logging race conditions are resolved
+MAX_WORKERS = 1  # Disabled parallel processing due to logging corruption
 CHUNK_SIZE_OPTIMAL = 1000  # Files per chunk for parallel processing
 MEMORY_EFFICIENT_THRESHOLD = 10000  # Threshold for memory-efficient mode
 
