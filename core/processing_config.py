@@ -49,6 +49,7 @@ class ProcessingConfig:
     filter_numbers_without_aliases: bool = False
     filter_non_phone_numbers: bool = False
     filter_groups_with_all_filtered: bool = True  # Default: enabled (new behavior)
+    include_call_only_conversations: bool = False  # Default: filter out call-only conversations
     
     # Date Filtering
     older_than: Optional[datetime] = None

@@ -105,6 +105,7 @@ class ConversationManager:
             {}
         )  # Maps conversation_id to file handle and message count
         self.conversation_stats = {}  # Maps conversation_id to statistics
+        self.conversation_content_types = {}  # Maps conversation_id to content type tracking
         self.write_buffer_size = (
             buffer_size  # Configurable buffer size for efficient I/O
         )
@@ -274,6 +275,10 @@ class ConversationManager:
                 logger.debug(f"Skipping message due to date filter: timestamp={timestamp}")
                 return  # Don't write the message
             
+            # ENHANCEMENT: Track conversation content types for call-only filtering
+            if config:
+                self._track_conversation_content_type(conversation_id, message_type, message, attachments)
+            
             # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
                 # This case should ideally not be hit if get_conversation_id is always called first
@@ -363,6 +368,47 @@ class ConversationManager:
                     # Also remove from stats
                     if conversation_id in self.conversation_stats:
                         del self.conversation_stats[conversation_id]
+            
+            # ENHANCEMENT: Remove call-only conversations by default (unless explicitly included)
+            if config and not config.include_call_only_conversations:
+                call_only_conversations = []
+                for conversation_id in list(self.conversation_files.keys()):
+                    if self._is_call_only_conversation(conversation_id):
+                        call_only_conversations.append(conversation_id)
+                        logger.info(f"Filtering out call-only conversation: {conversation_id}")
+                
+                # Remove call-only conversations
+                for conversation_id in call_only_conversations:
+                    if conversation_id in self.conversation_files:
+                        file_info = self.conversation_files[conversation_id]
+                        # Close file handle if it exists
+                        if file_info.get("file"):
+                            try:
+                                file_info["file"].close()
+                            except Exception:
+                                pass
+                        
+                        # Delete the actual HTML file from disk
+                        try:
+                            conversation_file_path = self.output_dir / f"{conversation_id}.html"
+                            if conversation_file_path.exists():
+                                conversation_file_path.unlink()
+                                logger.debug(f"Deleted call-only conversation file: {conversation_file_path}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete call-only conversation file {conversation_id}: {e}")
+                        
+                        # Remove from tracking
+                        del self.conversation_files[conversation_id]
+                    
+                    # Also remove from stats and content types
+                    if conversation_id in self.conversation_stats:
+                        del self.conversation_stats[conversation_id]
+                    if conversation_id in self.conversation_content_types:
+                        del self.conversation_content_types[conversation_id]
+                
+                if call_only_conversations:
+                    logger.info(f"📞 Filtered out {len(call_only_conversations)} call-only conversations")
+                    logger.info("💡 Use --include-call-only-conversations to preserve call-only conversations")
             
             for conversation_id, file_info in self.conversation_files.items():
                 try:
@@ -1125,6 +1171,50 @@ class ConversationManager:
             total_stats["num_sms"] = total_messages
 
         return total_stats
+
+    def _track_conversation_content_type(self, conversation_id: str, message_type: str, message: str, attachments: list = None):
+        """Track what types of content exist in each conversation for call-only filtering."""
+        if conversation_id not in self.conversation_content_types:
+            self.conversation_content_types[conversation_id] = {
+                "has_sms": False,
+                "has_mms": False,
+                "has_voicemail_with_text": False,
+                "has_calls_only": True,
+                "total_messages": 0,
+                "call_count": 0
+            }
+        
+        content = self.conversation_content_types[conversation_id]
+        content["total_messages"] += 1
+        
+        if message_type == "sms":
+            content["has_sms"] = True
+            content["has_calls_only"] = False
+        elif message_type == "mms" or (attachments and len(attachments) > 0):
+            content["has_mms"] = True
+            content["has_calls_only"] = False
+        elif message_type == "voicemail":
+            # Check if voicemail has actual transcription content
+            if message and message.strip() and message != "[Voicemail entry]":
+                content["has_voicemail_with_text"] = True
+                content["has_calls_only"] = False
+        elif message_type == "call":
+            content["call_count"] += 1
+            # Calls don't change has_calls_only status
+
+    def _is_call_only_conversation(self, conversation_id: str) -> bool:
+        """Determine if conversation contains only call records."""
+        if conversation_id not in self.conversation_content_types:
+            return False
+        
+        content = self.conversation_content_types[conversation_id]
+        return (
+            content["has_calls_only"] and 
+            not content["has_sms"] and 
+            not content["has_mms"] and 
+            not content["has_voicemail_with_text"] and
+            content["call_count"] > 0
+        )
 
     def _should_skip_by_date_filter(self, timestamp: int, config: Optional["ProcessingConfig"]) -> bool:
         """

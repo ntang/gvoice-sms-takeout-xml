@@ -264,6 +264,11 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
     help="Filter out group conversations where ALL participants are marked to filter (default: enabled)"
 )
 @click.option(
+    '--include-call-only-conversations/--no-include-call-only-conversations',
+    default=False,
+    help="Include conversations that contain only call records. By default, conversations with only call logs (no SMS/MMS/voicemail text) are filtered out to focus on text-based communication (default: disabled - call-only conversations filtered out)"
+)
+@click.option(
     '--phone-lookup-file',
     type=click.Path(path_type=Path),
     help="Path to phone lookup file (default: processing_dir/phone_lookup.txt)"
