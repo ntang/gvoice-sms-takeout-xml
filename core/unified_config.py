@@ -231,7 +231,7 @@ class AppConfig(BaseSettings):
     )
     
     filter_non_phone_numbers: bool = Field(
-        default=False,
+        default=True,
         description="Filter out toll-free numbers and non-US numbers"
     )
     

@@ -85,7 +85,7 @@ The new CLI provides **32 configuration options** with explicit definitions for 
 #### Filtering Options
 - `--include-service-codes` - Include service codes and short codes (default: disabled)
 - `--filter-numbers-without-aliases` - Filter numbers without aliases (default: disabled)
-- `--filter-non-phone-numbers` - Filter toll-free and non-US numbers (default: disabled)
+- `--filter-non-phone-numbers` - Filter toll-free and non-US numbers (default: enabled)
 - `--older-than TEXT` - Filter messages older than specified date (no default)
 - `--newer-than TEXT` - Filter messages newer than specified date (no default)
 - `--phone-prompts` - Enable interactive phone number alias prompts (default: disabled)

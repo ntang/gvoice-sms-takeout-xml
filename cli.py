@@ -235,8 +235,8 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
 )
 @click.option(
     '--filter-non-phone-numbers/--no-filter-non-phone-numbers',
-    default=False,
-    help="Filter out toll-free numbers and non-US numbers (default: disabled)"
+    default=True,
+    help="Filter out toll-free numbers and non-US numbers (default: enabled)"
 )
 @click.option(
     '--older-than',

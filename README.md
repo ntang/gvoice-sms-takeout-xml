@@ -182,7 +182,7 @@ The converter provides extensive configuration options with sensible defaults. A
 ### Filtering Options
 - `--include-service-codes` - Include service codes and short codes in processing (default: disabled)
 - `--filter-numbers-without-aliases` - Filter out phone numbers that don't have aliases (default: disabled)
-- `--filter-non-phone-numbers` - Filter out toll-free numbers and non-US numbers (default: disabled)
+- `--filter-non-phone-numbers` - Filter out toll-free numbers and non-US numbers (default: enabled)
 - `--skip-filtered-contacts` - Skip processing filtered contacts by default (default: enabled)
 - `--filter-groups-with-all-filtered` - Filter out group conversations where ALL participants are marked to filter (default: enabled)
 

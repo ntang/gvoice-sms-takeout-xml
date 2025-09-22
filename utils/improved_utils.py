@@ -307,7 +307,7 @@ class AppConfig(BaseSettings):
     use_improved_utils: bool = True
     enable_phone_prompts: bool = False
     filter_numbers_without_aliases: bool = False
-    filter_non_phone_numbers: bool = False
+    filter_non_phone_numbers: bool = True
     
     model_config = ConfigDict(
         env_file=".env",

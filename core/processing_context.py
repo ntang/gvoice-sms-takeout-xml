@@ -40,7 +40,7 @@ class ProcessingContext:
     date_filter_older_than: Optional[str] = None
     date_filter_newer_than: Optional[str] = None
     filter_numbers_without_aliases: bool = False
-    filter_non_phone_numbers: bool = False
+    filter_non_phone_numbers: bool = True
     full_run: bool = False
     
     # Performance settings are now hardcoded in shared_constants.py for optimal defaults

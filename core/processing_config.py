@@ -47,7 +47,7 @@ class ProcessingConfig:
     # Filtering Settings
     include_service_codes: bool = False
     filter_numbers_without_aliases: bool = False
-    filter_non_phone_numbers: bool = False
+    filter_non_phone_numbers: bool = True  # Default: enabled (filter toll-free and non-US numbers)
     filter_groups_with_all_filtered: bool = True  # Default: enabled (new behavior)
     include_call_only_conversations: bool = False  # Default: filter out call-only conversations
     
@@ -256,7 +256,7 @@ class ConfigurationDefaults:
             "skip_filtered_contacts": True,
             "include_service_codes": False,
             "filter_numbers_without_aliases": False,
-            "filter_non_phone_numbers": False,
+            "filter_non_phone_numbers": True,
             "test_mode": False,
             "test_limit": 100,
             "full_run": False,
@@ -396,7 +396,7 @@ class ConfigurationBuilder:
             'phone_lookup_file': os.environ.get('GVOICE_PHONE_LOOKUP_FILE'),
             'include_service_codes': os.environ.get('GVOICE_INCLUDE_SERVICE_CODES', 'false').lower() == 'true',
             'filter_numbers_without_aliases': os.environ.get('GVOICE_FILTER_NUMBERS_WITHOUT_ALIASES', 'false').lower() == 'true',
-            'filter_non_phone_numbers': os.environ.get('GVOICE_FILTER_NON_PHONE_NUMBERS', 'false').lower() == 'true',
+            'filter_non_phone_numbers': os.environ.get('GVOICE_FILTER_NON_PHONE_NUMBERS', 'true').lower() == 'true',
             'test_mode': os.environ.get('GVOICE_TEST_MODE', 'false').lower() == 'true',
             'test_limit': int(os.environ.get('GVOICE_TEST_LIMIT', '100')),
             'full_run': os.environ.get('GVOICE_FULL_RUN', 'false').lower() == 'true',
