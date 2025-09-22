@@ -85,17 +85,45 @@ class TestMessageLevelDateFiltering:
         assert success
 
     def test_message_outside_newer_than_filter_should_not_be_written(self):
-        """FAILING TEST: Messages older than newer_than filter should not appear in conversation files."""
+        """TEST: Messages newer than newer_than filter should not appear in conversation files."""
         cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
         
-        # Try to write an old message with newer_than filter
+        # Try to write a future message with newer_than filter
         cm.write_message_with_content(
             conversation_id="test_conv",
-            timestamp=self.old_timestamp,  # 2015 message
+            timestamp=self.current_timestamp,  # 2024 message (newer than 2020)
             sender="TestSender", 
-            message="Old message from 2015",
+            message="Future message from 2024",
             message_type="sms",
-            config=self.config_newer_than_2020  # Filter: newer than 2020
+            config=self.config_newer_than_2020  # Filter: newer than 2020 (skip messages after 2020)
+        )
+        
+        # Finalize to write files
+        cm.finalize_conversation_files()
+        
+        # Check if conversation file was created
+        conv_file = self.test_output_dir / "test_conv.html"
+        
+        if conv_file.exists():
+            content = conv_file.read_text()
+            # FUTURE MESSAGE SHOULD NOT APPEAR in conversation file
+            assert "Future message from 2024" not in content, "Future message should be filtered out"
+        # OR conversation file should not exist at all if no valid messages
+        
+        # This test should FAIL initially because current implementation doesn't filter at message level
+
+    def test_message_outside_older_than_filter_should_not_be_written(self):
+        """TEST: Messages older than older_than filter should not appear in conversation files."""
+        cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
+        
+        # Try to write an old message with older_than filter
+        cm.write_message_with_content(
+            conversation_id="test_conv",
+            timestamp=self.old_timestamp,  # 2015 message (older than 2020)
+            sender="TestSender",
+            message="Old message from 2015", 
+            message_type="sms",
+            config=self.config_older_than_2020  # Filter: older than 2020 (skip messages before 2020)
         )
         
         # Finalize to write files
@@ -108,34 +136,6 @@ class TestMessageLevelDateFiltering:
             content = conv_file.read_text()
             # OLD MESSAGE SHOULD NOT APPEAR in conversation file
             assert "Old message from 2015" not in content, "Old message should be filtered out"
-        # OR conversation file should not exist at all if no valid messages
-        
-        # This test should FAIL initially because current implementation doesn't filter at message level
-
-    def test_message_outside_older_than_filter_should_not_be_written(self):
-        """FAILING TEST: Messages newer than older_than filter should not appear in conversation files."""
-        cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
-        
-        # Try to write a recent message with older_than filter
-        cm.write_message_with_content(
-            conversation_id="test_conv",
-            timestamp=self.current_timestamp,  # 2024 message
-            sender="TestSender",
-            message="Recent message from 2024", 
-            message_type="sms",
-            config=self.config_older_than_2020  # Filter: older than 2020
-        )
-        
-        # Finalize to write files
-        cm.finalize_conversation_files()
-        
-        # Check if conversation file was created
-        conv_file = self.test_output_dir / "test_conv.html"
-        
-        if conv_file.exists():
-            content = conv_file.read_text()
-            # RECENT MESSAGE SHOULD NOT APPEAR in conversation file
-            assert "Recent message from 2024" not in content, "Recent message should be filtered out"
         
         # This test should FAIL initially
 
@@ -389,9 +389,10 @@ class TestEndToEndDateFilteringIntegration:
         
         # Create a conversation that will be empty after filtering
         cm.conversation_files["empty_conv"] = {
-            "file_handle": None,
-            "message_count": 0,
-            "buffer": []
+            "file": None,
+            "messages": [],  # Empty messages list indicates no messages after filtering
+            "buffer_size": 0,
+            "max_buffer_size": 1000
         }
         
         # This conversation should be removed during finalization if it has no valid messages

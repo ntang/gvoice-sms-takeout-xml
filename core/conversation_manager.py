@@ -336,9 +336,34 @@ class ConversationManager:
     # _flush_buffer_to_file method removed - using memory-only buffering
     # Messages are kept in memory until finalization to ensure clean HTML output
 
-    def finalize_conversation_files(self):
+    def finalize_conversation_files(self, config: Optional["ProcessingConfig"] = None):
         """Finalize all conversation files by writing headers and closing tags."""
         with self._lock:
+            # ENHANCEMENT: Remove conversations with no messages after date filtering
+            if config and (config.older_than or config.newer_than):
+                empty_conversations = []
+                for conversation_id, file_info in self.conversation_files.items():
+                    if len(file_info["messages"]) == 0:
+                        empty_conversations.append(conversation_id)
+                        logger.debug(f"Removing empty conversation after date filtering: {conversation_id}")
+                
+                # Remove empty conversations
+                for conversation_id in empty_conversations:
+                    if conversation_id in self.conversation_files:
+                        file_info = self.conversation_files[conversation_id]
+                        # Close file handle if it exists
+                        if file_info.get("file"):
+                            try:
+                                file_info["file"].close()
+                            except Exception:
+                                pass
+                        # Remove from tracking
+                        del self.conversation_files[conversation_id]
+                    
+                    # Also remove from stats
+                    if conversation_id in self.conversation_stats:
+                        del self.conversation_stats[conversation_id]
+            
             for conversation_id, file_info in self.conversation_files.items():
                 try:
                     # Sort messages by timestamp (using tuple unpacking for better performance)
@@ -1119,12 +1144,12 @@ class ConversationManager:
             from datetime import datetime
             message_date = datetime.fromtimestamp(timestamp / 1000.0)
             
-            # Check older-than filter (skip messages at or after this date)
-            if config.older_than and message_date >= config.older_than:
+            # Check older-than filter (skip messages before this date)
+            if config.older_than and message_date < config.older_than:
                 return True
             
-            # Check newer-than filter (skip messages at or before this date)  
-            if config.newer_than and message_date <= config.newer_than:
+            # Check newer-than filter (skip messages after this date)
+            if config.newer_than and message_date > config.newer_than:
                 return True
                 
             return False

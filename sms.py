@@ -898,7 +898,7 @@ def main(config: Optional["ProcessingConfig"] = None,
         # Finalize conversation files
         logger.info("Finalizing conversation files...")
         finalize_start = time.time()
-        context.conversation_manager.finalize_conversation_files()
+        context.conversation_manager.finalize_conversation_files(config=config)
         finalize_time = time.time() - finalize_start
 
         # Calculate elapsed time and generate index
@@ -2281,7 +2281,7 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
     # Finalize conversation files
     if CONVERSATION_MANAGER:
         logger.info("Finalizing conversation files...")
-        CONVERSATION_MANAGER.finalize_conversation_files()
+        CONVERSATION_MANAGER.finalize_conversation_files(config=config)
     
     # Memory monitoring for file processing completion
     if ENABLE_PERFORMANCE_MONITORING:
@@ -2471,7 +2471,7 @@ def process_html_files_param(
     # Finalize conversation files using provided manager
     if conversation_manager:
         logger.info("Finalizing conversation files...")
-        conversation_manager.finalize_conversation_files()
+        conversation_manager.finalize_conversation_files(config=config)
     
     # Memory monitoring for file processing completion
     if enable_performance_monitoring:
