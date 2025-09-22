@@ -7037,6 +7037,11 @@ def process_chunk_parallel(
     html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None
 ) -> Dict[str, int]:
     """Process a chunk of HTML files for parallel processing."""
+    # Use thread-safe logging for parallel processing
+    import threading
+    from utils.thread_safe_logging import get_thread_safe_logger
+    chunk_logger = get_thread_safe_logger(f"{__name__}.chunk_{threading.current_thread().name}")
+    
     stats = {
         "num_sms": 0,
         "num_img": 0,
@@ -7051,7 +7056,7 @@ def process_chunk_parallel(
     phone_lookup_manager = context.phone_lookup_manager if context else None
     
     if not conversation_manager:
-        logger.error("ConversationManager not available in parallel chunk")
+        chunk_logger.error("ConversationManager not available in parallel chunk")
         return stats
 
     for html_file in html_files:
@@ -7077,7 +7082,7 @@ def process_chunk_parallel(
                 own_number = file_stats.get("own_number")
 
         except Exception as e:
-            logger.error(f"Failed to process {html_file} in parallel chunk: {e}")
+            chunk_logger.error(f"Failed to process {html_file} in parallel chunk: {e}")
             continue
 
     if own_number:

@@ -33,21 +33,21 @@ def setup_logging(config: ProcessingConfig) -> None:
     else:
         log_level = getattr(logging, config.log_level.upper())
     
-    # Configure logging
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+    # Configure thread-safe logging
+    from utils.thread_safe_logging import setup_thread_safe_logging
     
-    # Add file handler if log filename is specified
+    # Determine log file path
+    log_file = None
     if config.log_filename:
         log_file = config.processing_dir / config.log_filename
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        )
-        logging.getLogger().addHandler(file_handler)
+    
+    # Set up thread-safe logging
+    setup_thread_safe_logging(
+        log_level=log_level,
+        log_file=log_file,
+        console_logging=True,
+        include_thread_name=True
+    )
     
     # Set module-specific logging levels
     if config.debug:
