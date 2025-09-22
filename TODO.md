@@ -51,9 +51,77 @@
 2. `fix: resolve KeyError 'num_img' in ConversationManager.update_stats` (87b187c)  
 3. `test: add comprehensive test suite for call/voicemail processing and fix cache issues` (0be9fb4)
 
+---
+
+## 🔧 **CURRENT WORK: Date Filtering Fix (TDD-Driven)**
+
+### **Issue Identified**: 
+- Date filtering works at file level but not within conversation files
+- Conversations include entire history if ANY message passes date filter
+- Example: SusanT.html contains 30,436 messages from 2010-2025 even with potential date filters
+
+### **Phase 0: TODO Setup and TDD Test Creation** ✅
+- [x] Update TODO.md with comprehensive date filtering work plan
+- [x] Create tests/test_date_filtering_fix.py with comprehensive failing test suite
+- [x] Run tests to verify they fail (TDD RED phase) - 21 failed, 2 passed ✅
+
+### **Phase 1: TDD Core Infrastructure**
+- [ ] Create failing tests for message-level date filtering
+- [ ] Implement _should_skip_by_date_filter() in ConversationManager
+- [ ] Add config parameter to write_message_with_content()
+- [ ] Verify core infrastructure tests pass (TDD GREEN phase)
+- [ ] Refactor for clarity and performance
+- [ ] Commit: "feat: implement message-level date filtering infrastructure"
+
+### **Phase 2: SMS/MMS Integration (TDD)**
+- [ ] Create failing tests for SMS/MMS date filtering integration
+- [ ] Update SMS processing to pass config for date filtering
+- [ ] Update MMS processing to pass config for date filtering
+- [ ] Verify SMS/MMS date filtering tests pass
+- [ ] Commit: "feat: integrate date filtering with SMS/MMS processing"
+
+### **Phase 3: Call/Voicemail Integration (TDD)**
+- [ ] Create failing tests for call/voicemail date filtering
+- [ ] Update write_call_entry() to accept config parameter
+- [ ] Update write_voicemail_entry() to accept config parameter
+- [ ] Update wrapper functions to pass config parameter
+- [ ] Verify call/voicemail date filtering tests pass
+- [ ] Commit: "feat: integrate date filtering with call/voicemail processing"
+
+### **Phase 4: Conversation Cleanup (TDD)**
+- [ ] Create failing tests for empty conversation cleanup
+- [ ] Implement empty conversation detection in finalize_conversation_files()
+- [ ] Add conversation removal logic for filtered-empty conversations
+- [ ] Verify cleanup tests pass
+- [ ] Commit: "feat: remove empty conversations after date filtering"
+
+### **Phase 5: End-to-End Validation**
+- [ ] Create integration tests with real dataset
+- [ ] Test --older-than filter with SusanT conversation
+- [ ] Test --newer-than filter with SusanT conversation  
+- [ ] Test combined filters (date range)
+- [ ] Verify conversation files only contain messages within date range
+- [ ] Verify statistics reflect filtered message counts
+- [ ] Commit: "test: add end-to-end date filtering validation"
+
+### **Phase 6: Final Integration**
+- [ ] Run full test suite to ensure no regressions
+- [ ] Test with large dataset to verify performance
+- [ ] Update documentation with date filtering behavior
+- [ ] Final commit and push all changes
+
+### **Success Criteria:**
+- ✅ Conversation files only contain messages within specified date range
+- ✅ Empty conversations (after filtering) are not created
+- ✅ File-level filtering performance preserved
+- ✅ All existing functionality works unchanged
+- ✅ Comprehensive test coverage for all scenarios
+
+---
+
 ### Next Actions:
-- **None required** - primary issue resolved successfully
-- **Optional**: Address remaining test failures related to cache_clear() in older tests
+- **Current**: Phase 0 - Create comprehensive TDD test suite
+- **Next**: Phase 1 - Implement core infrastructure following TDD principles
 
 ---
 
