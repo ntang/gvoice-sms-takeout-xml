@@ -169,6 +169,12 @@ def process_call_file(
     """
     # Import the actual functions from sms.py
     from sms import extract_call_info, write_call_entry
+    from utils.enhanced_logging import get_metrics_collector
+    
+    # Start metrics collection for this call file
+    file_id = html_file.name
+    metrics_collector = get_metrics_collector()
+    processing_metrics = metrics_collector.start_processing(file_id, file_format="call")
 
     # Extract call information
     call_info = extract_call_info(str(html_file), soup)
@@ -177,13 +183,17 @@ def process_call_file(
     if call_info:
         # Write call entry to conversation file using passed managers
         write_call_entry(
-            str(html_file), 
-            call_info, 
-            own_number, 
+            str(html_file),
+            call_info,
+            own_number,
             soup=soup,
             conversation_manager=conversation_manager,
             phone_lookup_manager=phone_lookup_manager
         )
+        
+        # Update metrics
+        processing_metrics.messages_processed = 1  # One call processed
+        processing_metrics.mark_success()
         
         return {
             "num_sms": 0,
@@ -194,6 +204,8 @@ def process_call_file(
             "own_number": own_number,
         }
     else:
+        # No call info extracted
+        processing_metrics.mark_failure("No call information found in file")
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -217,6 +229,12 @@ def process_voicemail_file(
     """
     # Import the actual functions from sms.py
     from sms import extract_voicemail_info, write_voicemail_entry
+    from utils.enhanced_logging import get_metrics_collector
+    
+    # Start metrics collection for this voicemail file
+    file_id = html_file.name
+    metrics_collector = get_metrics_collector()
+    processing_metrics = metrics_collector.start_processing(file_id, file_format="voicemail")
 
     # Extract voicemail information
     voicemail_info = extract_voicemail_info(str(html_file), soup)
@@ -233,6 +251,10 @@ def process_voicemail_file(
             phone_lookup_manager=phone_lookup_manager
         )
         
+        # Update metrics
+        processing_metrics.messages_processed = 1  # One voicemail processed
+        processing_metrics.mark_success()
+        
         return {
             "num_sms": 0,
             "num_img": 0,
@@ -242,6 +264,8 @@ def process_voicemail_file(
             "own_number": own_number,
         }
     else:
+        # No voicemail info extracted
+        processing_metrics.mark_failure("No voicemail information found in file")
         return {
             "num_sms": 0,
             "num_img": 0,

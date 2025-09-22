@@ -2901,6 +2901,11 @@ def process_sms_mms_file(
     
     # Enhanced logging and metrics tracking
     file_id = html_file.name
+    
+    # Start metrics collection for this file
+    metrics_collector = get_metrics_collector()
+    processing_metrics = metrics_collector.start_processing(file_id, file_format="sms_mms")
+    
     log_processing_event(
         logger, "start_processing", file_id, "sms_mms_processing",
         file_size_bytes=html_file.stat().st_size,
@@ -3135,15 +3140,10 @@ def process_sms_mms_file(
     vcf_count = len(soup.select(vcard_selector))
 
     # Update metrics with processing results
-    metrics = get_metrics_collector().get_metrics(file_id)
-    if metrics:
-        metrics.update_metrics(
-            file_id,
-            messages_processed=len(messages_raw),
-            participants_extracted=len(participants_raw) if participants_raw else 0,
-            attachments_found=img_count + vcf_count,
-            processing_stage="completed"
-        )
+    processing_metrics.messages_processed = len(messages_raw)
+    processing_metrics.participants_extracted = len(participants_raw) if participants_raw else 0
+    processing_metrics.attachments_found = img_count + vcf_count
+    processing_metrics.processing_stage = "completed"
     
     # Log completion event
     log_processing_event(
@@ -3152,6 +3152,9 @@ def process_sms_mms_file(
         participants_extracted=len(participants_raw) if participants_raw else 0,
         attachments_found=img_count + vcf_count
     )
+    
+    # Mark processing as successful
+    processing_metrics.mark_success()
     
     return {
         "num_sms": sms_count,

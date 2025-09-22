@@ -16,6 +16,48 @@
 
 ---
 
+## 🔧 **CURRENT WORK: Enhanced Metrics System Implementation (TDD-Driven)**
+
+### **Issue Identified**:
+- Enhanced metrics system infrastructure exists but not connected to processing
+- End of run shows: "⚠️ Enhanced metrics unavailable: no metrics collected"
+- Missing integration of `track_processing()` context manager in processing functions
+
+### **Phase 0: TODO Setup and TDD Test Creation** ✅
+- [x] Update TODO.md with comprehensive enhanced metrics work plan
+- [x] Create tests/test_enhanced_metrics_integration.py with comprehensive failing test suite
+- [x] Run tests to verify they fail (TDD RED phase) - 8 failed, 3 passed ✅
+
+### **Phase 1: TDD Core Integration**
+- [ ] Create failing tests for metrics collection in processing functions
+- [ ] Implement track_processing() context manager integration
+- [ ] Add metrics success/failure tracking
+- [ ] Verify core metrics collection tests pass (TDD GREEN phase)
+- [ ] Commit: "feat: integrate enhanced metrics collection with processing functions"
+
+### **Phase 2: Enhanced Metrics Tracking**
+- [ ] Create failing tests for detailed metrics (messages, participants, attachments)
+- [ ] Implement detailed metrics updates in processing loops
+- [ ] Add performance and efficiency metrics calculation
+- [ ] Verify enhanced metrics tests pass
+- [ ] Commit: "feat: add detailed processing metrics and efficiency tracking"
+
+### **Phase 3: End-to-End Validation**
+- [ ] Create integration test with real processing workflow
+- [ ] Verify metrics summary shows comprehensive data instead of "no metrics collected"
+- [ ] Validate performance impact is minimal
+- [ ] Test with various file types (SMS/MMS/calls/voicemails)
+- [ ] Commit: "feat: complete enhanced metrics system with full integration"
+
+### **Success Criteria:**
+- ✅ End of run shows detailed metrics summary instead of "unavailable" message
+- ✅ Processing functions collect file-by-file metrics automatically
+- ✅ Metrics include success/failure rates, processing times, message counts
+- ✅ No performance degradation from metrics collection
+- ✅ Comprehensive test coverage for all metrics functionality
+
+---
+
 ## 🟡 MEDIUM PRIORITY - Architecture Improvements
 
 ### Performance Optimization
