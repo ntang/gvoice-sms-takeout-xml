@@ -2964,9 +2964,8 @@ def process_sms_mms_file(
         file_path=str(html_file)
     )
     
-    # Strategy 1: Use optimized extraction for better performance
-    extracted_data = extract_message_data_optimized(soup)
-    messages_raw = extracted_data['messages']
+    # Strategy 1: Use cached CSS selector for better performance (with optimal parser)
+    messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
 
     # Strategy 2: If no messages found, try alternative selectors
     if not messages_raw:
@@ -3188,9 +3187,9 @@ def process_sms_mms_file(
     # NOTE: MMS messages with attachments are forwarded from write_sms_messages
     # to write_mms_messages to avoid double-processing.
 
-    # Count attachments more efficiently using pre-extracted data
-    img_count = len(extracted_data['images'])
-    vcf_count = len(extracted_data['vcards'])
+    # Count attachments more efficiently
+    img_count = len(soup.select(img_selector))
+    vcf_count = len(soup.select(vcard_selector))
 
     # Update metrics with processing results
     processing_metrics.messages_processed = len(messages_raw)
