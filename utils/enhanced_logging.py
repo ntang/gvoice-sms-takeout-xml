@@ -46,12 +46,14 @@ class ProcessingMetrics:
         """Mark processing as successful."""
         self.success = True
         self.end_time = time.time()
+        self.processing_time_ms = (self.end_time - self.start_time) * 1000
 
     def mark_failure(self, error_message: str):
         """Mark processing as failed."""
         self.success = False
         self.error_message = error_message
         self.end_time = time.time()
+        self.processing_time_ms = (self.end_time - self.start_time) * 1000
 
     def add_risk_factor(self, factor: str):
         """Add a risk factor to the metrics."""

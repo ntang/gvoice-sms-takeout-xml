@@ -111,14 +111,33 @@ class TestMetricsCollectionIntegration:
         assert metrics_summary["successful_files"] > 0, "Should track successful file processing"
 
     def test_metrics_should_include_processing_time(self):
-        """FAILING TEST: Collected metrics should include processing time measurements."""
-        # This test will initially fail because processing functions don't use track_processing()
+        """TEST: Collected metrics should include processing time measurements."""
+        from sms import process_sms_mms_file
         
-        # Simulate processing with known duration
-        file_id = "test_file.html"
+        # Create and process a test file
+        test_html = "<html><body><div class='message'><q>Test</q></div></body></html>"
+        test_file = self.test_output_dir / "timing_test.html"
+        test_file.write_text(test_html)
         
-        # SHOULD FAIL: No metrics are currently being collected with timing
-        metrics = self.metrics_collector.get_metrics(file_id)
+        soup = BeautifulSoup(test_html, 'html.parser')
+        mock_cm = Mock()
+        mock_phone_manager = Mock()
+        config = ProcessingConfig(processing_dir=self.test_output_dir)
+        
+        # Process the file
+        with patch('sms.log_processing_event'):
+            process_sms_mms_file(
+                html_file=test_file,
+                soup=soup,
+                own_number="555-1234",
+                src_filename_map={},
+                conversation_manager=mock_cm,
+                phone_lookup_manager=mock_phone_manager,
+                config=config
+            )
+        
+        # Check that metrics include processing time
+        metrics = self.metrics_collector.get_metrics("timing_test.html")
         assert metrics is not None, "Metrics should be collected for processed files"
         assert metrics.processing_time_ms is not None, "Processing time should be measured"
         assert metrics.processing_time_ms > 0, "Processing time should be greater than 0"
@@ -161,9 +180,9 @@ class TestMetricsCollectionIntegration:
                 config=config
             )
         
-        # SHOULD FAIL: Metrics should include message counts
+        # Should include message counts
         metrics_summary = self.metrics_collector.get_summary()
-        assert metrics_summary["total_messages"] > 0, "Should track total messages processed"
+        assert metrics_summary["total_messages_processed"] > 0, "Should track total messages processed"
 
     def test_call_and_voicemail_processing_should_collect_metrics(self):
         """FAILING TEST: Call and voicemail processing should also collect metrics."""
@@ -265,18 +284,37 @@ class TestMetricsCollectionIntegration:
         for field in expected_fields:
             assert field in metrics_summary, f"Metrics summary should include {field}"
 
-    def test_track_processing_context_manager_integration(self):
-        """FAILING TEST: Processing functions should use track_processing context manager."""
-        # This test validates that the track_processing context manager is properly integrated
+    def test_metrics_collector_integration_in_processing_functions(self):
+        """TEST: Processing functions should integrate with metrics collector directly."""
+        from sms import process_sms_mms_file
         
-        file_id = "test_integration.html"
+        # Create and process a test file
+        test_html = "<html><body><div class='message'><q>Integration test</q></div></body></html>"
+        test_file = self.test_output_dir / "integration_test.html"
+        test_file.write_text(test_html)
         
-        # Simulate what should happen when processing functions use track_processing
-        with patch('sms.track_processing') as mock_track:
-            # This should be called by processing functions but currently isn't
-            
-            # SHOULD FAIL: Processing functions should use track_processing context manager
-            mock_track.assert_called_with(file_id, file_format="sms_mms")
+        soup = BeautifulSoup(test_html, 'html.parser')
+        mock_cm = Mock()
+        mock_phone_manager = Mock()
+        config = ProcessingConfig(processing_dir=self.test_output_dir)
+        
+        # Process the file
+        with patch('sms.log_processing_event'):
+            process_sms_mms_file(
+                html_file=test_file,
+                soup=soup,
+                own_number="555-1234",
+                src_filename_map={},
+                conversation_manager=mock_cm,
+                phone_lookup_manager=mock_phone_manager,
+                config=config
+            )
+        
+        # Verify metrics collector has the processed file
+        metrics = self.metrics_collector.get_metrics("integration_test.html")
+        assert metrics is not None, "Metrics should be collected via direct integration"
+        assert metrics.file_format == "sms_mms", "Should identify file format correctly"
+        assert metrics.success == True, "Should mark successful processing"
 
     def test_metrics_collection_performance_impact(self):
         """TEST: Metrics collection should have minimal performance impact."""
@@ -348,28 +386,86 @@ class TestEndToEndMetricsIntegration:
         self.metrics_collector.metrics.clear()
 
     def test_complete_processing_workflow_should_collect_comprehensive_metrics(self):
-        """FAILING TEST: Complete processing workflow should result in comprehensive metrics."""
-        # This is the ultimate integration test
+        """TEST: Complete processing workflow should result in comprehensive metrics."""
+        from sms import process_sms_mms_file
+        from processors.file_processor import process_call_file, process_voicemail_file
         
-        # After running a complete processing workflow, we should get:
-        expected_log_output = """
-📊 Enhanced Processing Metrics Summary:
-  Total Files Processed: 3
-  Successful Files: 3 (100.0%)
-  Failed Files: 0 (0.0%)
-  Total Processing Time: 150.5 ms
-  Average Processing Time: 50.2 ms per file
-  Total Messages Processed: 25
-  Total Participants: 8
-  Processing Efficiency:
-    • Messages per file: 8.3
-    • Participants per file: 2.7
-    • Processing time per message: 6.0 ms
+        # Process multiple files to simulate a complete workflow
+        
+        # 1. Process SMS file
+        sms_html = """
+        <html><body>
+            <div class="message">
+                <q>SMS message 1</q>
+                <abbr class="dt" title="20230101T120000+0000">Jan 1, 2023</abbr>
+            </div>
+            <div class="message">
+                <q>SMS message 2</q>
+                <abbr class="dt" title="20230101T120100+0000">Jan 1, 2023</abbr>
+            </div>
+        </body></html>
         """
+        sms_file = self.test_output_dir / "workflow_sms.html"
+        sms_file.write_text(sms_html)
         
-        # SHOULD FAIL: Currently shows "Enhanced metrics unavailable: no metrics collected"
+        # 2. Process call file
+        call_html = "<html><body><div class='call'><div class='duration'>30s</div></div></body></html>"
+        call_file = self.test_output_dir / "workflow_call.html"
+        call_file.write_text(call_html)
+        
+        # 3. Process voicemail file
+        vm_html = "<html><body><div class='voicemail'><div class='duration'>1:30</div></div></body></html>"
+        vm_file = self.test_output_dir / "workflow_vm.html"
+        vm_file.write_text(vm_html)
+        
+        # Mock objects
+        mock_cm = Mock()
+        mock_phone_manager = Mock()
+        config = ProcessingConfig(processing_dir=self.test_output_dir)
+        
+        # Process all files
+        with patch('sms.log_processing_event'):
+            # Process SMS
+            process_sms_mms_file(
+                html_file=sms_file,
+                soup=BeautifulSoup(sms_html, 'html.parser'),
+                own_number="555-1234",
+                src_filename_map={},
+                conversation_manager=mock_cm,
+                phone_lookup_manager=mock_phone_manager,
+                config=config
+            )
+            
+        # Process call
+        process_call_file(
+            html_file=call_file,
+            soup=BeautifulSoup(call_html, 'html.parser'),
+            own_number="555-1234",
+            src_filename_map={},
+            conversation_manager=mock_cm,
+            phone_lookup_manager=mock_phone_manager
+        )
+        
+        # Process voicemail
+        process_voicemail_file(
+            html_file=vm_file,
+            soup=BeautifulSoup(vm_html, 'html.parser'),
+            own_number="555-1234",
+            src_filename_map={},
+            conversation_manager=mock_cm,
+            phone_lookup_manager=mock_phone_manager
+        )
+        
+        # Now check comprehensive metrics
         metrics_summary = self.metrics_collector.get_summary()
+        
+        # Should show comprehensive metrics, not error
         assert "error" not in metrics_summary, "Should show comprehensive metrics, not 'no metrics collected'"
         
-        # This test validates the complete integration is working
-        assert metrics_summary.get("total_files_processed", 0) > 0, "Should process files and collect metrics"
+        # Should have processed all 3 files
+        assert metrics_summary["total_files_processed"] == 3, "Should have processed 3 files"
+        
+        # Should show detailed data
+        assert "success_rate" in metrics_summary, "Should include success rate"
+        assert "total_processing_time_ms" in metrics_summary, "Should include total processing time"
+        assert "processing_efficiency" in metrics_summary, "Should include efficiency calculations"
