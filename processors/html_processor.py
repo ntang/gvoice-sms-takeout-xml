@@ -129,11 +129,24 @@ class StringPool:
             "voicemail": r".*Voicemail.*\.html$",
         }
 
-        # HTML parser configuration
-        self.HTML_PARSER = "html.parser"
+        # HTML parser configuration - use optimal parser for performance
+        self.HTML_PARSER = self._get_optimal_parser()
 
         # File read buffer size for performance
         self.FILE_READ_BUFFER_SIZE = 8192
+
+    def _get_optimal_parser(self) -> str:
+        """
+        Get the optimal HTML parser for BeautifulSoup based on available libraries.
+        
+        Returns:
+            str: Parser name ('lxml' if available, 'html.parser' as fallback)
+        """
+        try:
+            __import__('lxml')
+            return 'lxml'  # Fastest parser available
+        except ImportError:
+            return 'html.parser'  # Reliable fallback
 
 
 # Global string pool instance

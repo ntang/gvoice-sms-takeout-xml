@@ -580,6 +580,58 @@ class ThreadSafeStatsAggregator:
 # HTML templates for better maintainability
 
 
+def get_optimal_parser() -> str:
+    """
+    Get the optimal HTML parser for BeautifulSoup based on available libraries.
+    
+    Returns:
+        str: Parser name ('lxml' if available, 'html.parser' as fallback)
+    """
+    try:
+        __import__('lxml')
+        return 'lxml'  # Fastest parser available
+    except ImportError:
+        return 'html.parser'  # Reliable fallback
+
+
+def extract_message_data_optimized(soup: BeautifulSoup) -> Dict[str, list]:
+    """
+    Optimized extraction of message data using fewer DOM queries.
+    
+    Args:
+        soup: BeautifulSoup parsed HTML
+        
+    Returns:
+        Dict containing messages, images, and vcards lists
+    """
+    # Single comprehensive selector to get all relevant elements
+    # This reduces DOM traversal compared to multiple separate selectors
+    all_elements = soup.select('.message, .message img[src], .message a[href*=".vcf"], img[src], a[href*=".vcf"]')
+    
+    messages = []
+    images = []
+    vcards = []
+    
+    # Parse elements and categorize them
+    for element in all_elements:
+        if element.name == 'div' and 'message' in element.get('class', []):
+            messages.append(element)
+        elif element.name == 'img' and element.get('src'):
+            images.append(element)
+        elif element.name == 'a' and element.get('href', '').endswith('.vcf'):
+            vcards.append(element)
+    
+    # Fallback: if no messages found with class selector, try broader search
+    if not messages:
+        messages = soup.select('.message') or soup.find_all('div')
+    
+    return {
+        'messages': messages,
+        'images': images,
+        'vcards': vcards
+    }
+
+
 def validate_configuration():
     """Validate that all required configuration constants are properly set."""
     required_constants = {
@@ -2912,8 +2964,9 @@ def process_sms_mms_file(
         file_path=str(html_file)
     )
     
-    # Strategy 1: Use cached CSS selector for better performance
-    messages_raw = soup.select(STRING_POOL.CSS_SELECTORS["message"])
+    # Strategy 1: Use optimized extraction for better performance
+    extracted_data = extract_message_data_optimized(soup)
+    messages_raw = extracted_data['messages']
 
     # Strategy 2: If no messages found, try alternative selectors
     if not messages_raw:
@@ -3135,9 +3188,9 @@ def process_sms_mms_file(
     # NOTE: MMS messages with attachments are forwarded from write_sms_messages
     # to write_mms_messages to avoid double-processing.
 
-    # Count attachments more efficiently
-    img_count = len(soup.select(img_selector))
-    vcf_count = len(soup.select(vcard_selector))
+    # Count attachments more efficiently using pre-extracted data
+    img_count = len(extracted_data['images'])
+    vcf_count = len(extracted_data['vcards'])
 
     # Update metrics with processing results
     processing_metrics.messages_processed = len(messages_raw)
