@@ -72,6 +72,7 @@ def process_single_html_file(
                 src_filename_map,
                 conversation_manager,
                 phone_lookup_manager,
+                config=config,
             )
         elif file_type == "voicemail":
             return process_voicemail_file(
@@ -81,6 +82,7 @@ def process_single_html_file(
                 src_filename_map,
                 conversation_manager,
                 phone_lookup_manager,
+                config=config,
             )
         else:
             logger.warning(f"Unknown file type '{file_type}' for {html_file.name}")
@@ -163,6 +165,7 @@ def process_call_file(
     src_filename_map: Dict[str, str],
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
     Process call files by extracting call info and writing to conversation files.
@@ -188,7 +191,8 @@ def process_call_file(
             own_number,
             soup=soup,
             conversation_manager=conversation_manager,
-            phone_lookup_manager=phone_lookup_manager
+            phone_lookup_manager=phone_lookup_manager,
+            config=config  # Pass config for content tracking and date filtering
         )
         
         # Update metrics
@@ -223,6 +227,7 @@ def process_voicemail_file(
     src_filename_map: Dict[str, str],
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
+    config: Optional["ProcessingConfig"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
     Process voicemail files by extracting voicemail info and writing to conversation files.
@@ -248,7 +253,8 @@ def process_voicemail_file(
             own_number, 
             soup=soup,
             conversation_manager=conversation_manager,
-            phone_lookup_manager=phone_lookup_manager
+            phone_lookup_manager=phone_lookup_manager,
+            config=config  # Pass config for content tracking and date filtering
         )
         
         # Update metrics

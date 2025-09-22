@@ -8022,16 +8022,30 @@ def write_call_entry(
     context: Optional["ProcessingContext"] = None,
     conversation_manager: Optional["ConversationManager"] = None,
     phone_lookup_manager: Optional["PhoneLookupManager"] = None,
+    config: Optional["ProcessingConfig"] = None,
 ):
     """Write a call entry to the conversation."""
     try:
-        # DEFENSIVE PROGRAMMING: Validate managers before use
-        effective_phone_manager = phone_lookup_manager or (context.phone_lookup_manager if context else PHONE_LOOKUP_MANAGER)
-        effective_conversation_manager = conversation_manager or (context.conversation_manager if context else CONVERSATION_MANAGER)
+        # DEFENSIVE PROGRAMMING: Validate managers before use with comprehensive fallbacks
+        effective_phone_manager = (
+            phone_lookup_manager or 
+            (context.phone_lookup_manager if context else None) or
+            globals().get('PHONE_LOOKUP_MANAGER') or
+            getattr(shared_constants, 'PHONE_LOOKUP_MANAGER', None)
+        )
+        
+        effective_conversation_manager = (
+            conversation_manager or 
+            (context.conversation_manager if context else None) or
+            globals().get('CONVERSATION_MANAGER') or
+            getattr(shared_constants, 'CONVERSATION_MANAGER', None)
+        )
         
         if not effective_phone_manager:
-            logger.error(f"No valid phone lookup manager available for call entry {filename}")
-            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None}, global: {PHONE_LOOKUP_MANAGER is not None}")
+            logger.error(f"🚨 CRITICAL: No valid phone lookup manager available for call entry {filename}")
+            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None and hasattr(context, 'phone_lookup_manager')}")
+            logger.error(f"Global states - PHONE_LOOKUP_MANAGER: {'PHONE_LOOKUP_MANAGER' in globals()}, shared_constants: {hasattr(shared_constants, 'PHONE_LOOKUP_MANAGER')}")
+            logger.error("This will prevent call entries from being written to conversations!")
             return
             
         if not effective_conversation_manager:
@@ -8113,7 +8127,7 @@ def write_call_entry(
             sender=alias,
             message=message_text,
             message_type="call",
-            config=context.config if context else None,  # Pass config for date filtering
+            config=config or (context.config if context else None),  # Pass config for date filtering and content tracking
         )
         
         # Update latest timestamp for this conversation
@@ -8346,16 +8360,30 @@ def write_voicemail_entry(
     context: Optional["ProcessingContext"] = None,
     conversation_manager: Optional["ConversationManager"] = None,
     phone_lookup_manager: Optional["PhoneLookupManager"] = None,
+    config: Optional["ProcessingConfig"] = None,
 ):
     """Write a voicemail entry to the conversation."""
     try:
-        # DEFENSIVE PROGRAMMING: Validate managers before use
-        effective_phone_manager = phone_lookup_manager or (context.phone_lookup_manager if context else PHONE_LOOKUP_MANAGER)
-        effective_conversation_manager = conversation_manager or (context.conversation_manager if context else CONVERSATION_MANAGER)
+        # DEFENSIVE PROGRAMMING: Validate managers before use with comprehensive fallbacks
+        effective_phone_manager = (
+            phone_lookup_manager or 
+            (context.phone_lookup_manager if context else None) or
+            globals().get('PHONE_LOOKUP_MANAGER') or
+            getattr(shared_constants, 'PHONE_LOOKUP_MANAGER', None)
+        )
+        
+        effective_conversation_manager = (
+            conversation_manager or 
+            (context.conversation_manager if context else None) or
+            globals().get('CONVERSATION_MANAGER') or
+            getattr(shared_constants, 'CONVERSATION_MANAGER', None)
+        )
         
         if not effective_phone_manager:
-            logger.error(f"No valid phone lookup manager available for voicemail entry {filename}")
-            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None}, global: {PHONE_LOOKUP_MANAGER is not None}")
+            logger.error(f"🚨 CRITICAL: No valid phone lookup manager available for voicemail entry {filename}")
+            logger.error(f"Manager states - phone: {phone_lookup_manager is not None}, context: {context is not None and hasattr(context, 'phone_lookup_manager')}")
+            logger.error(f"Global states - PHONE_LOOKUP_MANAGER: {'PHONE_LOOKUP_MANAGER' in globals()}, shared_constants: {hasattr(shared_constants, 'PHONE_LOOKUP_MANAGER')}")
+            logger.error("This will prevent voicemail entries from being written to conversations!")
             return
             
         if not effective_conversation_manager:
@@ -8431,7 +8459,7 @@ def write_voicemail_entry(
             sender=alias,
             message=message_text,
             message_type="voicemail",
-            config=context.config if context else None,  # Pass config for date filtering
+            config=config or (context.config if context else None),  # Pass config for date filtering and content tracking
         )
         
         # Update latest timestamp for this conversation

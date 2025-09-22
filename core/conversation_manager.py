@@ -276,8 +276,11 @@ class ConversationManager:
                 return  # Don't write the message
             
             # ENHANCEMENT: Track conversation content types for call-only filtering
+            logger.debug(f"🔍 CALL-ONLY DEBUG: write_message_with_content - config={config is not None}, message_type={message_type}, conversation_id={conversation_id}")
             if config:
                 self._track_conversation_content_type(conversation_id, message_type, message, attachments)
+            else:
+                logger.debug(f"🔍 CALL-ONLY DEBUG: Config is None - content tracking SKIPPED for {conversation_id}")
             
             # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
@@ -370,12 +373,20 @@ class ConversationManager:
                         del self.conversation_stats[conversation_id]
             
             # ENHANCEMENT: Remove call-only conversations by default (unless explicitly included)
+            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - config={config is not None}, include_call_only_conversations={config.include_call_only_conversations if config else 'N/A'}")
+            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - conversation_files count: {len(self.conversation_files)}")
+            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - conversation_content_types count: {len(self.conversation_content_types)}")
+            
             if config and not config.include_call_only_conversations:
+                logger.debug(f"🔍 CALL-ONLY DEBUG: Entering call-only filtering block")
                 call_only_conversations = []
                 for conversation_id in list(self.conversation_files.keys()):
+                    logger.debug(f"🔍 CALL-ONLY DEBUG: Checking conversation {conversation_id}")
                     if self._is_call_only_conversation(conversation_id):
                         call_only_conversations.append(conversation_id)
                         logger.info(f"Filtering out call-only conversation: {conversation_id}")
+                
+                logger.debug(f"🔍 CALL-ONLY DEBUG: Found {len(call_only_conversations)} call-only conversations to filter: {call_only_conversations}")
                 
                 # Remove call-only conversations
                 for conversation_id in call_only_conversations:
@@ -1174,6 +1185,8 @@ class ConversationManager:
 
     def _track_conversation_content_type(self, conversation_id: str, message_type: str, message: str, attachments: list = None):
         """Track what types of content exist in each conversation for call-only filtering."""
+        logger.debug(f"🔍 CALL-ONLY DEBUG: Tracking content for {conversation_id}, type={message_type}, message='{message[:50]}{'...' if len(message) > 50 else ''}'")
+        
         if conversation_id not in self.conversation_content_types:
             self.conversation_content_types[conversation_id] = {
                 "has_sms": False,
@@ -1183,6 +1196,7 @@ class ConversationManager:
                 "total_messages": 0,
                 "call_count": 0
             }
+            logger.debug(f"🔍 CALL-ONLY DEBUG: Initialized content tracking for {conversation_id}")
         
         content = self.conversation_content_types[conversation_id]
         content["total_messages"] += 1
@@ -1190,31 +1204,44 @@ class ConversationManager:
         if message_type == "sms":
             content["has_sms"] = True
             content["has_calls_only"] = False
+            logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} marked as SMS (has_calls_only=False)")
         elif message_type == "mms" or (attachments and len(attachments) > 0):
             content["has_mms"] = True
             content["has_calls_only"] = False
+            logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} marked as MMS (has_calls_only=False)")
         elif message_type == "voicemail":
             # Check if voicemail has actual transcription content
             if message and message.strip() and message != "[Voicemail entry]":
                 content["has_voicemail_with_text"] = True
                 content["has_calls_only"] = False
+                logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} marked as voicemail with text (has_calls_only=False)")
+            else:
+                logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} voicemail without text (has_calls_only unchanged)")
         elif message_type == "call":
             content["call_count"] += 1
+            logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} call added (call_count={content['call_count']}, has_calls_only={content['has_calls_only']})")
             # Calls don't change has_calls_only status
+        else:
+            logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} unknown message type: {message_type}")
 
     def _is_call_only_conversation(self, conversation_id: str) -> bool:
         """Determine if conversation contains only call records."""
         if conversation_id not in self.conversation_content_types:
+            logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} not in content_types, returning False")
             return False
         
         content = self.conversation_content_types[conversation_id]
-        return (
+        is_call_only = (
             content["has_calls_only"] and 
             not content["has_sms"] and 
             not content["has_mms"] and 
             not content["has_voicemail_with_text"] and
             content["call_count"] > 0
         )
+        
+        logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} analysis: has_calls_only={content['has_calls_only']}, has_sms={content['has_sms']}, has_mms={content['has_mms']}, has_voicemail_with_text={content['has_voicemail_with_text']}, call_count={content['call_count']} -> is_call_only={is_call_only}")
+        
+        return is_call_only
 
     def _should_skip_by_date_filter(self, timestamp: int, config: Optional["ProcessingConfig"]) -> bool:
         """
