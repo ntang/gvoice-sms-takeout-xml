@@ -3670,6 +3670,7 @@ def write_sms_messages(
                     sender=sender_display,
                     message=message_text,
                     message_type="sms",
+                    config=config,  # Pass config for date filtering
                 )
                 # Update latest timestamp for this conversation
                 conversation_manager.update_latest_timestamp(conversation_id, sms_values["time"])
@@ -4883,6 +4884,7 @@ def write_mms_messages(
                         message=message_text,
                         attachments=attachments,
                         message_type="sms",  # MMS messages are still SMS type
+                        config=config,  # Pass config for date filtering
                     )
                     # Update latest timestamp for this conversation
                     conversation_manager.update_latest_timestamp(conversation_id, get_time_unix(message))
@@ -8056,6 +8058,7 @@ def write_call_entry(
             sender=alias,
             message=message_text,
             message_type="call",
+            config=context.config if context else None,  # Pass config for date filtering
         )
         
         # Update latest timestamp for this conversation
@@ -8373,6 +8376,7 @@ def write_voicemail_entry(
             sender=alias,
             message=message_text,
             message_type="voicemail",
+            config=context.config if context else None,  # Pass config for date filtering
         )
         
         # Update latest timestamp for this conversation
