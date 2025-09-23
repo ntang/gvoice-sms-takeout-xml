@@ -170,8 +170,14 @@ class TestCallOnlyConversationFiltering:
         assert vm_file.exists(), "Voicemails with transcription should be preserved"
 
     def test_voicemail_without_transcription_should_be_filtered(self):
-        """FAILING TEST: Voicemails without transcription should be treated like calls."""
+        """TEST: Voicemails without transcription should be treated like calls."""
         cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
+        
+        # Create config first
+        config = ProcessingConfig(
+            processing_dir=self.test_output_dir,
+            include_call_only_conversations=False
+        )
         
         # Create voicemail without transcription (just entry marker)
         cm.write_message_with_content(
@@ -179,12 +185,8 @@ class TestCallOnlyConversationFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="TestContact",
             message="[Voicemail entry]",  # No actual transcription
-            message_type="voicemail"
-        )
-        
-        config = ProcessingConfig(
-            processing_dir=self.test_output_dir,
-            include_call_only_conversations=False
+            message_type="voicemail",
+            config=config  # Pass config for early filtering
         )
         
         cm.finalize_conversation_files(config=config)
@@ -322,8 +324,14 @@ class TestEndToEndCallOnlyFiltering:
         shutil.rmtree(self.test_output_dir, ignore_errors=True)
 
     def test_complete_filtering_workflow_with_mixed_conversations(self):
-        """FAILING TEST: Complete workflow should filter call-only, preserve text conversations."""
+        """TEST: Complete workflow should filter call-only, preserve text conversations."""
         cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
+        
+        # Create config first
+        config = ProcessingConfig(
+            processing_dir=self.test_output_dir,
+            include_call_only_conversations=False
+        )
         
         # Create multiple conversation types
         
@@ -333,7 +341,8 @@ class TestEndToEndCallOnlyFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="CallContact",
             message="📞 Outgoing call (Duration: 30s)",
-            message_type="call"
+            message_type="call",
+            config=config  # Pass config for early filtering
         )
         
         # 2. SMS conversation (should be kept)
@@ -342,7 +351,8 @@ class TestEndToEndCallOnlyFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="TextContact",
             message="Hello there!",
-            message_type="sms"
+            message_type="sms",
+            config=config  # Pass config for early filtering
         )
         
         # 3. Mixed conversation (should be kept)
@@ -351,20 +361,16 @@ class TestEndToEndCallOnlyFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="MixedContact",
             message="Text message",
-            message_type="sms"
+            message_type="sms",
+            config=config  # Pass config for early filtering
         )
         cm.write_message_with_content(
             conversation_id="mixed_conv",
             timestamp=int(datetime(2023, 1, 2).timestamp() * 1000),
             sender="MixedContact",
             message="📞 Call record",
-            message_type="call"
-        )
-        
-        # Default config (should filter call-only)
-        config = ProcessingConfig(
-            processing_dir=self.test_output_dir,
-            include_call_only_conversations=False
+            message_type="call",
+            config=config  # Pass config for early filtering
         )
         
         cm.finalize_conversation_files(config=config)
@@ -375,8 +381,14 @@ class TestEndToEndCallOnlyFiltering:
         assert (self.test_output_dir / "mixed_conv.html").exists(), "Mixed conversation should be preserved"
 
     def test_conversation_statistics_should_reflect_filtering(self):
-        """FAILING TEST: Conversation statistics should reflect call-only filtering."""
+        """TEST: Conversation statistics should reflect call-only filtering."""
         cm = ConversationManager(output_dir=self.test_output_dir, large_dataset=False)
+        
+        # Create config first
+        config = ProcessingConfig(
+            processing_dir=self.test_output_dir,
+            include_call_only_conversations=False
+        )
         
         # Create conversations that will be filtered
         cm.write_message_with_content(
@@ -384,7 +396,8 @@ class TestEndToEndCallOnlyFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="Contact1",
             message="📞 Call record",
-            message_type="call"
+            message_type="call",
+            config=config  # Pass config for early filtering
         )
         
         cm.write_message_with_content(
@@ -392,12 +405,8 @@ class TestEndToEndCallOnlyFiltering:
             timestamp=int(datetime(2023, 1, 1).timestamp() * 1000),
             sender="Contact2",
             message="SMS message",
-            message_type="sms"
-        )
-        
-        config = ProcessingConfig(
-            processing_dir=self.test_output_dir,
-            include_call_only_conversations=False
+            message_type="sms",
+            config=config  # Pass config for early filtering
         )
         
         cm.finalize_conversation_files(config=config)
@@ -406,5 +415,10 @@ class TestEndToEndCallOnlyFiltering:
         total_stats = cm.get_total_stats()
         
         # Should show only 1 conversation (SMS), not 2
-        # This test will initially fail because filtering isn't implemented
-        assert False, "Statistics tracking for call-only filtering not implemented yet"
+        # The call-only conversation should be filtered out
+        assert total_stats["num_sms"] == 1, f"Expected 1 SMS, got {total_stats['num_sms']}"
+        assert total_stats["num_calls"] == 0, f"Expected 0 calls (filtered), got {total_stats['num_calls']}"
+        
+        # Verify only SMS conversation file exists
+        assert (self.test_output_dir / "sms1.html").exists(), "SMS conversation should exist"
+        assert not (self.test_output_dir / "call1.html").exists(), "Call-only conversation should be filtered"

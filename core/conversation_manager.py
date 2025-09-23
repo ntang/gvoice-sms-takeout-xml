@@ -211,9 +211,19 @@ class ConversationManager:
         """Get the filename for a conversation."""
         return self.output_dir / f"{conversation_id}.html"
 
-    def _open_conversation_file(self, conversation_id: str):
-        """Open a conversation file for writing."""
+    def _open_conversation_file(self, conversation_id: str, config: Optional["ProcessingConfig"] = None):
+        """
+        Open a conversation file for writing, with early filtering checks.
+        
+        This method now includes the config parameter and performs early filtering
+        to prevent unnecessary file creation.
+        """
         if conversation_id not in self.conversation_files:
+            # Check if file should be created (EARLY FILTERING)
+            if not self._should_create_conversation_file(conversation_id, config):
+                logger.debug(f"Early filtering: Skipping file creation for {conversation_id}")
+                return
+            
             # Create new conversation file with optimized buffer size
             filename = self.get_conversation_filename(conversation_id)
             # Ensure the output directory exists
@@ -240,12 +250,12 @@ class ConversationManager:
                 "latest_message_time": "No messages"
             }
 
-    def write_message(self, conversation_id: str, message_content: str, timestamp: int):
+    def write_message(self, conversation_id: str, message_content: str, timestamp: int, config: Optional["ProcessingConfig"] = None):
         """Write a message to the conversation file with optimized buffering."""
         with self._lock:
             # Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
-                self._open_conversation_file(conversation_id)
+                self._open_conversation_file(conversation_id, config)
 
             file_info = self.conversation_files[conversation_id]
 
@@ -270,22 +280,26 @@ class ConversationManager:
     ):
         """Write a message to a conversation file with content."""
         with self._lock:
-            # ENHANCEMENT: Apply date filtering at message write time
+            # 1. Apply date filtering at message write time
             if self._should_skip_by_date_filter(timestamp, config):
                 logger.debug(f"Skipping message due to date filter: timestamp={timestamp}")
                 return  # Don't write the message
             
-            # ENHANCEMENT: Track conversation content types for call-only filtering
+            # 2. Track conversation content types for call-only filtering
             logger.debug(f"🔍 CALL-ONLY DEBUG: write_message_with_content - config={config is not None}, message_type={message_type}, conversation_id={conversation_id}")
             if config:
                 self._track_conversation_content_type(conversation_id, message_type, message, attachments)
             else:
                 logger.debug(f"🔍 CALL-ONLY DEBUG: Config is None - content tracking SKIPPED for {conversation_id}")
             
-            # Ensure the conversation file is open
+            # 3. NEW: Check if conversation should be created (EARLY FILTERING)
+            if not self._should_create_conversation_file(conversation_id, config):
+                logger.debug(f"Early filtering: Skipping message for filtered conversation: {conversation_id}")
+                return  # Don't create file or write message
+            
+            # 4. Ensure the conversation file is open
             if conversation_id not in self.conversation_files:
-                # This case should ideally not be hit if get_conversation_id is always called first
-                self._open_conversation_file(conversation_id)
+                self._open_conversation_file(conversation_id, config)
 
             file_info = self.conversation_files.get(conversation_id)
             if not file_info:
@@ -345,9 +359,14 @@ class ConversationManager:
     # Messages are kept in memory until finalization to ensure clean HTML output
 
     def finalize_conversation_files(self, config: Optional["ProcessingConfig"] = None):
-        """Finalize all conversation files by writing headers and closing tags."""
+        """
+        Finalize all conversation files by writing headers and closing tags.
+        
+        With early filtering, this method is simplified - no need to filter here
+        since filtering decisions were made during message writing.
+        """
         with self._lock:
-            # ENHANCEMENT: Remove conversations with no messages after date filtering
+            # Remove conversations with no messages after date filtering (if needed)
             if config and (config.older_than or config.newer_than):
                 empty_conversations = []
                 for conversation_id, file_info in self.conversation_files.items():
@@ -372,55 +391,7 @@ class ConversationManager:
                     if conversation_id in self.conversation_stats:
                         del self.conversation_stats[conversation_id]
             
-            # ENHANCEMENT: Remove call-only conversations by default (unless explicitly included)
-            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - config={config is not None}, include_call_only_conversations={config.include_call_only_conversations if config else 'N/A'}")
-            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - conversation_files count: {len(self.conversation_files)}")
-            logger.debug(f"🔍 CALL-ONLY DEBUG: Finalization - conversation_content_types count: {len(self.conversation_content_types)}")
-            
-            if config and not config.include_call_only_conversations:
-                logger.debug(f"🔍 CALL-ONLY DEBUG: Entering call-only filtering block")
-                call_only_conversations = []
-                for conversation_id in list(self.conversation_files.keys()):
-                    logger.debug(f"🔍 CALL-ONLY DEBUG: Checking conversation {conversation_id}")
-                    if self._is_call_only_conversation(conversation_id):
-                        call_only_conversations.append(conversation_id)
-                        logger.info(f"Filtering out call-only conversation: {conversation_id}")
-                
-                logger.debug(f"🔍 CALL-ONLY DEBUG: Found {len(call_only_conversations)} call-only conversations to filter: {call_only_conversations}")
-                
-                # Remove call-only conversations
-                for conversation_id in call_only_conversations:
-                    if conversation_id in self.conversation_files:
-                        file_info = self.conversation_files[conversation_id]
-                        # Close file handle if it exists
-                        if file_info.get("file"):
-                            try:
-                                file_info["file"].close()
-                            except Exception:
-                                pass
-                        
-                        # Delete the actual HTML file from disk
-                        try:
-                            conversation_file_path = self.output_dir / f"{conversation_id}.html"
-                            if conversation_file_path.exists():
-                                conversation_file_path.unlink()
-                                logger.debug(f"Deleted call-only conversation file: {conversation_file_path}")
-                        except Exception as e:
-                            logger.warning(f"Failed to delete call-only conversation file {conversation_id}: {e}")
-                        
-                        # Remove from tracking
-                        del self.conversation_files[conversation_id]
-                    
-                    # Also remove from stats and content types
-                    if conversation_id in self.conversation_stats:
-                        del self.conversation_stats[conversation_id]
-                    if conversation_id in self.conversation_content_types:
-                        del self.conversation_content_types[conversation_id]
-                
-                if call_only_conversations:
-                    logger.info(f"📞 Filtered out {len(call_only_conversations)} call-only conversations")
-                    logger.info("💡 Use --include-call-only-conversations to preserve call-only conversations")
-            
+            # Process all remaining conversation files (call-only filtering already handled)
             for conversation_id, file_info in self.conversation_files.items():
                 try:
                     # Sort messages by timestamp (using tuple unpacking for better performance)
@@ -1224,22 +1195,59 @@ class ConversationManager:
         else:
             logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} unknown message type: {message_type}")
 
+    def _should_create_conversation_file(self, conversation_id: str, config: Optional["ProcessingConfig"]) -> bool:
+        """
+        Determine if a conversation file should be created based on filtering rules.
+        
+        This is the core of the early filtering strategy - we decide whether to create
+        files before any I/O operations occur.
+        """
+        if not config:
+            return True  # No filtering without config
+        
+        # Check call-only filtering
+        if not config.include_call_only_conversations:
+            if self._is_call_only_conversation(conversation_id):
+                logger.debug(f"Early filtering: Skipping call-only conversation {conversation_id}")
+                return False
+        
+        return True
+
     def _is_call_only_conversation(self, conversation_id: str) -> bool:
-        """Determine if conversation contains only call records."""
+        """
+        Determine if conversation contains only call records.
+        
+        This method is called during message writing to make early filtering decisions.
+        Call-only conversations include:
+        - Conversations with only call records
+        - Conversations with only voicemails without transcription
+        - Conversations with both calls and voicemails without transcription
+        """
         if conversation_id not in self.conversation_content_types:
+            # If we haven't tracked content yet, assume it's not call-only
+            # This handles the case where the first message is being processed
             logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} not in content_types, returning False")
             return False
         
         content = self.conversation_content_types[conversation_id]
+        
+        # A conversation is call-only if:
+        # 1. It has calls_only flag set to True (no SMS/MMS/voicemail with text)
+        # 2. AND it has no SMS content
+        # 3. AND it has no MMS content  
+        # 4. AND it has no voicemail with text content
+        # 5. AND it has at least one call OR voicemail without text
+        has_call_or_voicemail_content = content["call_count"] > 0 or content["total_messages"] > 0
+        
         is_call_only = (
             content["has_calls_only"] and 
             not content["has_sms"] and 
             not content["has_mms"] and 
             not content["has_voicemail_with_text"] and
-            content["call_count"] > 0
+            has_call_or_voicemail_content
         )
         
-        logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} analysis: has_calls_only={content['has_calls_only']}, has_sms={content['has_sms']}, has_mms={content['has_mms']}, has_voicemail_with_text={content['has_voicemail_with_text']}, call_count={content['call_count']} -> is_call_only={is_call_only}")
+        logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} analysis: has_calls_only={content['has_calls_only']}, has_sms={content['has_sms']}, has_mms={content['has_mms']}, has_voicemail_with_text={content['has_voicemail_with_text']}, call_count={content['call_count']}, total_messages={content['total_messages']} -> is_call_only={is_call_only}")
         
         return is_call_only
 

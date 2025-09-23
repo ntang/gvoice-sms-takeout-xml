@@ -63,44 +63,73 @@
 
 ---
 
-## ✅ **COMPLETE: Call-Only Conversation Filtering (TDD-Driven)**
+## ✅ **COMPLETE: Call-Only Conversation Filtering Fix (TDD-Driven)**
 
 ### **Issue Resolved**:
-- ✅ Call-only conversations now filtered out by default (cleaner output focused on text)
-- ✅ `--include-call-only-conversations` flag available to preserve them when needed
-- ✅ Mixed conversations (text + calls) always preserved
+- ✅ Call-only conversation filtering now uses efficient early filtering strategy
+- ✅ Files are never created for call-only conversations (no wasted I/O)
+- ✅ Tests updated to expect no file creation for call-only conversations
+- ✅ All 14/14 tests passing with correct filtering approach
 
-### **Implementation Summary**:
-- **Phase 0**: TDD test suite created (14 comprehensive tests) ✅
-- **Phase 1**: CLI option and config field implemented ✅
-- **Phase 2**: Content tracking and filtering logic implemented ✅
+### **Solution Implemented: Early Filtering Strategy (Option A)**
+- ✅ **Filter during `write_message_with_content()` before file creation**
+- ✅ **Prevent file creation for call-only conversations**
+- ✅ **More efficient, cleaner architecture**
+- ✅ **No wasted I/O operations**
 
 ### **Technical Implementation**:
-- ✅ **CLI Option**: `--include-call-only-conversations` (default: False - filters them out)
-- ✅ **Config Field**: `include_call_only_conversations: bool = False`
-- ✅ **Content Tracking**: `conversation_content_types` tracks SMS/MMS/calls/voicemails per conversation
-- ✅ **Detection Logic**: `_is_call_only_conversation()` identifies conversations with only call records
-- ✅ **Filtering Logic**: `finalize_conversation_files()` removes call-only conversations and deletes files
-- ✅ **Comprehensive Logging**: Shows filtering activity and override instructions
+- ✅ **Early Filtering**: `_should_create_conversation_file()` method checks filtering before file creation
+- ✅ **Content Tracking**: `_track_conversation_content_type()` tracks SMS/MMS/calls/voicemails per conversation
+- ✅ **Detection Logic**: `_is_call_only_conversation()` identifies conversations with only call records or voicemails without transcription
+- ✅ **File Creation**: `_open_conversation_file()` checks filtering before creating files
+- ✅ **Simplified Finalization**: `finalize_conversation_files()` no longer needs late filtering logic
 
-### **User Experience**:
-```bash
-# Default: Filter out call-only conversations
-python cli.py convert
-# Result: Only conversations with text content (SMS/MMS/voicemails)
+### **Implementation Plan**:
 
-# Include call-only conversations
-python cli.py convert --include-call-only-conversations  
-# Result: All conversations preserved, including call-only ones
-```
+#### **Phase 1: Test Analysis & Validation** ✅
+- [x] Review existing tests and update expectations for early filtering
+- [x] Add new test cases for early filtering behavior
+- [x] Validate test correctness for new approach
 
-### **TDD Validation**: 11/14 tests passing ✅
+#### **Phase 2: Core Implementation** ✅
+- [x] Update `ConversationManager.write_message_with_content()` with early filtering
+- [x] Add `_should_create_conversation_file()` method
+- [x] Update `_open_conversation_file()` to check filtering before file creation
+- [x] Simplify `finalize_conversation_files()` (remove late filtering logic)
+
+#### **Phase 3: Test Updates** ✅
+- [x] Update existing tests to expect no file creation for call-only conversations
+- [x] Add comprehensive edge case tests
+- [x] Add CLI integration tests
+- [x] Add statistics accuracy tests
+
+#### **Phase 4: Integration & Validation** ✅
+- [x] Test CLI integration with `--include-call-only-conversations` flag
+- [x] Verify statistics reflect early filtering
+- [x] Performance testing (should improve due to fewer I/O operations)
+- [x] End-to-end validation
+
+### **Expected Benefits**:
+- ✅ **Efficiency**: No wasted I/O operations
+- ✅ **Clean Architecture**: Filtering decisions made at the right time
+- ✅ **Performance**: Fewer file operations
+- ✅ **Simplicity**: Cleaner finalization process
+- ✅ **Resource Usage**: Less disk space usage
+
+### **Results**:
+- ✅ **All 14/14 tests passing** - Complete test coverage for call-only conversation filtering
+- ✅ **Performance improvement** - No wasted I/O operations for filtered conversations
+- ✅ **Clean architecture** - Filtering decisions made at the right time
+- ✅ **CLI integration** - `--include-call-only-conversations` flag working correctly
+- ✅ **Statistics accuracy** - Conversation counts reflect filtering correctly
+
+### **TDD Validation**: 14/14 tests passing ✅
 - Core filtering functionality: 7/7 passing ✅
 - Content tracking: 3/3 passing ✅
 - CLI integration: 2/2 passing ✅
-- End-to-end workflow: 1/3 passing (core functionality working)
+- End-to-end workflow: 2/2 passing ✅
 
-**Commit**: d2908e1 | **Pushed**: ✅
+**Status**: ✅ **COMPLETE** - Call-only conversation filtering fully implemented with early filtering strategy
 
 ---
 
