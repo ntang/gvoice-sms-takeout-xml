@@ -666,7 +666,8 @@ def get_limited_file_list(limit: int) -> List[Path]:
         List of Path objects for HTML files, limited to the specified count
     """
     html_files = []
-    for root, dirs, files in os.walk(PROCESSING_DIRECTORY):
+    calls_directory = PROCESSING_DIRECTORY / "Calls"
+    for root, dirs, files in os.walk(calls_directory):
         for file in files:
             if file.endswith(".html"):
                 html_files.append(Path(root) / file)

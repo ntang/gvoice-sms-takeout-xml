@@ -37,19 +37,34 @@ class FilteringService:
         Returns:
             bool: True if message should be skipped due to date filtering, False otherwise
         """
-        if self.config is None or (self.config.older_than is None and self.config.newer_than is None):
+        # Check if any date filtering is enabled (new or old field names)
+        if self.config is None:
+            return False
+        
+        has_new_filters = (self.config.exclude_older_than is not None or self.config.exclude_newer_than is not None)
+        has_old_filters = (self.config.older_than is not None or self.config.newer_than is not None)
+        
+        if not has_new_filters and not has_old_filters:
             return False  # No date filtering enabled
         
         # Convert timestamp to datetime for comparison
         try:
             message_date = datetime.fromtimestamp(message_timestamp / 1000.0)
             
-            # Check older-than filter
+            # Check new field names (preferred)
+            if self.config.exclude_older_than and message_date < self.config.exclude_older_than:
+                logger.debug(f"Message skipped due to exclude_older_than filter: {message_date} < {self.config.exclude_older_than}")
+                return True
+            
+            if self.config.exclude_newer_than and message_date > self.config.exclude_newer_than:
+                logger.debug(f"Message skipped due to exclude_newer_than filter: {message_date} > {self.config.exclude_newer_than}")
+                return True
+            
+            # Check old field names for backward compatibility
             if self.config.older_than and message_date < self.config.older_than:
                 logger.debug(f"Message skipped due to older_than filter: {message_date} < {self.config.older_than}")
                 return True
             
-            # Check newer-than filter
             if self.config.newer_than and message_date > self.config.newer_than:
                 logger.debug(f"Message skipped due to newer_than filter: {message_date} > {self.config.newer_than}")
                 return True
