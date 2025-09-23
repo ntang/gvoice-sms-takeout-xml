@@ -657,7 +657,7 @@ def validate_configuration():
 
 def get_limited_file_list(limit: int) -> List[Path]:
     """
-    Get a limited list of HTML files for test mode.
+    Get a limited list of HTML files for test mode, sorted by date (most recent first).
 
     Args:
         limit: Maximum number of files to return
@@ -670,14 +670,37 @@ def get_limited_file_list(limit: int) -> List[Path]:
         for file in files:
             if file.endswith(".html"):
                 html_files.append(Path(root) / file)
-                if len(html_files) >= limit:
-                    break
-        if len(html_files) >= limit:
-            break
+    
+    # Sort by filename (which contains timestamp) to get most recent files first
+    # Files are named like "Name - Text - 2024-03-14T15_26_45Z.html"
+    def extract_timestamp(filepath):
+        filename = filepath.name
+        # Extract timestamp from filename pattern: "Name - Text - YYYY-MM-DDTHH_MM_SSZ.html"
+        try:
+            if " - " in filename and "T" in filename and "Z.html" in filename:
+                # Find the last occurrence of " - " before "T" to get the timestamp part
+                parts = filename.split(" - ")
+                if len(parts) >= 3:
+                    timestamp_part = parts[-1].replace("Z.html", "").replace("T", " ").replace("_", ":")
+                    from datetime import datetime
+                    return datetime.strptime(timestamp_part, "%Y-%m-%d %H:%M:%S")
+        except:
+            pass
+        # Fallback: use file modification time
+        try:
+            from datetime import datetime
+            return datetime.fromtimestamp(filepath.stat().st_mtime)
+        except:
+            from datetime import datetime
+            return datetime.min
+    
+    # Sort by timestamp (most recent first) and take the limit
+    html_files.sort(key=extract_timestamp, reverse=True)
+    limited_files = html_files[:limit]
 
     logger.info(
-        f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
-    return html_files
+        f"🧪 TEST MODE: Selected {len(limited_files)} most recent HTML files (limit: {limit})")
+    return limited_files
 
 
 def get_limited_file_list_param(processing_dir: Path, limit: int) -> List[Path]:
