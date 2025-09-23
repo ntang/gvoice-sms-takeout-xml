@@ -116,8 +116,8 @@ class TestSetupProcessingPaths:
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            buffer_size=65536,
-            batch_size=1000,
+            buffer_size=131072,
+            batch_size=2000,
             cache_size=25000,
             large_dataset=True,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
@@ -211,8 +211,8 @@ class TestConfigurationOverrides:
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            buffer_size=65536,
-            batch_size=1000,
+            buffer_size=131072,
+            batch_size=2000,
             cache_size=25000,
             large_dataset=False,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
@@ -238,8 +238,8 @@ class TestConfigurationOverrides:
         mock_setup.assert_called_once_with(
             processing_dir=Path('/tmp/test'),
             enable_phone_prompts=True,
-            buffer_size=65536,
-            batch_size=1000,
+            buffer_size=131072,
+            batch_size=2000,
             cache_size=25000,
             large_dataset=True,
             phone_lookup_file=Path('/tmp/test/phone_lookup.txt')
