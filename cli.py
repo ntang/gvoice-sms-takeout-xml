@@ -531,6 +531,182 @@ def phone_pipeline(ctx, api, api_key):
 
 
 @cli.command()
+@click.option('--output', type=click.Path(), help='Output file for file inventory (default: file_inventory.json)')
+@click.pass_context
+def file_discovery(ctx, output):
+    """Discover and catalog HTML files in the processing directory."""
+    try:
+        config = ctx.obj['config']
+        
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import FileDiscoveryStage
+        
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+        
+        # Register and execute file discovery stage
+        discovery_stage = FileDiscoveryStage()
+        manager.register_stage(discovery_stage)
+        
+        click.echo("📁 Starting file discovery...")
+        results = manager.execute_pipeline(stages=["file_discovery"], config=config)
+        
+        if results["file_discovery"].success:
+            metadata = results["file_discovery"].metadata
+            click.echo(f"✅ File discovery completed successfully!")
+            click.echo(f"   📊 Total files: {metadata['total_files']}")
+            click.echo(f"   📁 File types: {metadata['type_counts']}")
+            click.echo(f"   💾 Total size: {metadata['total_size_mb']} MB")
+            click.echo(f"   🔍 Largest file: {metadata['largest_file_mb']} MB")
+            
+            if output:
+                # Copy output to specified location
+                import shutil
+                src = config.processing_dir / "conversations" / "file_inventory.json"
+                shutil.copy2(src, output)
+                click.echo(f"   💾 Output saved to: {output}")
+        else:
+            click.echo("❌ File discovery failed:")
+            for error in results["file_discovery"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ File discovery failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.option('--max-files', type=int, default=1000, help='Maximum files to process per batch')
+@click.option('--output', type=click.Path(), help='Output file for extracted content (default: extracted_content.json)')
+@click.pass_context
+def content_extraction(ctx, max_files, output):
+    """Extract structured content from HTML files."""
+    try:
+        config = ctx.obj['config']
+        
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import FileDiscoveryStage, ContentExtractionStage
+        
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+        
+        # Register stages
+        discovery_stage = FileDiscoveryStage()
+        extraction_stage = ContentExtractionStage(max_files_per_batch=max_files)
+        manager.register_stages([discovery_stage, extraction_stage])
+        
+        click.echo(f"🔍 Starting content extraction (max {max_files} files)...")
+        
+        # Execute pipeline
+        results = manager.execute_pipeline(config=config)
+        
+        if results["content_extraction"].success:
+            metadata = results["content_extraction"].metadata
+            click.echo(f"✅ Content extraction completed successfully!")
+            click.echo(f"   📊 Files processed: {metadata['files_processed']}")
+            click.echo(f"   💬 Conversations: {metadata['conversations_extracted']}")
+            click.echo(f"   📝 Total messages: {metadata['total_messages']}")
+            click.echo(f"   👥 Participants: {metadata['total_participants']}")
+            
+            if metadata['extraction_errors'] > 0:
+                click.echo(f"   ⚠️  Extraction errors: {metadata['extraction_errors']}")
+                
+            if output:
+                # Copy output to specified location
+                import shutil
+                src = config.processing_dir / "conversations" / "extracted_content.json"
+                shutil.copy2(src, output)
+                click.echo(f"   💾 Output saved to: {output}")
+        else:
+            click.echo("❌ Content extraction failed:")
+            for error in results["content_extraction"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ Content extraction failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.option('--max-files', type=int, default=1000, help='Maximum files to process per batch')
+@click.pass_context
+def file_pipeline(ctx, max_files):
+    """Run complete file discovery and content extraction pipeline."""
+    try:
+        config = ctx.obj['config']
+        
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import FileDiscoveryStage, ContentExtractionStage
+        
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+        
+        # Register stages
+        discovery_stage = FileDiscoveryStage()
+        extraction_stage = ContentExtractionStage(max_files_per_batch=max_files)
+        manager.register_stages([discovery_stage, extraction_stage])
+        
+        click.echo("🚀 Starting complete file processing pipeline...")
+        
+        # Execute full pipeline
+        results = manager.execute_pipeline(config=config)
+        
+        # Report results
+        discovery_result = results.get("file_discovery")
+        extraction_result = results.get("content_extraction")
+        
+        if discovery_result and discovery_result.success:
+            metadata = discovery_result.metadata
+            click.echo(f"✅ File discovery completed!")
+            click.echo(f"   📊 Total files: {metadata['total_files']}")
+            click.echo(f"   📁 File types: {metadata['type_counts']}")
+        else:
+            click.echo("❌ File discovery failed")
+            
+        if extraction_result and extraction_result.success:
+            metadata = extraction_result.metadata
+            click.echo(f"✅ Content extraction completed!")
+            click.echo(f"   💬 Conversations: {metadata['conversations_extracted']}")
+            click.echo(f"   📝 Messages: {metadata['total_messages']}")
+        else:
+            click.echo("❌ Content extraction failed")
+            
+        # Show overall status
+        if all(r.success for r in results.values()):
+            click.echo("🎉 File processing pipeline completed successfully!")
+        else:
+            click.echo("⚠️  File processing pipeline completed with errors")
+            ctx.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ File pipeline failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
 @click.pass_context
 def convert(ctx):
     """Convert Google Voice export files to SMS backup format."""
