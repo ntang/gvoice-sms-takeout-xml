@@ -62,6 +62,7 @@ def process_single_html_file(
                 src_filename_map,
                 conversation_manager,
                 phone_lookup_manager,
+                config=config,
                 context=context,
             )
         elif file_type == "call":
@@ -138,6 +139,7 @@ def process_sms_mms_file(
     src_filename_map: Dict[str, str],
     conversation_manager: ConversationManager,
     phone_lookup_manager: PhoneLookupManager,
+    config: Optional["ProcessingConfig"] = None,
     context: Optional["ProcessingContext"] = None,
 ) -> Dict[str, Union[int, str]]:
     """
@@ -154,6 +156,7 @@ def process_sms_mms_file(
         src_filename_map,
         conversation_manager,
         phone_lookup_manager,
+        config=config,
         context=context,
     )
 

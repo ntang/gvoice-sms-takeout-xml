@@ -140,6 +140,7 @@ class ProcessingConfig:
                 # Set the equivalent exclude options for internal use
                 self.exclude_older_than = start_date
                 self.exclude_newer_than = end_date
+                logger.info(f"Date range filtering enabled: {self.exclude_older_than} to {self.exclude_newer_than}")
                 
             except ValueError as e:
                 if "include_date_range start date" in str(e):
