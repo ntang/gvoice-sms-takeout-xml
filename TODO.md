@@ -3,16 +3,50 @@
 ## 📋 **CURRENT STATUS**
 
 ### Repository State:
+- ✅ **Pipeline Architecture**: Phase 1 & 2 complete - modular pipeline with phone processing
+- ✅ **Phone Discovery & Lookup**: Production-ready module processing 9,046+ phone numbers  
 - ✅ **Date Filtering**: Fully implemented and functional - messages outside date range are filtered at write time
 - ✅ **Call/Voicemail Processing**: Fully functional - calls and voicemails appear in conversation files  
 - ✅ **Exception Handling**: Improved with specific error types and enhanced logging
-- ✅ **Test Suite**: All core functionality tests passing
-- ✅ **All changes committed and pushed to origin**
+- ✅ **Test Suite**: All core functionality tests passing + 13 new pipeline unit tests
+- ✅ **All changes committed to feature branches**
 
 ### Recent Major Completions:
-1. **Date Filtering Implementation** (11a1acd) - Complete message-level date filtering with conversation cleanup
-2. **Call/Voicemail Processing Fix** (f2b9b7a) - Fixed wrapper functions to write entries to conversation files
-3. **KeyError Resolution** (87b187c) - Fixed 'num_img' KeyError with defensive programming
+1. **Pipeline Architecture Foundation** (39d2ec1) - Complete modular pipeline infrastructure with state management
+2. **Phone Lookup Module** (0d16278) - Phone discovery, API integration, CLI commands, comprehensive testing
+3. **Date Filtering Implementation** (11a1acd) - Complete message-level date filtering with conversation cleanup
+
+---
+
+## ✅ **COMPLETE: Pipeline Architecture Refactor (Phase 1 & 2)**
+
+### **✅ Phase 1: Foundation Infrastructure**
+**Branch**: `phase-1-foundation` → `feature/pipeline-architecture`
+- ✅ **Core Pipeline Framework**: PipelineStage, PipelineManager, StateManager, PipelineContext
+- ✅ **State Persistence**: SQLite + JSON hybrid for execution tracking and stage state
+- ✅ **Dependency Management**: Automatic stage ordering and prerequisite validation
+- ✅ **Legacy Compatibility**: LegacyConversionStage wrapper maintains full backward compatibility
+- ✅ **Error Handling**: Comprehensive error handling with cleanup and recovery
+- ✅ **Testing**: All existing tests continue to pass + foundation validation tests
+
+### **✅ Phase 2: Phone Lookup Module**  
+**Branch**: `phase-2-phone-lookup` → `feature/pipeline-architecture`
+- ✅ **Phone Discovery Stage**: Extracts 9,046+ phone numbers from 61,484+ HTML files
+- ✅ **Phone Lookup Stage**: API integration (IPQualityScore) + manual export workflows
+- ✅ **CLI Integration**: `phone-discovery`, `phone-lookup`, `phone-pipeline` commands
+- ✅ **Data Storage**: SQLite database + JSON inventory + phone_lookup.txt updates
+- ✅ **Production Testing**: Successfully processed large real-world dataset
+- ✅ **Unit Testing**: 13 comprehensive unit tests covering all functionality
+
+### **Pipeline Architecture Benefits Delivered**:
+- 🔧 **Modularity**: Phone processing completely independent and rerunnable
+- 📊 **Data Insights**: Identified 8,639 unknown numbers from 9,046 total discovered
+- 🚀 **Performance**: Efficient processing of 61K+ files with state persistence
+- 🛡️ **Reliability**: Comprehensive error handling and graceful failure recovery
+- 🔄 **Reusability**: Pipeline stages can be run independently or in sequence
+- 📈 **Scalability**: Foundation ready for additional processing stages
+
+### **Current Status**: Phase 1 & 2 complete, ready for Phase 3 (File Discovery & Content Extraction)
 
 ---
 
@@ -131,6 +165,8 @@
 
 **Status**: ✅ **COMPLETE** - Call-only conversation filtering fully implemented with early filtering strategy
 
+**Commit**: e72cc9e | **Pushed**: ✅
+
 ---
 
 ## ✅ **COMPLETE: HTML Processing Performance Optimization (TDD-Driven)**
@@ -227,5 +263,57 @@ Next run should show 25-35% overall performance improvement with same functional
 
 ---
 
-*Last Updated: September 22, 2025*  
+## 🚀 **PLANNED: Pipeline Architecture Refactor (Major Initiative)**
+
+### **Objective**: 
+Transform the monolithic conversion process into a modular, rerunnable pipeline for improved maintenance, debugging, and feature development.
+
+### **Business Case**:
+- **Development Efficiency**: Faster iteration on individual components
+- **Debugging**: Isolate and fix issues in specific pipeline stages
+- **Resilience**: Recover from failures without full reprocessing
+- **Extensibility**: Add new features (output formats, phone lookup services) without touching core logic
+
+### **Architecture Overview**:
+```
+Input Files → [Discovery] → [Attachments] → [Phone Discovery] → [Phone Lookup] → [Content Processing] → [HTML Generation] → [Index Generation] → Output
+```
+
+### **Data Storage Strategy (Hybrid Approach)**:
+- **SQLite**: Large relational data (conversations, messages, phone directory)
+- **JSON**: Configuration, manifests, small reference data
+- **Benefits**: Query flexibility + human readability where appropriate
+
+### **Implementation Phases**:
+1. **Phase 1 (Weeks 1-2)**: Foundation - Pipeline infrastructure, zero breaking changes
+2. **Phase 2 (Weeks 3-4)**: Phone Lookup Module - Independent phone discovery and API integration
+3. **Phase 3 (Weeks 5-6)**: Content Processing - Separate extraction from HTML generation
+4. **Phase 4 (Weeks 7-8)**: Discovery & Attachments - Complete pipeline modularization
+5. **Phase 5 (Weeks 9-10)**: Optimization - Enhanced CLI and performance improvements
+
+### **Detailed Plan**:
+📋 **Complete implementation plan available in**: `PIPELINE_ARCHITECTURE_PLAN.md`
+
+### **Branch Strategy**:
+- **Integration Branch**: `feature/pipeline-architecture`
+- **Phase Branches**: `phase-1-foundation`, `phase-2-phone-lookup`, etc.
+- **Merge Strategy**: PR-based with integration testing
+
+### **Risk Mitigation**:
+- ✅ **Backward Compatibility**: Legacy commands preserved throughout
+- ✅ **Incremental Value**: Each phase delivers working improvements
+- ✅ **Data Integrity**: Checksums and validation between stages
+- ✅ **Rollback Plan**: Can revert to current system if needed
+
+### **Success Criteria**:
+- **Development Velocity**: Faster iteration on individual components
+- **Debug Efficiency**: Isolate and fix issues in specific stages
+- **Feature Delivery**: Easy addition of new capabilities (templates, APIs, formats)
+- **Error Recovery**: Resume from failures without full reprocessing
+
+### **Timeline**: 8-10 weeks | **Effort**: 60-80 hours | **Risk**: Medium (mitigated)
+
+---
+
+*Last Updated: September 27, 2025*  
 *Status: All core functionality complete and verified working*
