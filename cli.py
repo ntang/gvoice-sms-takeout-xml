@@ -502,16 +502,22 @@ def phone_pipeline(ctx, api, api_key):
         if discovery_result and discovery_result.success:
             metadata = discovery_result.metadata
             click.echo(f"✅ Phone discovery completed!")
-            click.echo(f"   📊 Discovered: {metadata['discovered_count']} phone numbers")
-            click.echo(f"   ❓ Unknown: {metadata['unknown_count']} numbers")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 Discovered: {metadata.get('discovered_count', 'N/A')} phone numbers")
+                click.echo(f"   ❓ Unknown: {metadata.get('unknown_count', 'N/A')} numbers")
         else:
             click.echo("❌ Phone discovery failed")
             
         if lookup_result and lookup_result.success:
             metadata = lookup_result.metadata
             click.echo(f"✅ Phone lookup completed!")
-            click.echo(f"   📊 Numbers processed: {metadata['numbers_processed']}")
-            click.echo(f"   🔧 Provider: {metadata['api_provider']}")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 Numbers processed: {metadata.get('numbers_processed', 'N/A')}")
+                click.echo(f"   🔧 Provider: {metadata.get('api_provider', 'N/A')}")
         else:
             click.echo("❌ Phone lookup failed")
             
@@ -678,16 +684,22 @@ def file_pipeline(ctx, max_files):
         if discovery_result and discovery_result.success:
             metadata = discovery_result.metadata
             click.echo(f"✅ File discovery completed!")
-            click.echo(f"   📊 Total files: {metadata['total_files']}")
-            click.echo(f"   📁 File types: {metadata['type_counts']}")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 Total files: {metadata.get('total_files', 'N/A')}")
+                click.echo(f"   📁 File types: {metadata.get('type_counts', 'N/A')}")
         else:
             click.echo("❌ File discovery failed")
             
         if extraction_result and extraction_result.success:
             metadata = extraction_result.metadata
             click.echo(f"✅ Content extraction completed!")
-            click.echo(f"   💬 Conversations: {metadata['conversations_extracted']}")
-            click.echo(f"   📝 Messages: {metadata['total_messages']}")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   💬 Conversations: {metadata.get('conversations_extracted', 'N/A')}")
+                click.echo(f"   📝 Messages: {metadata.get('total_messages', 'N/A')}")
         else:
             click.echo("❌ Content extraction failed")
             
