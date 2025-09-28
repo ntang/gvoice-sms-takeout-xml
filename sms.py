@@ -30,7 +30,7 @@ from utils.enhanced_logging import (
 )
 from core.app_config import *
 from utils.utils import is_valid_phone_number, generate_unknown_number_hash
-from utils.improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
+from utils.utils import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
 from core.attachment_manager import (
     build_attachment_mapping_with_progress,
     copy_mapped_attachments,
