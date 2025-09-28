@@ -31,9 +31,9 @@ from utils.enhanced_logging import (
 from core.app_config import *
 from utils.utils import is_valid_phone_number, generate_unknown_number_hash
 from utils.improved_file_operations import copy_attachments_sequential, copy_attachments_parallel, copy_chunk_parallel
-from core.attachment_manager_new import (
-    build_attachment_mapping_with_progress_new,
-    copy_mapped_attachments_new,
+from core.attachment_manager import (
+    build_attachment_mapping_with_progress,
+    copy_mapped_attachments,
 )
 from processors.file_processor import (
     process_single_html_file,
@@ -938,7 +938,7 @@ def main(config: Optional["ProcessingConfig"] = None,
             except ImportError:
                 # Fallback to original implementation
                 logger.info("Using standard attachment mapping")
-                src_filename_map = build_attachment_mapping_with_progress_new(
+                src_filename_map = build_attachment_mapping_with_progress(
                     context.path_manager, sample_files=sample_html_files
                 )
         else:
@@ -953,7 +953,7 @@ def main(config: Optional["ProcessingConfig"] = None,
             except ImportError:
                 # Fallback to original implementation
                 logger.info("Using standard attachment mapping")
-                src_filename_map = build_attachment_mapping_with_progress_new(
+                src_filename_map = build_attachment_mapping_with_progress(
                     context.path_manager
                 )
 
@@ -975,7 +975,7 @@ def main(config: Optional["ProcessingConfig"] = None,
         # Ensure output directories exist before copying
         context.path_manager.ensure_output_directories()
 
-        copy_mapped_attachments_new(
+        copy_mapped_attachments(
             src_filename_map, context.path_manager
         )
         copy_time = time.time() - copy_start
