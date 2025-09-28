@@ -198,12 +198,6 @@ class ProcessingConfig:
         if "exclude_newer_than" in config_dict and config_dict["exclude_newer_than"]:
             config_dict["exclude_newer_than"] = datetime.fromisoformat(config_dict["exclude_newer_than"])
         
-        # Backward compatibility (deprecated options)
-        if "older_than" in config_dict and config_dict["older_than"]:
-            config_dict["older_than"] = datetime.fromisoformat(config_dict["older_than"])
-        
-        if "newer_than" in config_dict and config_dict["newer_than"]:
-            config_dict["newer_than"] = datetime.fromisoformat(config_dict["newer_than"])
         
         return cls(**config_dict)
     
