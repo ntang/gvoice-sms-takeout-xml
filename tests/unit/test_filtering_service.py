@@ -22,8 +22,8 @@ class TestFilteringService:
         self.test_dir = Path("/tmp/test_processing")
         self.base_config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,
-            newer_than=None,
+            exclude_older_than=None,
+            exclude_newer_than=None,
             filter_numbers_without_aliases=False,
             filter_non_phone_numbers=False,
             skip_filtered_contacts=True,
@@ -57,8 +57,8 @@ class TestFilteringService:
         """Test date filtering with only older_than filter set."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=None
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=None
         )
         service = FilteringService(config)
         
@@ -75,8 +75,8 @@ class TestFilteringService:
         """Test date filtering with only newer_than filter set."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=None,
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         service = FilteringService(config)
         
@@ -93,8 +93,8 @@ class TestFilteringService:
         """Test date filtering with both older_than and newer_than filters set."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         service = FilteringService(config)
         
@@ -111,8 +111,8 @@ class TestFilteringService:
         """Test date filtering edge cases."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         service = FilteringService(config)
         
@@ -205,7 +205,7 @@ class TestFilteringService:
         """Test combined filtering with both date and phone filters."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         service = FilteringService(config)
@@ -303,7 +303,7 @@ class TestFilteringService:
         
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         service = FilteringService(config)

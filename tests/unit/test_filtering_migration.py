@@ -152,8 +152,8 @@ class TestFilteringMigrationValidator:
         self.test_dir = Path("/tmp/test_migration")
         self.config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31),
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31),
             filter_numbers_without_aliases=True,
             filter_non_phone_numbers=True,
             include_service_codes=False
