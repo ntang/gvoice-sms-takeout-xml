@@ -1,0 +1,17 @@
+{
+  "implementation_date": "2025-09-27T23:59:48.774215",
+  "date_range": "2022-08-01 to 2025-06-01",
+  "filtering_results": {
+    "total_remaining_numbers": 7535,
+    "numbers_outside_date_range": 7535,
+    "numbers_within_date_range": 0,
+    "filtering_percentage": 100.0,
+    "cost_savings": 75.35000000000001
+  },
+  "export_files": {
+    "filtered_date_range_file": "filtered_date_range_numbers.csv",
+    "final_unknown_file": "final_unknown_numbers.csv",
+    "filtered_count": 7535,
+    "remaining_count": 0
+  }
+}
