@@ -110,56 +110,36 @@ class NumVerifyAPI:
                 'raw_response': None
             }
     
-    def classify_number(self, lookup_result: Dict) -> str:
-        """
-        Classify a number as commercial, spam, personal, or invalid based on NumVerify data.
+    def log_run_details(self, start_time: datetime, end_time: datetime, total_numbers: int, successful: int, failed: int):
+        """Log detailed run information for analysis."""
+        duration = (end_time - start_time).total_seconds()
         
-        Args:
-            lookup_result: Result from NumVerify API
-            
-        Returns:
-            Classification: 'commercial', 'spam', 'personal', or 'invalid'
-        """
-        if 'error' in lookup_result:
-            return 'invalid'
+        log_entry = {
+            'run_timestamp': start_time.isoformat(),
+            'duration_seconds': duration,
+            'total_numbers': total_numbers,
+            'successful_lookups': successful,
+            'failed_lookups': failed,
+            'success_rate': (successful / total_numbers * 100) if total_numbers > 0 else 0,
+            'average_time_per_request': duration / total_numbers if total_numbers > 0 else 0,
+            'api_cost': successful * 0.01
+        }
         
-        if not lookup_result.get('valid', False):
-            return 'invalid'
-        
-        line_type = lookup_result.get('line_type', '').lower()
-        carrier = lookup_result.get('carrier', '').lower()
-        
-        # Commercial indicators
-        commercial_indicators = ['landline', 'voip', 'mobile']
-        spam_indicators = ['voip', 'toll_free', 'premium_rate']
-        
-        # Check for commercial carriers
-        commercial_carriers = [
-            'twilio', 'bandwidth', 'toll-free', 'voip', 'business',
-            'commercial', 'marketing', 'call center'
-        ]
-        
-        if any(indicator in carrier for indicator in commercial_carriers):
-            return 'commercial'
-        
-        if line_type in spam_indicators:
-            return 'spam'
-        elif line_type in commercial_indicators:
-            return 'commercial'
-        else:
-            return 'personal'
+        return log_entry
     
-    def process_numbers(self, input_file: str, output_file: str, delay: float = 0.1):
+    def process_numbers(self, input_file: str, output_file: str, delay: float = 2.0):
         """
-        Process all numbers from input CSV file.
+        Process all numbers from input CSV file and collect raw NumVerify data.
         
         Args:
             input_file: Path to CSV file with phone numbers
-            output_file: Path to output CSV file
+            output_file: Path to output JSON file
             delay: Delay between API calls (seconds)
         """
-        print(f"🚀 Starting NumVerify API lookup for {input_file}")
+        start_time = datetime.now()
+        print(f"🚀 Starting NumVerify API raw data collection for {input_file}")
         print(f"⏱️  Delay between calls: {delay}s")
+        print(f"📊 Mode: Raw data collection (no classification)")
         
         # Load input numbers
         numbers_to_process = []
@@ -178,6 +158,7 @@ class NumVerifyAPI:
         
         self.results['total_numbers'] = len(numbers_to_process)
         print(f"📊 Processing {len(numbers_to_process)} phone numbers...")
+        print(f"💰 Estimated cost: ${len(numbers_to_process) * 0.01:.2f}")
         
         # Process each number
         for i, number_info in enumerate(numbers_to_process, 1):
@@ -189,109 +170,124 @@ class NumVerifyAPI:
             
             if lookup_result and 'error' not in lookup_result:
                 self.results['successful_lookups'] += 1
-                classification = self.classify_number(lookup_result)
+                print(f"   ✅ Success: {lookup_result.get('country_name', 'Unknown')} - {lookup_result.get('carrier', 'Unknown carrier')}")
                 
-                # Update counters
-                if classification == 'commercial':
-                    self.results['commercial_numbers'] += 1
-                elif classification == 'spam':
-                    self.results['spam_numbers'] += 1
-                elif classification == 'personal':
-                    self.results['personal_numbers'] += 1
-                else:
-                    self.results['invalid_numbers'] += 1
-                
-                # Store detailed result
+                # Store raw result with metadata
                 detailed_result = {
                     'phone_number': phone,
-                    'classification': classification,
+                    'lookup_successful': True,
                     'valid': lookup_result.get('valid', False),
-                    'carrier': lookup_result.get('carrier', ''),
-                    'line_type': lookup_result.get('line_type', ''),
+                    'number': lookup_result.get('number', ''),
+                    'local_format': lookup_result.get('local_format', ''),
+                    'international_format': lookup_result.get('international_format', ''),
+                    'country_prefix': lookup_result.get('country_prefix', ''),
+                    'country_code': lookup_result.get('country_code', ''),
                     'country_name': lookup_result.get('country_name', ''),
                     'location': lookup_result.get('location', ''),
-                    'min_date': number_info['min_date'],
-                    'max_date': number_info['max_date'],
-                    'date_count': number_info['date_count'],
-                    'api_response': lookup_result
+                    'carrier': lookup_result.get('carrier', ''),
+                    'line_type': lookup_result.get('line_type', ''),
+                    'conversation_metadata': {
+                        'min_date': number_info['min_date'],
+                        'max_date': number_info['max_date'],
+                        'date_count': number_info['date_count'],
+                        'original_notes': number_info['original_notes']
+                    },
+                    'raw_api_response': lookup_result.get('raw_response', {})
                 }
                 
             else:
                 self.results['failed_lookups'] += 1
-                classification = 'failed'
+                error_msg = lookup_result.get('error', 'Unknown error') if lookup_result else 'No response'
+                print(f"   ❌ Failed: {error_msg}")
                 
+                # Store failed result with metadata
                 detailed_result = {
                     'phone_number': phone,
-                    'classification': classification,
-                    'error': lookup_result.get('error', 'Unknown error') if lookup_result else 'No response',
-                    'min_date': number_info['min_date'],
-                    'max_date': number_info['max_date'],
-                    'date_count': number_info['date_count'],
-                    'api_response': lookup_result
+                    'lookup_successful': False,
+                    'error': error_msg,
+                    'conversation_metadata': {
+                        'min_date': number_info['min_date'],
+                        'max_date': number_info['max_date'],
+                        'date_count': number_info['date_count'],
+                        'original_notes': number_info['original_notes']
+                    },
+                    'raw_api_response': lookup_result.get('raw_response', None) if lookup_result else None
                 }
             
             self.results['detailed_results'].append(detailed_result)
             
-            # Delay between calls to respect rate limits (free tier is more restrictive)
+            # Delay between calls to respect rate limits
             if i < len(numbers_to_process):
-                time.sleep(2.0)  # Increased delay for free tier rate limits
+                time.sleep(delay)
         
-        # Calculate cost
+        # Calculate final statistics
+        end_time = datetime.now()
         self.results['cost_estimate'] = self.results['successful_lookups'] * 0.01
+        self.results['run_log'] = self.log_run_details(start_time, end_time, len(numbers_to_process), 
+                                                      self.results['successful_lookups'], 
+                                                      self.results['failed_lookups'])
         
         # Export results
-        self.export_results(output_file)
+        self.export_raw_results(output_file)
         
         # Print summary
         self.print_summary()
     
-    def export_results(self, output_file: str):
-        """Export results to CSV file."""
-        with open(output_file, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'phone_number', 'classification', 'valid', 'carrier', 'line_type',
-                'country_name', 'location', 'min_date', 'max_date', 'date_count',
-                'error', 'notes'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            
-            for result in self.results['detailed_results']:
-                writer.writerow({
-                    'phone_number': result['phone_number'],
-                    'classification': result['classification'],
-                    'valid': result.get('valid', ''),
-                    'carrier': result.get('carrier', ''),
-                    'line_type': result.get('line_type', ''),
-                    'country_name': result.get('country_name', ''),
-                    'location': result.get('location', ''),
-                    'min_date': result.get('min_date', ''),
-                    'max_date': result.get('max_date', ''),
-                    'date_count': result.get('date_count', ''),
-                    'error': result.get('error', ''),
-                    'notes': f"NumVerify lookup - {result['classification']}"
-                })
-        
-        # Save detailed results
-        json_file = output_file.replace('.csv', '_detailed.json')
-        with open(json_file, 'w', encoding='utf-8') as f:
+    def export_raw_results(self, output_file: str):
+        """Export raw NumVerify data to JSON file for analysis."""
+        # Main raw data file
+        with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(self.results, f, indent=2, ensure_ascii=False)
         
-        print(f"💾 Results exported to: {output_file}")
-        print(f"💾 Detailed results exported to: {json_file}")
+        # Create summary file for quick analysis
+        summary_file = output_file.replace('.json', '_summary.json')
+        summary_data = {
+            'run_summary': self.results['run_log'],
+            'statistics': {
+                'total_numbers': self.results['total_numbers'],
+                'successful_lookups': self.results['successful_lookups'],
+                'failed_lookups': self.results['failed_lookups'],
+                'cost_estimate': self.results['cost_estimate']
+            },
+            'data_fields_available': [
+                'phone_number', 'valid', 'number', 'local_format', 'international_format',
+                'country_prefix', 'country_code', 'country_name', 'location', 
+                'carrier', 'line_type', 'conversation_metadata', 'raw_api_response'
+            ],
+            'analysis_ready': True,
+            'next_steps': [
+                'Review raw data patterns',
+                'Analyze carrier and line_type distributions', 
+                'Develop classification rules based on actual data',
+                'Implement classification as separate step'
+            ]
+        }
+        
+        with open(summary_file, 'w', encoding='utf-8') as f:
+            json.dump(summary_data, f, indent=2, ensure_ascii=False)
+        
+        print(f"💾 Raw data exported to: {output_file}")
+        print(f"💾 Analysis summary exported to: {summary_file}")
     
     def print_summary(self):
-        """Print processing summary."""
-        print(f"\n🎯 NUMVERIFY API LOOKUP COMPLETE!")
-        print(f"=" * 50)
+        """Print raw data collection summary."""
+        run_log = self.results.get('run_log', {})
+        print(f"\n🎯 NUMVERIFY RAW DATA COLLECTION COMPLETE!")
+        print(f"=" * 60)
         print(f"📊 Total numbers processed: {self.results['total_numbers']}")
         print(f"✅ Successful lookups: {self.results['successful_lookups']}")
         print(f"❌ Failed lookups: {self.results['failed_lookups']}")
-        print(f"🏢 Commercial numbers: {self.results['commercial_numbers']}")
-        print(f"🚫 Spam numbers: {self.results['spam_numbers']}")
-        print(f"👤 Personal numbers: {self.results['personal_numbers']}")
-        print(f"❓ Invalid numbers: {self.results['invalid_numbers']}")
-        print(f"💰 Estimated cost: ${self.results['cost_estimate']:.2f}")
+        print(f"💰 Total API cost: ${self.results['cost_estimate']:.2f}")
+        print(f"⏱️  Total duration: {run_log.get('duration_seconds', 0):.1f} seconds")
+        print(f"📈 Success rate: {run_log.get('success_rate', 0):.1f}%")
+        print(f"🔄 Avg time per request: {run_log.get('average_time_per_request', 0):.1f}s")
+        
+        print(f"\n📋 NEXT STEPS:")
+        print(f"1. 📊 Review raw data patterns in exported JSON")
+        print(f"2. 🔍 Analyze carrier and line_type distributions")
+        print(f"3. 📝 Develop classification rules based on actual data")
+        print(f"4. ⚙️  Implement classification as separate step")
+        print(f"5. ✅ Validate classification against known examples")
 
 def create_test_sample(input_file: str, test_file: str, sample_size: int = 10):
     """
@@ -352,9 +348,11 @@ def create_test_sample(input_file: str, test_file: str, sample_size: int = 10):
     return test_file
 
 def main():
-    """Main function for NumVerify API lookup."""
-    print("🚀 NumVerify API Phone Number Lookup Tool")
+    """Main function for NumVerify API raw data collection."""
+    print("🚀 NumVerify API Raw Data Collection Tool")
     print("=" * 50)
+    print("📊 Mode: Raw data collection (no classification)")
+    print("🎯 Purpose: Gather NumVerify data for analysis and rule development")
     
     # Check if input file exists
     input_file = "properly_filtered_within_date_range.csv"
@@ -415,13 +413,13 @@ def main():
         print(f"   • Increased timeout to 30 seconds (free tier can be slower)")
         print(f"   • 1,000 requests/month limit on free tier")
     
-    # Set output file
+    # Set output file (now JSON for raw data)
     if mode == "test":
-        output_file = "numverify_test_results.csv"
+        output_file = "numverify_raw_test_data.json"
     elif mode == "custom":
-        output_file = f"numverify_custom_{sample_size}_results.csv"
+        output_file = f"numverify_raw_custom_{sample_size}_data.json"
     else:
-        output_file = "numverify_lookup_results.csv"
+        output_file = "numverify_raw_all_646_data.json"
     
     # Show cost estimate
     if mode == "test":
@@ -447,14 +445,15 @@ def main():
     
     # Process numbers
     try:
-        api_client.process_numbers(input_file, output_file, delay=0.1)
+        api_client.process_numbers(input_file, output_file, delay=2.0)
         print(f"\n✅ Lookup complete! Check {output_file} for results.")
         
         if mode == "test":
             print(f"\n🧪 TEST MODE COMPLETE!")
-            print(f"✅ If results look good, run again with mode 2 (Full mode)")
-            print(f"✅ API key is working correctly")
-            print(f"✅ Ready for full implementation")
+            print(f"✅ Raw data collection working correctly")
+            print(f"✅ Review test data to validate NumVerify responses")
+            print(f"✅ If satisfied, run again with mode 2 (Full mode)")
+            print(f"✅ Ready for full raw data collection (646 numbers)")
         
     except KeyboardInterrupt:
         print(f"\n⚠️ Process interrupted by user.")
