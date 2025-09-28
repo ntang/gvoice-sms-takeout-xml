@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-09-27T23:30:00",
+  "log_entries": [
+    "[23:07:55] \ud83d\udd0d COMPREHENSIVE SANITY CHECK STARTING...",
+    "[23:07:55] \ud83d\udd0d VALIDATING PATTERN FILTERING...",
+    "[23:07:55] Checking 1071 toll-free numbers...",
+    "[23:07:55] Toll-free false positives: 0/20 sampled",
+    "[23:07:55] Checking 130 business patterns...",
+    "[23:07:55] Questionable business patterns: 1/10 sampled",
+    "[23:07:55]   Examples: ['+17172451234']",
+    "[23:07:55] \ud83d\udd0d INVESTIGATING ZERO CONVERSATION NUMBERS...",
+    "[23:07:55] Numbers with zero conversations: 7242",
+    "[23:07:55] Analyzing sample of 50 zero-conversation numbers...",
+    "[23:07:55] Zero conversation sample breakdown:",
+    "[23:07:55]   International numbers: 1 (2.0%)",
+    "[23:07:55]   Short numbers: 0 (0.0%)",
+    "[23:07:55]   Malformed numbers: 0 (0.0%)",
+    "[23:07:55]   US-looking numbers: 49 (98.0%)",
+    "[23:07:55]   International examples: ['+919741755744']",
+    "[23:07:55]   US-looking examples: ['+18338410674', '+13473350165', '+12122450490', '+17185243733', '+12037206092']",
+    "[23:07:55] \ud83d\udd0d TESTING CONVERSATION SEARCH ACCURACY...",
+    "[23:07:55] \u274c +11079418083: reported 1, found 0",
+    "[23:07:55] \u274c +13473154630: reported 1, found 0",
+    "[23:07:55] \u274c +13123135614: reported 1, found 0",
+    "[23:07:55] \u274c +14146221182: reported 1, found 0",
+    "[23:07:55] \u274c +11653881972: reported 1, found 0",
+    "[23:07:55] \u274c +11312626679: reported 1, found 0",
+    "[23:07:55] \u274c +15163808737: reported 1, found 0",
+    "[23:07:55] \u274c +15162632565: reported 1, found 0",
+    "[23:07:55] \u274c +12078134342: reported 1, found 0",
+    "[23:07:55] \u274c +13266447232: reported 1, found 0",
+    "[23:07:55] Conversation search accuracy: 0.0% (0/10)",
+    "[23:07:55] \ud83d\udd0d CHECKING EXISTING FILTERING EFFECTS...",
+    "[23:07:55] Found phone_lookup.txt with 1745 entries",
+    "[23:07:55] Zero-conversation numbers in phone_lookup.txt: 6/20 sampled",
+    "[23:07:55] \ud83d\udcca SANITY CHECK SUMMARY:",
+    "[23:07:55] \u2705 Pattern filtering validation:",
+    "[23:07:55]    Toll-free false positives: 0/20",
+    "[23:07:55]    Questionable business patterns: 1/10",
+    "[23:07:55] \u2705 Zero conversation analysis:",
+    "[23:07:55]    Total with zero conversations: 7,242",
+    "[23:07:55]    International: 1/50 (2.0%)",
+    "[23:07:55]    US-looking: 49/50 (98.0%)",
+    "[23:07:55] \u2705 Search method accuracy: 0.0%"
+  ],
+  "results": {
+    "pattern_validation": {
+      "toll_free_false_positives": [],
+      "questionable_business": [
+        "+17172451234"
+      ]
+    },
+    "zero_conversation_analysis": {
+      "total_zero_conversations": 7242,
+      "sample_breakdown": {
+        "international": 1,
+        "short": 0,
+        "malformed": 0,
+        "us_looking": 49
+      },
+      "examples": {
+        "international": [
+          "+919741755744"
+        ],
+        "malformed": [],
+        "us_looking": [
+          "+18338410674",
+          "+13473350165",
+          "+12122450490",
+          "+17185243733",
+          "+12037206092"
+        ]
+      }
+    },
+    "search_accuracy": 0.0,
+    "existing_filtering_check": true
+  }
+}

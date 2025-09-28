@@ -1,0 +1,29 @@
+{
+  "analysis_date": "2025-09-27T23:55:53.673382",
+  "date_range_logic": {
+    "total_remaining_numbers": 7535,
+    "numbers_within_date_range": 695,
+    "numbers_outside_date_range": 6840,
+    "date_range_coverage": 9.223623092236231
+  },
+  "cost_analysis": {
+    "original_api_cost": 75.35000000000001,
+    "date_range_optimized_cost": 6.95,
+    "cost_savings": 68.4,
+    "cost_reduction_percentage": 90.77637690776376
+  },
+  "recommendations": [
+    {
+      "category": "Cost Optimization",
+      "insight": "Only 695 numbers need API lookup (within date range)",
+      "action": "Skip API lookup for numbers outside date range",
+      "savings": "$68.40 (90.8% reduction)"
+    },
+    {
+      "category": "Strategy",
+      "insight": "6840 numbers are outside date range",
+      "action": "Mark as filtered (outside processing date range)",
+      "impact": "No processing needed - numbers won't be included in final output"
+    }
+  ]
+}

@@ -1,0 +1,6783 @@
+{
+  "analysis_date": "2025-09-27T23:35:48.945529",
+  "dataset_info": {
+    "total_unknown_numbers": 8634,
+    "csv_file": "../gvoice-convert/conversations/unknown_numbers.csv",
+    "data_quality": "clean (post-bug-fix)"
+  },
+  "frequency_analysis": {
+    "numbers_with_conversations": 694,
+    "numbers_without_conversations": 0,
+    "total_conversation_count": 703,
+    "frequency_distribution": {
+      "1": 687,
+      "3": 2,
+      "2": 5
+    },
+    "detailed_data": {
+      "+12122230694": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12122230694.html"
+        ]
+      },
+      "+16312544000": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16312544000.html"
+        ]
+      },
+      "+12405940315": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12405940315.html"
+        ]
+      },
+      "+18452191223": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18452191223.html"
+        ]
+      },
+      "+13473092543": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473092543.html"
+        ]
+      },
+      "+16467904067": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467904067.html"
+        ]
+      },
+      "+16469339052": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16469339052.html"
+        ]
+      },
+      "+12027981354": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027981354.html"
+        ]
+      },
+      "+16462581066": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16462581066.html"
+        ]
+      },
+      "+19295534186": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295534186.html"
+        ]
+      },
+      "+12076919030": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12076919030.html"
+        ]
+      },
+      "+18632311753": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18632311753.html"
+        ]
+      },
+      "+12139078006": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12139078006.html"
+        ]
+      },
+      "+16467307986": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467307986.html"
+        ]
+      },
+      "+19179469624": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179469624.html"
+        ]
+      },
+      "+19172094300": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19172094300.html"
+        ]
+      },
+      "+12816453427": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12816453427.html"
+        ]
+      },
+      "+14054611091": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14054611091.html"
+        ]
+      },
+      "+13476811108": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13476811108.html"
+        ]
+      },
+      "+15403273288": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15403273288.html"
+        ]
+      },
+      "+16099240759": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16099240759.html"
+        ]
+      },
+      "+19174106166": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174106166.html"
+        ]
+      },
+      "+15183896359": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15183896359.html"
+        ]
+      },
+      "+16469216783": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16469216783.html"
+        ]
+      },
+      "+12137944207": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12137944207.html"
+        ]
+      },
+      "+15713754887": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15713754887.html"
+        ]
+      },
+      "+12072885805": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12072885805.html"
+        ]
+      },
+      "+16503979866": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16503979866.html"
+        ]
+      },
+      "+13324565864": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13324565864.html"
+        ]
+      },
+      "+13472529796": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13472529796.html"
+        ]
+      },
+      "+18622123551": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18622123551.html"
+        ]
+      },
+      "+12122635889": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12122635889.html"
+        ]
+      },
+      "+15052818499": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15052818499.html"
+        ]
+      },
+      "+12028446330": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12028446330.html"
+        ]
+      },
+      "+17732808262": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17732808262.html"
+        ]
+      },
+      "+15419041629": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15419041629.html"
+        ]
+      },
+      "+12054795899": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12054795899.html"
+        ]
+      },
+      "+12515722997": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12515722997.html"
+        ]
+      },
+      "+19295606352": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295606352.html"
+        ]
+      },
+      "+19144835887": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19144835887.html"
+        ]
+      },
+      "+18024903348": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18024903348.html"
+        ]
+      },
+      "+17038317105": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17038317105.html"
+        ]
+      },
+      "+17162157919": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17162157919.html"
+        ]
+      },
+      "+14126346862": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14126346862.html"
+        ]
+      },
+      "+16315894779": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315894779.html"
+        ]
+      },
+      "+16172979771": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16172979771.html"
+        ]
+      },
+      "+16467555920": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467555920.html"
+        ]
+      },
+      "+16315322024": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315322024.html"
+        ]
+      },
+      "+12548925247": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12548925247.html"
+        ]
+      },
+      "+16173152923": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16173152923.html"
+        ]
+      },
+      "+13329106180": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13329106180.html"
+        ]
+      },
+      "+12123905454": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12123905454.html"
+        ]
+      },
+      "+15858650680": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15858650680.html"
+        ]
+      },
+      "+12153153388": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12153153388.html"
+        ]
+      },
+      "+12027925878": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027925878.html"
+        ]
+      },
+      "+17326389287": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17326389287.html"
+        ]
+      },
+      "+16629243571": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16629243571.html"
+        ]
+      },
+      "+19144944632": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19144944632.html"
+        ]
+      },
+      "+16314285865": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314285865.html"
+        ]
+      },
+      "+15102980507": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15102980507.html"
+        ]
+      },
+      "+13373936676": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13373936676.html"
+        ]
+      },
+      "+14152363301": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14152363301.html"
+        ]
+      },
+      "+18572457830": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18572457830.html"
+        ]
+      },
+      "+16462698065": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16462698065.html"
+        ]
+      },
+      "+16466390130": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16466390130.html"
+        ]
+      },
+      "+16503745195": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16503745195.html"
+        ]
+      },
+      "+12027988482": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027988482.html"
+        ]
+      },
+      "+12147290574": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12147290574.html"
+        ]
+      },
+      "+12026700950": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12026700950.html"
+        ]
+      },
+      "+12072885214": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12072885214.html"
+        ]
+      },
+      "+15409035126": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15409035126.html"
+        ]
+      },
+      "+12147850630": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12147850630.html"
+        ]
+      },
+      "+13618311837": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13618311837.html"
+        ]
+      },
+      "+16314470612": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314470612.html"
+        ]
+      },
+      "+13474310882": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13474310882.html"
+        ]
+      },
+      "+15163602734": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15163602734.html"
+        ]
+      },
+      "+17815280851": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17815280851.html"
+        ]
+      },
+      "+14015928680": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14015928680.html"
+        ]
+      },
+      "+18136051941": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18136051941.html"
+        ]
+      },
+      "+16468680079": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468680079.html"
+        ]
+      },
+      "+15168039797": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15168039797.html"
+        ]
+      },
+      "+18597560317": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18597560317.html"
+        ]
+      },
+      "+14243862323": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14243862323.html"
+        ]
+      },
+      "+12062600782": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12062600782.html"
+        ]
+      },
+      "+13124710132": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13124710132.html"
+        ]
+      },
+      "+14752072785": {
+        "conversation_count": 3,
+        "file_count": 3,
+        "sample_files": [
+          "Me.html",
+          "+17323357386.html",
+          "+14752072785.html"
+        ]
+      },
+      "+12122475848": {
+        "conversation_count": 2,
+        "file_count": 2,
+        "sample_files": [
+          "Me.html",
+          "+12122475848.html"
+        ]
+      },
+      "+15853296020": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15853296020.html"
+        ]
+      },
+      "+14154960504": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14154960504.html"
+        ]
+      },
+      "+16673150860": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16673150860.html"
+        ]
+      },
+      "+13473339320": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473339320.html"
+        ]
+      },
+      "+16319408100": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16319408100.html"
+        ]
+      },
+      "+13479676102": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13479676102.html"
+        ]
+      },
+      "+17738280532": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17738280532.html"
+        ]
+      },
+      "+13148586093": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13148586093.html"
+        ]
+      },
+      "+19143502658": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19143502658.html"
+        ]
+      },
+      "+16464801797": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16464801797.html"
+        ]
+      },
+      "+14159699611": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14159699611.html"
+        ]
+      },
+      "+13479797288": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "SusanT_CharlesT.html"
+        ]
+      },
+      "+12679278748": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12679278748.html"
+        ]
+      },
+      "+18307154359": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18307154359.html"
+        ]
+      },
+      "+13392295088": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13392295088.html"
+        ]
+      },
+      "+19542716726": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19542716726.html"
+        ]
+      },
+      "+13612090046": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13612090046.html"
+        ]
+      },
+      "+12087641449": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12087641449.html"
+        ]
+      },
+      "+19705457336": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19705457336.html"
+        ]
+      },
+      "+12029875872": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029875872.html"
+        ]
+      },
+      "+19179938626": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179938626.html"
+        ]
+      },
+      "+16172213619": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16172213619.html"
+        ]
+      },
+      "+14012149753": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14012149753.html"
+        ]
+      },
+      "+14046669934": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14046669934.html"
+        ]
+      },
+      "+19738312383": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19738312383.html"
+        ]
+      },
+      "+16503983930": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16503983930.html"
+        ]
+      },
+      "+13143845527": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13143845527.html"
+        ]
+      },
+      "+12027988524": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027988524.html"
+        ]
+      },
+      "+14352435861": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14352435861.html"
+        ]
+      },
+      "+13475049632": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13475049632.html"
+        ]
+      },
+      "+16318784455": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16318784455.html"
+        ]
+      },
+      "+16144121692": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16144121692.html"
+        ]
+      },
+      "+15083676528": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15083676528.html"
+        ]
+      },
+      "+17192700554": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17192700554.html"
+        ]
+      },
+      "+12029907356": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029907356.html"
+        ]
+      },
+      "+15054516332": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15054516332.html"
+        ]
+      },
+      "+12247068394": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12247068394.html"
+        ]
+      },
+      "+13473585898": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473585898.html"
+        ]
+      },
+      "+16144125079": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16144125079.html"
+        ]
+      },
+      "+12673084654": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12673084654.html"
+        ]
+      },
+      "+19142669960": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19142669960.html"
+        ]
+      },
+      "+18574253903": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18574253903.html"
+        ]
+      },
+      "+13019694206": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13019694206.html"
+        ]
+      },
+      "+13473348015": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473348015.html"
+        ]
+      },
+      "+14437146921": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146921.html"
+        ]
+      },
+      "+16465588656": {
+        "conversation_count": 2,
+        "file_count": 2,
+        "sample_files": [
+          "SusanT_RaquelVidal.html",
+          "Frank_Spadefoot_SusanT_JasonLinde.html"
+        ]
+      },
+      "+13126266799": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "SusanT_RaquelVidal.html"
+        ]
+      },
+      "+13478462414": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13478462414.html"
+        ]
+      },
+      "+14156393665": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14156393665.html"
+        ]
+      },
+      "+16465380871": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16465380871.html"
+        ]
+      },
+      "+14152339562": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14152339562.html"
+        ]
+      },
+      "+18587794530": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18587794530.html"
+        ]
+      },
+      "+13127573591": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13127573591.html"
+        ]
+      },
+      "+12673377238": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12673377238.html"
+        ]
+      },
+      "+12135616958": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12135616958.html"
+        ]
+      },
+      "+19174554433": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174554433.html"
+        ]
+      },
+      "+12124666115": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12124666115.html"
+        ]
+      },
+      "+19176059910": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19176059910.html"
+        ]
+      },
+      "+12063387290": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12063387290.html"
+        ]
+      },
+      "+19717719665": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19717719665.html"
+        ]
+      },
+      "+12057937758": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12057937758.html"
+        ]
+      },
+      "+16892572382": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16892572382.html"
+        ]
+      },
+      "+16462019483": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16462019483.html"
+        ]
+      },
+      "+15167322731": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15167322731.html"
+        ]
+      },
+      "+15162006980": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15162006980.html"
+        ]
+      },
+      "+18476169349": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18476169349.html"
+        ]
+      },
+      "+13124874948": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13124874948.html"
+        ]
+      },
+      "+16016332982": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16016332982.html"
+        ]
+      },
+      "+12026182958": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12026182958.html"
+        ]
+      },
+      "+19174102031": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174102031.html"
+        ]
+      },
+      "+17187559265": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17187559265.html"
+        ]
+      },
+      "+14156399019": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14156399019.html"
+        ]
+      },
+      "+12029879876": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029879876.html"
+        ]
+      },
+      "+17063818574": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17063818574.html"
+        ]
+      },
+      "+16469313860": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "Frank_Spadefoot_SusanT_JasonLinde.html"
+        ]
+      },
+      "+16176762170": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16176762170.html"
+        ]
+      },
+      "+16316458102": {
+        "conversation_count": 2,
+        "file_count": 2,
+        "sample_files": [
+          "+16316458102_SusanT.html",
+          "+16316458102.html"
+        ]
+      },
+      "+12077036683": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12077036683_Aniella.html"
+        ]
+      },
+      "+19736670500": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19736670500.html"
+        ]
+      },
+      "+18134736323": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18134736323.html"
+        ]
+      },
+      "+19173276945": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19173276945.html"
+        ]
+      },
+      "+19312085508": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19312085508.html"
+        ]
+      },
+      "+19789384194": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19789384194.html"
+        ]
+      },
+      "+19174447422": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174447422.html"
+        ]
+      },
+      "+13122411913": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13122411913.html"
+        ]
+      },
+      "+13472188219": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13472188219.html"
+        ]
+      },
+      "+13478133409": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13478133409.html"
+        ]
+      },
+      "+12027712847": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027712847.html"
+        ]
+      },
+      "+19256991892": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19256991892.html"
+        ]
+      },
+      "+17816979006": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17816979006.html"
+        ]
+      },
+      "+13124193068": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13124193068.html"
+        ]
+      },
+      "+13122783529": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13122783529.html"
+        ]
+      },
+      "+16402204909": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16402204909.html"
+        ]
+      },
+      "+15163808737": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15163808737.html"
+        ]
+      },
+      "+14357017026": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14357017026.html"
+        ]
+      },
+      "+13023308642": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13023308642.html"
+        ]
+      },
+      "+15162831672": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15162831672.html"
+        ]
+      },
+      "+13043624616": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13043624616.html"
+        ]
+      },
+      "+17146944662": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17146944662.html"
+        ]
+      },
+      "+12027095969": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027095969.html"
+        ]
+      },
+      "+14698021452": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14698021452.html"
+        ]
+      },
+      "+16462213501": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16462213501_SusanT_CharlesT_Ari.html"
+        ]
+      },
+      "+18623375880": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18623375880.html"
+        ]
+      },
+      "+19175575032": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19175575032.html"
+        ]
+      },
+      "+19179052605": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179052605.html"
+        ]
+      },
+      "+14197808653": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14197808653.html"
+        ]
+      },
+      "+14068006481": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14068006481.html"
+        ]
+      },
+      "+13123400628": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13123400628.html"
+        ]
+      },
+      "+18174584797": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18174584797.html"
+        ]
+      },
+      "+13126207933": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13126207933.html"
+        ]
+      },
+      "+19296349200": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19296349200.html"
+        ]
+      },
+      "+19178109176": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19178109176.html"
+        ]
+      },
+      "+13013295824": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013295824.html"
+        ]
+      },
+      "+16468281083": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468281083.html"
+        ]
+      },
+      "+15182012325": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15182012325.html"
+        ]
+      },
+      "+12536001384": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12536001384.html"
+        ]
+      },
+      "+14157630480": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14157630480.html"
+        ]
+      },
+      "+17866779416": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17866779416.html"
+        ]
+      },
+      "+13143948363": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13143948363.html"
+        ]
+      },
+      "+17324479492": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17324479492.html"
+        ]
+      },
+      "+16463965537": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16463965537.html"
+        ]
+      },
+      "+12026018793": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12026018793.html"
+        ]
+      },
+      "+16467668411": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467668411.html"
+        ]
+      },
+      "+16465863849": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16465863849.html"
+        ]
+      },
+      "+17865313807": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17865313807.html"
+        ]
+      },
+      "+16027800720": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16027800720.html"
+        ]
+      },
+      "+13012009301": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13012009301.html"
+        ]
+      },
+      "+14159428664": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14159428664.html"
+        ]
+      },
+      "+14123466922": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14123466922.html"
+        ]
+      },
+      "+16175272900": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16175272900.html"
+        ]
+      },
+      "+19149013508": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19149013508.html"
+        ]
+      },
+      "+16592268664": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16592268664.html"
+        ]
+      },
+      "+18582014261": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18582014261.html"
+        ]
+      },
+      "+13475209672": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13475209672.html"
+        ]
+      },
+      "+18623250567": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18623250567.html"
+        ]
+      },
+      "+12068281598": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12068281598.html"
+        ]
+      },
+      "+18576268625": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18576268625.html"
+        ]
+      },
+      "+14437146926": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146926.html"
+        ]
+      },
+      "+15162632565": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15162632565.html"
+        ]
+      },
+      "+17036512495": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17036512495.html"
+        ]
+      },
+      "+14158898145": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14158898145.html"
+        ]
+      },
+      "+16468521440": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468521440.html"
+        ]
+      },
+      "+19294480945": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19294480945.html"
+        ]
+      },
+      "+13479236587": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13479236587.html"
+        ]
+      },
+      "+14073073210": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14073073210.html"
+        ]
+      },
+      "+18566253585": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18566253585.html"
+        ]
+      },
+      "+17732808478": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17732808478.html"
+        ]
+      },
+      "+12029647418": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029647418.html"
+        ]
+      },
+      "+13475644270": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13475644270.html"
+        ]
+      },
+      "+16104775464": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16104775464.html"
+        ]
+      },
+      "+12056277344": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12056277344.html"
+        ]
+      },
+      "+17205498032": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17205498032.html"
+        ]
+      },
+      "+16314595038": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314595038.html"
+        ]
+      },
+      "+12025992519": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12025992519.html"
+        ]
+      },
+      "+12073586355": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12073586355.html"
+        ]
+      },
+      "+16104775576": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16104775576.html"
+        ]
+      },
+      "+16468462815": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468462815.html"
+        ]
+      },
+      "+19737553569": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19737553569.html"
+        ]
+      },
+      "+16312880845": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16312880845.html"
+        ]
+      },
+      "+13474721152": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13474721152.html"
+        ]
+      },
+      "+13473104430": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473104430.html"
+        ]
+      },
+      "+12027692346": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027692346.html"
+        ]
+      },
+      "+15166947873": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15166947873.html"
+        ]
+      },
+      "+19293929885": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19293929885.html"
+        ]
+      },
+      "+15105561294": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15105561294.html"
+        ]
+      },
+      "+16466635116": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16466635116.html"
+        ]
+      },
+      "+16463498598": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16463498598.html"
+        ]
+      },
+      "+14138491390": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14138491390.html"
+        ]
+      },
+      "+12196413863": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12196413863.html"
+        ]
+      },
+      "+16313572366": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16313572366.html"
+        ]
+      },
+      "+16316012800": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16316012800.html"
+        ]
+      },
+      "+19084603699": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19084603699.html"
+        ]
+      },
+      "+15857336090": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15857336090.html"
+        ]
+      },
+      "+12522428111": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12522428111.html"
+        ]
+      },
+      "+12513128540": {
+        "conversation_count": 2,
+        "file_count": 2,
+        "sample_files": [
+          "+12513128540.html",
+          "+13236733543.html"
+        ]
+      },
+      "+12622999743": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12622999743.html"
+        ]
+      },
+      "+18452059681": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18452059681.html"
+        ]
+      },
+      "+16173156382": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16173156382.html"
+        ]
+      },
+      "+16289999617": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16289999617.html"
+        ]
+      },
+      "+16463863000": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16463863000.html"
+        ]
+      },
+      "+13148886257": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13148886257.html"
+        ]
+      },
+      "+16782643222": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16782643222.html"
+        ]
+      },
+      "+12155167216": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12155167216.html"
+        ]
+      },
+      "+14152302767": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14152302767.html"
+        ]
+      },
+      "+13013295043": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013295043.html"
+        ]
+      },
+      "+16318305002": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16318305002.html"
+        ]
+      },
+      "+15738736662": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15738736662.html"
+        ]
+      },
+      "+14582140664": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14582140664.html"
+        ]
+      },
+      "+13013386038": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013386038.html"
+        ]
+      },
+      "+13127641493": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13127641493.html"
+        ]
+      },
+      "+17203065686": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17203065686.html"
+        ]
+      },
+      "+13029478453": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13029478453.html"
+        ]
+      },
+      "+15854406731": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15854406731.html"
+        ]
+      },
+      "+13013630442": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013630442.html"
+        ]
+      },
+      "+17323357386": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17323357386.html"
+        ]
+      },
+      "+19174533744": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174533744.html"
+        ]
+      },
+      "+14154938741": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14154938741.html"
+        ]
+      },
+      "+12027969038": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027969038.html"
+        ]
+      },
+      "+12125703600": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12125703600.html"
+        ]
+      },
+      "+16024282880": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16024282880.html"
+        ]
+      },
+      "+19703055035": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19703055035.html"
+        ]
+      },
+      "+12816569022": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12816569022.html"
+        ]
+      },
+      "+16122949343": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16122949343.html"
+        ]
+      },
+      "+16315991864": {
+        "conversation_count": 2,
+        "file_count": 2,
+        "sample_files": [
+          "+16315991864.html",
+          "+15169241544_+16315991864.html"
+        ]
+      },
+      "+17345191886": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17345191886.html"
+        ]
+      },
+      "+14152339155": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14152339155.html"
+        ]
+      },
+      "+18137731283": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18137731283.html"
+        ]
+      },
+      "+17605455669": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17605455669.html"
+        ]
+      },
+      "+12142375387": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12142375387.html"
+        ]
+      },
+      "+19294565187": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19294565187.html"
+        ]
+      },
+      "+12125703641": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12125703641.html"
+        ]
+      },
+      "+19086508550": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19086508550.html"
+        ]
+      },
+      "+17733894728": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17733894728.html"
+        ]
+      },
+      "+16319941299": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16319941299.html"
+        ]
+      },
+      "+13479498940": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13479498940.html"
+        ]
+      },
+      "+13195690848": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13195690848.html"
+        ]
+      },
+      "+13478548285": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13478548285.html"
+        ]
+      },
+      "+16829997998": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16829997998.html"
+        ]
+      },
+      "+13152209069": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13152209069.html"
+        ]
+      },
+      "+14134501461": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14134501461.html"
+        ]
+      },
+      "+15128834917": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15128834917.html"
+        ]
+      },
+      "+12123853700": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12123853700.html"
+        ]
+      },
+      "+18622985248": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18622985248.html"
+        ]
+      },
+      "+12127130616": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "SusanT.html"
+        ]
+      },
+      "+13479185544": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "SusanT.html"
+        ]
+      },
+      "+17609154402": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17609154402.html"
+        ]
+      },
+      "+13192094335": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13192094335.html"
+        ]
+      },
+      "+12078134342": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12078134342.html"
+        ]
+      },
+      "+17736695927": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17736695927.html"
+        ]
+      },
+      "+18103688052": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18103688052.html"
+        ]
+      },
+      "+12293834076": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12293834076.html"
+        ]
+      },
+      "+14252004996": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14252004996.html"
+        ]
+      },
+      "+12054795133": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12054795133.html"
+        ]
+      },
+      "+19296458712": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19296458712.html"
+        ]
+      },
+      "+12132774512": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12132774512.html"
+        ]
+      },
+      "+16315301515": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315301515.html"
+        ]
+      },
+      "+12124130451": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12124130451.html"
+        ]
+      },
+      "+15713000488": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15713000488.html"
+        ]
+      },
+      "+12723710702": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12723710702.html"
+        ]
+      },
+      "+12025998337": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12025998337.html"
+        ]
+      },
+      "+16468085033": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468085033.html"
+        ]
+      },
+      "+13478414864": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13478414864.html"
+        ]
+      },
+      "+16468462636": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468462636.html"
+        ]
+      },
+      "+16178122277": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16178122277.html"
+        ]
+      },
+      "+13473721679": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473721679.html"
+        ]
+      },
+      "+16174588545": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16174588545.html"
+        ]
+      },
+      "+18458870267": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18458870267.html"
+        ]
+      },
+      "+19172469842": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19172469842.html"
+        ]
+      },
+      "+16124916125": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16124916125.html"
+        ]
+      },
+      "+12123159055": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12123159055.html"
+        ]
+      },
+      "+15858577330": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15858577330.html"
+        ]
+      },
+      "+14175809602": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14175809602.html"
+        ]
+      },
+      "+18102269087": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18102269087.html"
+        ]
+      },
+      "+15709439691": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15709439691.html"
+        ]
+      },
+      "+19257268526": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19257268526.html"
+        ]
+      },
+      "+17712128622": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17712128622.html"
+        ]
+      },
+      "+19474652062": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19474652062.html"
+        ]
+      },
+      "+16312529596": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16312529596.html"
+        ]
+      },
+      "+15202827305": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15202827305.html"
+        ]
+      },
+      "+16468377798": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468377798.html"
+        ]
+      },
+      "+13024463512": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13024463512.html"
+        ]
+      },
+      "+17755483279": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17755483279.html"
+        ]
+      },
+      "+15642446525": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15642446525.html"
+        ]
+      },
+      "+19178051055": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19178051055.html"
+        ]
+      },
+      "+17162815566": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17162815566.html"
+        ]
+      },
+      "+12065313506": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12065313506.html"
+        ]
+      },
+      "+14437146928": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146928.html"
+        ]
+      },
+      "+13125440684": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13125440684.html"
+        ]
+      },
+      "+12124308537": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12124308537.html"
+        ]
+      },
+      "+16813630098": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16813630098.html"
+        ]
+      },
+      "+13013637193": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013637193.html"
+        ]
+      },
+      "+16802086478": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16802086478.html"
+        ]
+      },
+      "+12027925738": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027925738.html"
+        ]
+      },
+      "+16469801675": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16469801675.html"
+        ]
+      },
+      "+16315183033": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315183033.html"
+        ]
+      },
+      "+15738736817": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15738736817.html"
+        ]
+      },
+      "+17406171793": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17406171793.html"
+        ]
+      },
+      "+16289999177": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16289999177.html"
+        ]
+      },
+      "+16468465022": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468465022.html"
+        ]
+      },
+      "+14797158163": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14797158163.html"
+        ]
+      },
+      "+19408553303": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19408553303.html"
+        ]
+      },
+      "+14125327859": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14125327859.html"
+        ]
+      },
+      "+14128722740": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14128722740.html"
+        ]
+      },
+      "+14128872635": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14128872635.html"
+        ]
+      },
+      "+12154369142": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12154369142.html"
+        ]
+      },
+      "+18327064078": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18327064078.html"
+        ]
+      },
+      "+15162188771": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15162188771.html"
+        ]
+      },
+      "+13322868677": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13322868677.html"
+        ]
+      },
+      "+12029875436": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029875436.html"
+        ]
+      },
+      "+18283930120": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18283930120.html"
+        ]
+      },
+      "+18457063340": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18457063340.html"
+        ]
+      },
+      "+19295520568": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295520568.html"
+        ]
+      },
+      "+19295522943": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295522943.html"
+        ]
+      },
+      "+14423890543": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14423890543.html"
+        ]
+      },
+      "+17712095364": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17712095364.html"
+        ]
+      },
+      "+19294985374": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19294985374.html"
+        ]
+      },
+      "+13014501909": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13014501909.html"
+        ]
+      },
+      "+13146960630": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13146960630.html"
+        ]
+      },
+      "+18183690278": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18183690278.html"
+        ]
+      },
+      "+19739394815": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19739394815.html"
+        ]
+      },
+      "+16468462591": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468462591.html"
+        ]
+      },
+      "+16316989500": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16316989500.html"
+        ]
+      },
+      "+12525572697": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12525572697.html"
+        ]
+      },
+      "+13123138841": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13123138841.html"
+        ]
+      },
+      "+16284660281": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16284660281.html"
+        ]
+      },
+      "+14249990660": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14249990660.html"
+        ]
+      },
+      "+14128873622": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14128873622.html"
+        ]
+      },
+      "+19402940133": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19402940133.html"
+        ]
+      },
+      "+17162689016": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17162689016.html"
+        ]
+      },
+      "+19295635494": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295635494.html"
+        ]
+      },
+      "+14154297249": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14154297249.html"
+        ]
+      },
+      "+16468256493": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468256493.html"
+        ]
+      },
+      "+15165660135": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15165660135.html"
+        ]
+      },
+      "+19733060187": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19733060187.html"
+        ]
+      },
+      "+13018103168": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13018103168.html"
+        ]
+      },
+      "+16468462568": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468462568.html"
+        ]
+      },
+      "+18188051378": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18188051378.html"
+        ]
+      },
+      "+15124846855": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15124846855.html"
+        ]
+      },
+      "+12126922943": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12126922943.html"
+        ]
+      },
+      "+12025994362": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12025994362.html"
+        ]
+      },
+      "+19296452038": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19296452038.html"
+        ]
+      },
+      "+19176942890": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19176942890.html"
+        ]
+      },
+      "+13029478758": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13029478758.html"
+        ]
+      },
+      "+13025494658": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13025494658.html"
+        ]
+      },
+      "+13127577885": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13127577885.html"
+        ]
+      },
+      "+15165660134": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15165660134.html"
+        ]
+      },
+      "+16467608747": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467608747.html"
+        ]
+      },
+      "+19295622350": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295622350.html"
+        ]
+      },
+      "+12764470498": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12764470498.html"
+        ]
+      },
+      "+14128872874": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14128872874.html"
+        ]
+      },
+      "+18439542532": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18439542532.html"
+        ]
+      },
+      "+19087349060": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19087349060.html"
+        ]
+      },
+      "+14437146925": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146925.html"
+        ]
+      },
+      "+19548720683": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19548720683.html"
+        ]
+      },
+      "+17737396163": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17737396163.html"
+        ]
+      },
+      "+15128819226": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15128819226.html"
+        ]
+      },
+      "+12029701532": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029701532.html"
+        ]
+      },
+      "+13153036142": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13153036142.html"
+        ]
+      },
+      "+13473286537": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473286537.html"
+        ]
+      },
+      "+14402523144": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14402523144.html"
+        ]
+      },
+      "+16466307343": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16466307343.html"
+        ]
+      },
+      "+12407988633": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12407988633.html"
+        ]
+      },
+      "+12135339380": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12135339380.html"
+        ]
+      },
+      "+13392981778": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13392981778.html"
+        ]
+      },
+      "+12129701010": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12129701010.html"
+        ]
+      },
+      "+19252861628": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19252861628.html"
+        ]
+      },
+      "+16468460997": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468460997.html"
+        ]
+      },
+      "+16467411903": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467411903.html"
+        ]
+      },
+      "+17272960578": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17272960578.html"
+        ]
+      },
+      "+12028300030": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12028300030.html"
+        ]
+      },
+      "+14159852007": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14159852007.html"
+        ]
+      },
+      "+19452796099": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19452796099.html"
+        ]
+      },
+      "+12125414921": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12125414921.html"
+        ]
+      },
+      "+12027703263": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027703263.html"
+        ]
+      },
+      "+18392037802": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18392037802.html"
+        ]
+      },
+      "+19286385042": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19286385042.html"
+        ]
+      },
+      "+12129778894": {
+        "conversation_count": 3,
+        "file_count": 3,
+        "sample_files": [
+          "+12129778894_Ina_SusanT.html",
+          "+12129778894_Ina.html",
+          "+12129778894.html"
+        ]
+      },
+      "+13644443507": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13644443507.html"
+        ]
+      },
+      "+16124041795": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16124041795.html"
+        ]
+      },
+      "+16319728482": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16319728482.html"
+        ]
+      },
+      "+15153419348": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15153419348.html"
+        ]
+      },
+      "+14752736926": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14752736926.html"
+        ]
+      },
+      "+15715200895": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15715200895.html"
+        ]
+      },
+      "+19175405270": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19175405270.html"
+        ]
+      },
+      "+19177656391": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19177656391.html"
+        ]
+      },
+      "+13127573608": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13127573608.html"
+        ]
+      },
+      "+14026470973": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14026470973.html"
+        ]
+      },
+      "+16053706768": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16053706768.html"
+        ]
+      },
+      "+12126794134": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12126794134.html"
+        ]
+      },
+      "+16175142953": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16175142953.html"
+        ]
+      },
+      "+13014106694": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13014106694.html"
+        ]
+      },
+      "+15163967474": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15163967474.html"
+        ]
+      },
+      "+12026010482": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12026010482.html"
+        ]
+      },
+      "+14068201908": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14068201908.html"
+        ]
+      },
+      "+12029916719": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029916719.html"
+        ]
+      },
+      "+12122882536": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12122882536.html"
+        ]
+      },
+      "+16463893962": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16463893962.html"
+        ]
+      },
+      "+14243850597": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14243850597.html"
+        ]
+      },
+      "+14849205925": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14849205925.html"
+        ]
+      },
+      "+12606194678": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12606194678.html"
+        ]
+      },
+      "+13137522337": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13137522337.html"
+        ]
+      },
+      "+12408027834": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12408027834.html"
+        ]
+      },
+      "+18453733291": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18453733291.html"
+        ]
+      },
+      "+18573056835": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18573056835.html"
+        ]
+      },
+      "+13473154630": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13473154630.html"
+        ]
+      },
+      "+16466611001": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16466611001.html"
+        ]
+      },
+      "+18726272012": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18726272012.html"
+        ]
+      },
+      "+13123135614": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13123135614.html"
+        ]
+      },
+      "+16159658902": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16159658902.html"
+        ]
+      },
+      "+16467661982": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16467661982.html"
+        ]
+      },
+      "+12765958437": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12765958437.html"
+        ]
+      },
+      "+19179707437": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179707437.html"
+        ]
+      },
+      "+19082805981": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19082805981.html"
+        ]
+      },
+      "+14154297383": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14154297383.html"
+        ]
+      },
+      "+19143530243": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19143530243.html"
+        ]
+      },
+      "+12029680434": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029680434.html"
+        ]
+      },
+      "+17734669076": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17734669076.html"
+        ]
+      },
+      "+19452192872": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19452192872.html"
+        ]
+      },
+      "+16466635548": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16466635548.html"
+        ]
+      },
+      "+15177053379": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15177053379.html"
+        ]
+      },
+      "+13472056497": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13472056497.html"
+        ]
+      },
+      "+17162689021": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17162689021.html"
+        ]
+      },
+      "+19192959012": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19192959012.html"
+        ]
+      },
+      "+12162647698": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12162647698.html"
+        ]
+      },
+      "+18304452105": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18304452105.html"
+        ]
+      },
+      "+19295435674": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295435674.html"
+        ]
+      },
+      "+16282149032": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16282149032.html"
+        ]
+      },
+      "+16468281033": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468281033.html"
+        ]
+      },
+      "+14246533841": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14246533841.html"
+        ]
+      },
+      "+13472733036": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13472733036.html"
+        ]
+      },
+      "+13143290423": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13143290423.html"
+        ]
+      },
+      "+12125901544": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12125901544.html"
+        ]
+      },
+      "+12676276088": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12676276088.html"
+        ]
+      },
+      "+12405940340": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12405940340.html"
+        ]
+      },
+      "+14692906361": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14692906361.html"
+        ]
+      },
+      "+19179830423": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179830423.html"
+        ]
+      },
+      "+19174103612": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19174103612.html"
+        ]
+      },
+      "+12767919680": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12767919680.html"
+        ]
+      },
+      "+16465444217": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16465444217.html"
+        ]
+      },
+      "+17717779596": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17717779596.html"
+        ]
+      },
+      "+13609491764": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13609491764.html"
+        ]
+      },
+      "+13163336567": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13163336567.html"
+        ]
+      },
+      "+12076193028": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12076193028.html"
+        ]
+      },
+      "+14155786985": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14155786985.html"
+        ]
+      },
+      "+19142477125": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19142477125.html"
+        ]
+      },
+      "+17262620946": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17262620946.html"
+        ]
+      },
+      "+19292842441": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19292842441.html"
+        ]
+      },
+      "+16173137102": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16173137102.html"
+        ]
+      },
+      "+15854454988": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15854454988.html"
+        ]
+      },
+      "+19172590948": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19172590948.html"
+        ]
+      },
+      "+13029478933": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13029478933.html"
+        ]
+      },
+      "+12692851986": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12692851986.html"
+        ]
+      },
+      "+12122951804": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12122951804.html"
+        ]
+      },
+      "+13013637619": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13013637619.html"
+        ]
+      },
+      "+13322415668": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13322415668.html"
+        ]
+      },
+      "+12127579411": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12127579411.html"
+        ]
+      },
+      "+12244429202": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12244429202.html"
+        ]
+      },
+      "+12125351845": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12125351845.html"
+        ]
+      },
+      "+13523286414": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13523286414.html"
+        ]
+      },
+      "+13474474026": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13474474026.html"
+        ]
+      },
+      "+17734242611": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17734242611.html"
+        ]
+      },
+      "+17015818025": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17015818025.html"
+        ]
+      },
+      "+12025993336": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12025993336.html"
+        ]
+      },
+      "+12026600492": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12026600492.html"
+        ]
+      },
+      "+19087438050": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19087438050.html"
+        ]
+      },
+      "+15165868829": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15165868829.html"
+        ]
+      },
+      "+19179330300": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19179330300.html"
+        ]
+      },
+      "+18146188274": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18146188274.html"
+        ]
+      },
+      "+16362430901": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16362430901.html"
+        ]
+      },
+      "+13236733543": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13855631162": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13133855146": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13322662993": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+19452622171": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+17178076975": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+16289999883": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+19452623038": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+14697592805": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+12407303286": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13156601779": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+17089828257": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13322229897": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+17083483006": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13862515960": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+16284661998": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+18316031834": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+19452624246": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+14246005362": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+19452622947": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+16289999239": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13322229726": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+14246003937": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13862516048": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13512228662": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+18179854893": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+16289999769": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+19452623755": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+16204903860": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13023056904": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+13855631507": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13236733543.html"
+        ]
+      },
+      "+18476412636": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18476412636.html"
+        ]
+      },
+      "+12407303304": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12407303304.html"
+        ]
+      },
+      "+19175402443": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19175402443.html"
+        ]
+      },
+      "+17016606124": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17016606124.html"
+        ]
+      },
+      "+15852624090": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15852624090.html"
+        ]
+      },
+      "+13127414539": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13127414539.html"
+        ]
+      },
+      "+14639001689": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14639001689.html"
+        ]
+      },
+      "+17203065768": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17203065768.html"
+        ]
+      },
+      "+12132620784": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12132620784.html"
+        ]
+      },
+      "+13146241388": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13146241388.html"
+        ]
+      },
+      "+16314951639": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314951639.html"
+        ]
+      },
+      "+19165212492": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19165212492.html"
+        ]
+      },
+      "+19295422113": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19295422113.html"
+        ]
+      },
+      "+15163857722": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15163857722.html"
+        ]
+      },
+      "+18623438753": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18623438753.html"
+        ]
+      },
+      "+16318780966": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16318780966.html"
+        ]
+      },
+      "+16465252747": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16465252747.html"
+        ]
+      },
+      "+19172426253": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19172426253.html"
+        ]
+      },
+      "+14013730533": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14013730533.html"
+        ]
+      },
+      "+17579827567": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17579827567.html"
+        ]
+      },
+      "+13476798941": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13476798941.html"
+        ]
+      },
+      "+12407992425": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12407992425.html"
+        ]
+      },
+      "+16892206717": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16892206717.html"
+        ]
+      },
+      "+12236679240": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12236679240.html"
+        ]
+      },
+      "+15164023555": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15164023555.html"
+        ]
+      },
+      "+19084741200": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19084741200.html"
+        ]
+      },
+      "+13322490530": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13322490530.html"
+        ]
+      },
+      "+13129716006": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13129716006.html"
+        ]
+      },
+      "+16316970291": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314457342_+16316457965_+16316559974_+16316970291_Anita_and_4_more_75bf07.html"
+        ]
+      },
+      "+16316559974": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314457342_+16316457965_+16316559974_+16316970291_Anita_and_4_more_75bf07.html"
+        ]
+      },
+      "+16316457965": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314457342_+16316457965_+16316559974_+16316970291_Anita_and_4_more_75bf07.html"
+        ]
+      },
+      "+16314457342": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16314457342_+16316457965_+16316559974_+16316970291_Anita_and_4_more_75bf07.html"
+        ]
+      },
+      "+19294989222": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19294989222.html"
+        ]
+      },
+      "+12124666376": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12124666376.html"
+        ]
+      },
+      "+16513379671": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16513379671.html"
+        ]
+      },
+      "+16319953366": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16319953366.html"
+        ]
+      },
+      "+19737072434": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19737072434.html"
+        ]
+      },
+      "+16319545427": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16319545427.html"
+        ]
+      },
+      "+16149570659": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16149570659.html"
+        ]
+      },
+      "+16315323460": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315323460.html"
+        ]
+      },
+      "+16313611005": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16313611005.html"
+        ]
+      },
+      "+15167013250": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15167013250.html"
+        ]
+      },
+      "+19083865252": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19083865252.html"
+        ]
+      },
+      "+16462937500": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19083865252.html"
+        ]
+      },
+      "+15512489734": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15512489734.html"
+        ]
+      },
+      "+12029491303": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12029491303.html"
+        ]
+      },
+      "+16173973069": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16173973069.html"
+        ]
+      },
+      "+14072507502": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14072507502.html"
+        ]
+      },
+      "+19734716205": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19734716205.html"
+        ]
+      },
+      "+15852189000": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15852189000.html"
+        ]
+      },
+      "+17323914293": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17323914293.html"
+        ]
+      },
+      "+13476829965": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13476829965.html"
+        ]
+      },
+      "+17022136470": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17022136470.html"
+        ]
+      },
+      "+16468563817": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468563817.html"
+        ]
+      },
+      "+14403883798": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14403883798.html"
+        ]
+      },
+      "+12028515521": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12028515521.html"
+        ]
+      },
+      "+16316907382": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16316907382.html"
+        ]
+      },
+      "+15672195815": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15672195815.html"
+        ]
+      },
+      "+15189895199": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15189895199.html"
+        ]
+      },
+      "+12027712839": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027712839.html"
+        ]
+      },
+      "+12027693909": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12027693909.html"
+        ]
+      },
+      "+14707991838": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14707991838.html"
+        ]
+      },
+      "+14437146779": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146779.html"
+        ]
+      },
+      "+17402334042": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17402334042.html"
+        ]
+      },
+      "+15166584669": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15166584669_SusanT_JasonLinde.html"
+        ]
+      },
+      "+16462873349": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16462873349.html"
+        ]
+      },
+      "+17144622978": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17144622978.html"
+        ]
+      },
+      "+17178076691": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17178076691.html"
+        ]
+      },
+      "+15743322969": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15743322969.html"
+        ]
+      },
+      "+12127570580": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12127570580.html"
+        ]
+      },
+      "+17042538965": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17042538965.html"
+        ]
+      },
+      "+15014710315": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15014710315.html"
+        ]
+      },
+      "+16313756044": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16313756044.html"
+        ]
+      },
+      "+19288770537": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19288770537.html"
+        ]
+      },
+      "+15204226994": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15204226994.html"
+        ]
+      },
+      "+15163987036": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15163987036.html"
+        ]
+      },
+      "+14699023316": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14699023316.html"
+        ]
+      },
+      "+14808809615": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14808809615.html"
+        ]
+      },
+      "+15735988206": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15735988206.html"
+        ]
+      },
+      "+12129575353": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12129575353.html"
+        ]
+      },
+      "+18452720187": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18452720187.html"
+        ]
+      },
+      "+16613362065": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16613362065.html"
+        ]
+      },
+      "+17172007167": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17172007167.html"
+        ]
+      },
+      "+17732196290": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17732196290.html"
+        ]
+      },
+      "+18149625329": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18149625329.html"
+        ]
+      },
+      "+16504614013": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16504614013.html"
+        ]
+      },
+      "+18329792403": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16504614013.html"
+        ]
+      },
+      "+19452624825": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16504614013.html"
+        ]
+      },
+      "+16505392731": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16504614013.html"
+        ]
+      },
+      "+12129560872": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12129560872.html"
+        ]
+      },
+      "+19704581358": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19704581358.html"
+        ]
+      },
+      "+17188141235": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17188141235.html"
+        ]
+      },
+      "+15865190554": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15865190554.html"
+        ]
+      },
+      "+13213540505": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13213540505.html"
+        ]
+      },
+      "+18622985305": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18622985305.html"
+        ]
+      },
+      "+17033827881": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17033827881.html"
+        ]
+      },
+      "+14437146923": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146923.html"
+        ]
+      },
+      "+16468305414": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16468305414.html"
+        ]
+      },
+      "+14246220210": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14246220210.html"
+        ]
+      },
+      "+17817973104": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17817973104.html"
+        ]
+      },
+      "+19177253515": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19177253515.html"
+        ]
+      },
+      "+17323653751": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17323653751.html"
+        ]
+      },
+      "+18573056995": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18573056995.html"
+        ]
+      },
+      "+17324479194": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17324479194.html"
+        ]
+      },
+      "+16504182203": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16504182203.html"
+        ]
+      },
+      "+12155265738": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12155265738.html"
+        ]
+      },
+      "+15853887663": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15853887663.html"
+        ]
+      },
+      "+16315294497": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16315294497.html"
+        ]
+      },
+      "+16078213502": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16078213502.html"
+        ]
+      },
+      "+19292315758": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19292315758.html"
+        ]
+      },
+      "+14437146775": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14437146775.html"
+        ]
+      },
+      "+19178224584": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19178224584.html"
+        ]
+      },
+      "+14146221182": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14146221182.html"
+        ]
+      },
+      "+14012141635": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14012141635.html"
+        ]
+      },
+      "+12124883460": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12124883460.html"
+        ]
+      },
+      "+16463509140": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16463509140.html"
+        ]
+      },
+      "+12515777278": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12515777278.html"
+        ]
+      },
+      "+15715434987": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15715434987.html"
+        ]
+      },
+      "+19107764996": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+19107764996.html"
+        ]
+      },
+      "+13212988306": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+13212988306.html"
+        ]
+      },
+      "+15169241544": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+15169241544_+16315991864.html"
+        ]
+      },
+      "+14123478411": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+14123478411.html"
+        ]
+      },
+      "+16503994062": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16503994062.html"
+        ]
+      },
+      "+18572997550": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+18572997550.html"
+        ]
+      },
+      "+16094315622": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+16094315622.html"
+        ]
+      },
+      "+12132463137": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+12132463137.html"
+        ]
+      },
+      "+17205737548": {
+        "conversation_count": 1,
+        "file_count": 1,
+        "sample_files": [
+          "+17205737548.html"
+        ]
+      }
+    }
+  },
+  "pattern_analysis": {
+    "detailed_patterns": {
+      "toll_free": [
+        "+18000000000",
+        "+18002035182",
+        "+18002047008",
+        "+18002156195",
+        "+18002211212",
+        "+18002217370",
+        "+18002221871",
+        "+18002224357",
+        "+18002274214",
+        "+18002282100",
+        "+18002288324",
+        "+18002336111",
+        "+18002376977",
+        "+18002382727",
+        "+18002414057",
+        "+18002446224",
+        "+18002468357",
+        "+18002531020",
+        "+18002559982",
+        "+18002561020",
+        "+18002668722",
+        "+18002758777",
+        "+18002769939",
+        "+18002805821",
+        "+18002812679",
+        "+18002889949",
+        "+18002893355",
+        "+18002903935",
+        "+18002906106",
+        "+18002971000",
+        "+18002971605",
+        "+18002972977",
+        "+18003083355",
+        "+18003195202",
+        "+18003239135",
+        "+18003244842",
+        "+18003251551",
+        "+18003256217",
+        "+18003273547",
+        "+18003310500",
+        "+18003316483",
+        "+18003333474",
+        "+18003338655",
+        "+18003373392",
+        "+18003429816",
+        "+18003468357",
+        "+18003474934",
+        "+18003531842",
+        "+18003569377",
+        "+18003612599",
+        "+18003626033",
+        "+18003647045",
+        "+18003820613",
+        "+18003864017",
+        "+18003866624",
+        "+18003872331",
+        "+18003961751",
+        "+18004149435",
+        "+18004197370",
+        "+18004212110",
+        "+18004214655",
+        "+18004264840",
+        "+18004272449",
+        "+18004277895",
+        "+18004278686",
+        "+18004303376",
+        "+18004321000",
+        "+18004323117",
+        "+18004333243",
+        "+18004359792",
+        "+18004367970",
+        "+18004383662",
+        "+18004414122",
+        "+18004429899",
+        "+18004441676",
+        "+18004456937",
+        "+18004473835",
+        "+18004483543",
+        "+18004504442",
+        "+18004549078",
+        "+18004563355",
+        "+18004573721",
+        "+18004623966",
+        "+18004633339",
+        "+18004684285",
+        "+18004700857",
+        "+18004725543",
+        "+18004752637",
+        "+18004819136",
+        "+18004827357",
+        "+18004877565",
+        "+18004900025",
+        "+18004900075",
+        "+18004910095",
+        "+18004916126",
+        "+18004928082",
+        "+18004934647",
+        "+18005011599",
+        "+18005055678",
+        "+18005169561",
+        "+18005231188",
+        "+18005243880",
+        "+18005251006",
+        "+18005252225",
+        "+18005253355",
+        "+18005259248",
+        "+18005260729",
+        "+18005268615",
+        "+18005284800",
+        "+18005354028",
+        "+18005358338",
+        "+18005367111",
+        "+18005382583",
+        "+18005407336",
+        "+18005480828",
+        "+18005488690",
+        "+18005646222",
+        "+18005755733",
+        "+18005845865",
+        "+18005913071",
+        "+18005921160",
+        "+18006066252",
+        "+18006131225",
+        "+18006214673",
+        "+18006247092",
+        "+18006277468",
+        "+18006311281",
+        "+18006311388",
+        "+18006332677",
+        "+18006334227",
+        "+18006374624",
+        "+18006397329",
+        "+18006405071",
+        "+18006454328",
+        "+18006474427",
+        "+18006536289",
+        "+18006552265",
+        "+18006561918",
+        "+18006864207",
+        "+18006956950",
+        "+18006958133",
+        "+18006971220",
+        "+18006984952",
+        "+18007007617",
+        "+18007082736",
+        "+18007097191",
+        "+18007225543",
+        "+18007242440",
+        "+18007329194",
+        "+18007332767",
+        "+18007424453",
+        "+18007425877",
+        "+18007464726",
+        "+18007526633",
+        "+18007580305",
+        "+18007666658",
+        "+18007742678",
+        "+18007920808",
+        "+18007999304",
+        "+18008249289",
+        "+18008339943",
+        "+18008353784",
+        "+18008374966",
+        "+18008380908",
+        "+18008425303",
+        "+18008465200",
+        "+18008468212",
+        "+18008481488",
+        "+18008483555",
+        "+18008500567",
+        "+18008507655",
+        "+18008648331",
+        "+18008677183",
+        "+18008680834",
+        "+18008693557",
+        "+18008753205",
+        "+18008879528",
+        "+18008888756",
+        "+18008889618",
+        "+18008922253",
+        "+18008924357",
+        "+18008972189",
+        "+18009037914",
+        "+18009059322",
+        "+18009152322",
+        "+18009208337",
+        "+18009286318",
+        "+18009305003",
+        "+18009311821",
+        "+18009332566",
+        "+18009336262",
+        "+18009359935",
+        "+18009378997",
+        "+18009505114",
+        "+18009537392",
+        "+18009552292",
+        "+18009559060",
+        "+18009564442",
+        "+18009665729",
+        "+18009723118",
+        "+18009724226",
+        "+18009736671",
+        "+18009923522",
+        "+18009934923",
+        "+18009938762",
+        "+18009938763",
+        "+18332018666",
+        "+18332076202",
+        "+18332098733",
+        "+18332098734",
+        "+18332098737",
+        "+18332122186",
+        "+18332145231",
+        "+18332148743",
+        "+18332162435",
+        "+18332162527",
+        "+18332163830",
+        "+18332212190",
+        "+18332212384",
+        "+18332212424",
+        "+18332213151",
+        "+18332214502",
+        "+18332217047",
+        "+18332235582",
+        "+18332276578",
+        "+18332280039",
+        "+18332289372",
+        "+18332297693",
+        "+18332297972",
+        "+18332298215",
+        "+18332308886",
+        "+18332309786",
+        "+18332309790",
+        "+18332319701",
+        "+18332324977",
+        "+18332357728",
+        "+18332372079",
+        "+18332396578",
+        "+18332396598",
+        "+18332396723",
+        "+18332396825",
+        "+18332396855",
+        "+18332396985",
+        "+18332396997",
+        "+18332398773",
+        "+18332411071",
+        "+18332437177",
+        "+18332466282",
+        "+18332479696",
+        "+18332492786",
+        "+18332506065",
+        "+18332581684",
+        "+18332585585",
+        "+18332586801",
+        "+18332589691",
+        "+18332611945",
+        "+18332614802",
+        "+18332615094",
+        "+18332622216",
+        "+18332622233",
+        "+18332622883",
+        "+18332634122",
+        "+18332634149",
+        "+18332634301",
+        "+18332634360",
+        "+18332634361",
+        "+18332638042",
+        "+18332642693",
+        "+18332646215",
+        "+18332662334",
+        "+18332665655",
+        "+18332669041",
+        "+18332678750",
+        "+18332678752",
+        "+18332681577",
+        "+18332681625",
+        "+18332686658",
+        "+18332691738",
+        "+18332703016",
+        "+18332703632",
+        "+18332707885",
+        "+18332707936",
+        "+18332707946",
+        "+18332708065",
+        "+18332708066",
+        "+18332708877",
+        "+18332708947",
+        "+18332708950",
+        "+18332709058",
+        "+18332717516",
+        "+18332738756",
+        "+18332866506",
+        "+18332866565",
+        "+18332867279",
+        "+18332869663",
+        "+18332965699",
+        "+18332965703",
+        "+18333013173",
+        "+18333014301",
+        "+18333014547",
+        "+18333137098",
+        "+18333167965",
+        "+18333191577",
+        "+18333240176",
+        "+18333300215",
+        "+18333314686",
+        "+18333331661",
+        "+18333337236",
+        "+18333376733",
+        "+18333377349",
+        "+18333426980",
+        "+18333465456",
+        "+18333576267",
+        "+18333602764",
+        "+18333629679",
+        "+18333642895",
+        "+18333741899",
+        "+18333744627",
+        "+18333796090",
+        "+18333871705",
+        "+18333891880",
+        "+18333893450",
+        "+18334015111",
+        "+18334042272",
+        "+18334069589",
+        "+18334069590",
+        "+18334069592",
+        "+18334100529",
+        "+18334144107",
+        "+18334162604",
+        "+18334172274",
+        "+18334189081",
+        "+18334197246",
+        "+18334221191",
+        "+18334294786",
+        "+18334296064",
+        "+18334511525",
+        "+18334529693",
+        "+18334537008",
+        "+18334741437",
+        "+18334812104",
+        "+18334832239",
+        "+18334915450",
+        "+18334994537",
+        "+18335042560",
+        "+18335117158",
+        "+18335120040",
+        "+18335257942",
+        "+18335265172",
+        "+18335303055",
+        "+18335420126",
+        "+18335467356",
+        "+18335480276",
+        "+18335515211",
+        "+18335516221",
+        "+18335522123",
+        "+18335535076",
+        "+18335741005",
+        "+18335801401",
+        "+18335821174",
+        "+18335824125",
+        "+18335824529",
+        "+18335971950",
+        "+18335996192",
+        "+18336000338",
+        "+18336020589",
+        "+18336090346",
+        "+18336123130",
+        "+18336149469",
+        "+18336153148",
+        "+18336215866",
+        "+18336260737",
+        "+18336503759",
+        "+18336563935",
+        "+18336580781",
+        "+18336580816",
+        "+18336692919",
+        "+18336801127",
+        "+18336833757",
+        "+18336854126",
+        "+18336960106",
+        "+18337090860",
+        "+18337171925",
+        "+18337371266",
+        "+18337430439",
+        "+18337463677",
+        "+18337471773",
+        "+18337502868",
+        "+18337571405",
+        "+18337593934",
+        "+18337671569",
+        "+18337711486",
+        "+18337726668",
+        "+18337729988",
+        "+18337788120",
+        "+18337788122",
+        "+18337788126",
+        "+18337793293",
+        "+18337815300",
+        "+18337840781",
+        "+18337841467",
+        "+18337855231",
+        "+18338288366",
+        "+18338410674",
+        "+18338613009",
+        "+18338705176",
+        "+18338778739",
+        "+18338818662",
+        "+18338832380",
+        "+18338855315",
+        "+18338865429",
+        "+18338904262",
+        "+18338953058",
+        "+18339061339",
+        "+18339064142",
+        "+18339073430",
+        "+18339212959",
+        "+18339215609",
+        "+18339215647",
+        "+18339240136",
+        "+18339284610",
+        "+18339314161",
+        "+18339315707",
+        "+18339411565",
+        "+18339458788",
+        "+18339551376",
+        "+18339590885",
+        "+18339611900",
+        "+18339611963",
+        "+18339780537",
+        "+18339785951",
+        "+18339821781",
+        "+18441238087",
+        "+18442060090",
+        "+18442123522",
+        "+18442156974",
+        "+18442218185",
+        "+18442246075",
+        "+18442247610",
+        "+18442332941",
+        "+18442377375",
+        "+18442397711",
+        "+18442503312",
+        "+18442617769",
+        "+18442634868",
+        "+18442670801",
+        "+18442763272",
+        "+18442848781",
+        "+18442855279",
+        "+18442923771",
+        "+18442937265",
+        "+18442953376",
+        "+18443005460",
+        "+18443040719",
+        "+18443061524",
+        "+18443255021",
+        "+18443258740",
+        "+18443302020",
+        "+18443317710",
+        "+18443325395",
+        "+18443326405",
+        "+18443377739",
+        "+18443407647",
+        "+18443416378",
+        "+18443416688",
+        "+18443429367",
+        "+18443435929",
+        "+18443458984",
+        "+18443575514",
+        "+18443604130",
+        "+18443847654",
+        "+18443975065",
+        "+18443975799",
+        "+18444001878",
+        "+18444007915",
+        "+18444054320",
+        "+18444060475",
+        "+18444100828",
+        "+18444101916",
+        "+18444301366",
+        "+18444340308",
+        "+18444340590",
+        "+18444423734",
+        "+18444429735",
+        "+18444584300",
+        "+18444622712",
+        "+18444727226",
+        "+18444767291",
+        "+18444846564",
+        "+18444902251",
+        "+18445040414",
+        "+18445042635",
+        "+18445070954",
+        "+18445082286",
+        "+18445180840",
+        "+18445200485",
+        "+18445269266",
+        "+18445402405",
+        "+18445496411",
+        "+18445496417",
+        "+18445593258",
+        "+18445622874",
+        "+18445713744",
+        "+18445950358",
+        "+18445990447",
+        "+18445990451",
+        "+18446042760",
+        "+18446059072",
+        "+18446188034",
+        "+18446230972",
+        "+18446325327",
+        "+18446350866",
+        "+18446371463",
+        "+18446398464",
+        "+18446398657",
+        "+18446563135",
+        "+18446588792",
+        "+18446718158",
+        "+18446765642",
+        "+18446790399",
+        "+18446911420",
+        "+18446917368",
+        "+18446987426",
+        "+18446992776",
+        "+18447170386",
+        "+18447187773",
+        "+18447246665",
+        "+18447462954",
+        "+18447462955",
+        "+18447548485",
+        "+18447552503",
+        "+18447572833",
+        "+18447610531",
+        "+18447634466",
+        "+18447710462",
+        "+18447751420",
+        "+18447882288",
+        "+18447883763",
+        "+18447940134",
+        "+18447949098",
+        "+18448085450",
+        "+18448135619",
+        "+18448162576",
+        "+18448174006",
+        "+18448189513",
+        "+18448245637",
+        "+18448255234",
+        "+18448283312",
+        "+18448284973",
+        "+18448368433",
+        "+18448372262",
+        "+18448376083",
+        "+18448394856",
+        "+18448456395",
+        "+18448616526",
+        "+18448618223",
+        "+18448639314",
+        "+18448781241",
+        "+18448865543",
+        "+18448970405",
+        "+18449032517",
+        "+18449087634",
+        "+18449202854",
+        "+18449247733",
+        "+18449266400",
+        "+18449393229",
+        "+18449401812",
+        "+18449603728",
+        "+18449742569",
+        "+18449751551",
+        "+18449931232",
+        "+18449942048",
+        "+18449972121",
+        "+18552017800",
+        "+18552080020",
+        "+18552179469",
+        "+18552257898",
+        "+18552305999",
+        "+18552342542",
+        "+18552490953",
+        "+18552516944",
+        "+18552532763",
+        "+18552628000",
+        "+18552738419",
+        "+18552757181",
+        "+18552794816",
+        "+18552826330",
+        "+18552826353",
+        "+18552860288",
+        "+18552897260",
+        "+18552978853",
+        "+18553025492",
+        "+18553073887",
+        "+18553557893",
+        "+18553559011",
+        "+18553634905",
+        "+18554100443",
+        "+18554247262",
+        "+18554284733",
+        "+18554398413",
+        "+18554399994",
+        "+18554401079",
+        "+18554401151",
+        "+18554401152",
+        "+18554443388",
+        "+18554529570",
+        "+18554586060",
+        "+18554588110",
+        "+18554665995",
+        "+18554667467",
+        "+18554877134",
+        "+18554914459",
+        "+18554951023",
+        "+18554971882",
+        "+18555007433",
+        "+18555051076",
+        "+18555071001",
+        "+18555083235",
+        "+18555085518",
+        "+18555295676",
+        "+18555361269",
+        "+18555481184",
+        "+18555631590",
+        "+18555696977",
+        "+18555846854",
+        "+18556044268",
+        "+18556146440",
+        "+18556256817",
+        "+18556359272",
+        "+18556440163",
+        "+18556593668",
+        "+18556681639",
+        "+18556860249",
+        "+18556934611",
+        "+18556956894",
+        "+18557008466",
+        "+18557028967",
+        "+18557077328",
+        "+18557141130",
+        "+18557284012",
+        "+18557301564",
+        "+18557366927",
+        "+18557500857",
+        "+18557857830",
+        "+18557907811",
+        "+18557941250",
+        "+18558084077",
+        "+18558211362",
+        "+18558262807",
+        "+18558276948",
+        "+18558363987",
+        "+18558612391",
+        "+18558644284",
+        "+18558656425",
+        "+18558794541",
+        "+18558800343",
+        "+18558853741",
+        "+18558868687",
+        "+18558878483",
+        "+18558880207",
+        "+18558961795",
+        "+18558979700",
+        "+18558983244",
+        "+18559081285",
+        "+18559292228",
+        "+18559303883",
+        "+18559362262",
+        "+18559400738",
+        "+18559441765",
+        "+18559486437",
+        "+18559660872",
+        "+18559712501",
+        "+18559731040",
+        "+18559761012",
+        "+18559771770",
+        "+18559979769",
+        "+18662007073",
+        "+18662075777",
+        "+18662183259",
+        "+18662197745",
+        "+18662378815",
+        "+18662520101",
+        "+18662760723",
+        "+18662819450",
+        "+18662837374",
+        "+18662855661",
+        "+18662933543",
+        "+18662978836",
+        "+18663003239",
+        "+18663014705",
+        "+18663037344",
+        "+18663062168",
+        "+18663160268",
+        "+18663165050",
+        "+18663165056",
+        "+18663176586",
+        "+18663279076",
+        "+18663338018",
+        "+18663448898",
+        "+18663474784",
+        "+18663535060",
+        "+18663561046",
+        "+18663566214",
+        "+18663634128",
+        "+18663793643",
+        "+18663884880",
+        "+18663892727",
+        "+18663952090",
+        "+18663982885",
+        "+18664003282",
+        "+18664238350",
+        "+18664274287",
+        "+18664414637",
+        "+18664504469",
+        "+18664658102",
+        "+18664663876",
+        "+18664693239",
+        "+18664931436",
+        "+18664942111",
+        "+18664947227",
+        "+18664997177",
+        "+18665175348",
+        "+18665186438",
+        "+18665289075",
+        "+18665398117",
+        "+18665398122",
+        "+18665522637",
+        "+18665533481",
+        "+18665590025",
+        "+18665672983",
+        "+18665754108",
+        "+18665806111",
+        "+18665827130",
+        "+18665838119",
+        "+18665851564",
+        "+18665932543",
+        "+18665972424",
+        "+18666062266",
+        "+18666182247",
+        "+18666190245",
+        "+18666225879",
+        "+18666237387",
+        "+18666427917",
+        "+18666525428",
+        "+18666548777",
+        "+18666552736",
+        "+18666605445",
+        "+18666666666",
+        "+18666688047",
+        "+18666746217",
+        "+18666750951",
+        "+18666757783",
+        "+18666878683",
+        "+18666879719",
+        "+18666992179",
+        "+18667205721",
+        "+18667380646",
+        "+18667435700",
+        "+18667444319",
+        "+18667457839",
+        "+18667470858",
+        "+18667508083",
+        "+18667567346",
+        "+18667616563",
+        "+18667910661",
+        "+18667919411",
+        "+18667926668",
+        "+18667939371",
+        "+18667942145",
+        "+18667951512",
+        "+18667970578",
+        "+18668234205",
+        "+18668553970",
+        "+18668635132",
+        "+18668666285",
+        "+18668683692",
+        "+18668812228",
+        "+18668900970",
+        "+18668937723",
+        "+18668940300",
+        "+18669051477",
+        "+18669185858",
+        "+18669360602",
+        "+18669362856",
+        "+18669412211",
+        "+18669467013",
+        "+18669626655",
+        "+18669877873",
+        "+18669881510",
+        "+18772010573",
+        "+18772048821",
+        "+18772060215",
+        "+18772115977",
+        "+18772128158",
+        "+18772152648",
+        "+18772164015",
+        "+18772275511",
+        "+18772298493",
+        "+18772301936",
+        "+18772354205",
+        "+18772370714",
+        "+18772412257",
+        "+18772427372",
+        "+18772451210",
+        "+18772552164",
+        "+18772660891",
+        "+18772719204",
+        "+18772753819",
+        "+18772757265",
+        "+18772797172",
+        "+18772906323",
+        "+18772911624",
+        "+18772915559",
+        "+18772940424",
+        "+18772941898",
+        "+18772944477",
+        "+18772946299",
+        "+18772947640",
+        "+18773070637",
+        "+18773092070",
+        "+18773092073",
+        "+18773180582",
+        "+18773237433",
+        "+18773284538",
+        "+18773381212",
+        "+18773500504",
+        "+18773508806",
+        "+18773509025",
+        "+18773526295",
+        "+18773596582",
+        "+18773625335",
+        "+18773690926",
+        "+18773728597",
+        "+18773731539",
+        "+18773758623",
+        "+18773764749",
+        "+18773769545",
+        "+18773792279",
+        "+18773822304",
+        "+18773834802",
+        "+18773986019",
+        "+18774056114",
+        "+18774065590",
+        "+18774110988",
+        "+18774111034",
+        "+18774111930",
+        "+18774136030",
+        "+18774136641",
+        "+18774152476",
+        "+18774252832",
+        "+18774338036",
+        "+18774374780",
+        "+18774428021",
+        "+18774428801",
+        "+18774431853",
+        "+18774436188",
+        "+18774626342",
+        "+18774656937",
+        "+18774748394",
+        "+18774841968",
+        "+18774872778",
+        "+18774925538",
+        "+18774986815",
+        "+18775103173",
+        "+18775129487",
+        "+18775375277",
+        "+18775440935",
+        "+18775454834",
+        "+18775467595",
+        "+18775851085",
+        "+18775857878",
+        "+18775926264",
+        "+18775949760",
+        "+18775958672",
+        "+18776036819",
+        "+18776047572",
+        "+18776061555",
+        "+18776116342",
+        "+18776342728",
+        "+18776364033",
+        "+18776482964",
+        "+18776536415",
+        "+18776684490",
+        "+18776722882",
+        "+18776745165",
+        "+18776845151",
+        "+18776886794",
+        "+18776918086",
+        "+18776925233",
+        "+18776943367",
+        "+18776964743",
+        "+18776997514",
+        "+18777088329",
+        "+18777271909",
+        "+18777287900",
+        "+18777297946",
+        "+18777386742",
+        "+18777518607",
+        "+18777793436",
+        "+18777795615",
+        "+18777796943",
+        "+18777853720",
+        "+18777909946",
+        "+18777925550",
+        "+18777943334",
+        "+18777944119",
+        "+18777946168",
+        "+18777973441",
+        "+18777993320",
+        "+18778001110",
+        "+18778013105",
+        "+18778048026",
+        "+18778128695",
+        "+18778135595",
+        "+18778142705",
+        "+18778170014",
+        "+18778207916",
+        "+18778259647",
+        "+18778294692",
+        "+18778322482",
+        "+18778361445",
+        "+18778413578",
+        "+18778434662",
+        "+18778535247",
+        "+18778535257",
+        "+18778603058",
+        "+18778614978",
+        "+18778669517",
+        "+18778673531",
+        "+18778683355",
+        "+18778687916",
+        "+18778688320",
+        "+18778688480",
+        "+18778693645",
+        "+18778697997",
+        "+18778700674",
+        "+18778717591",
+        "+18778718505",
+        "+18778785996",
+        "+18778810338",
+        "+18778811941",
+        "+18778829016",
+        "+18778879615",
+        "+18778888266",
+        "+18778940300",
+        "+18778973795",
+        "+18778977066",
+        "+18778987265",
+        "+18779001213",
+        "+18779211213",
+        "+18779291113",
+        "+18779293247",
+        "+18779377148",
+        "+18779512500",
+        "+18779575377",
+        "+18779776889",
+        "+18882071231",
+        "+18882082737",
+        "+18882140036",
+        "+18882205530",
+        "+18882257159",
+        "+18882286654",
+        "+18882317445",
+        "+18882378289",
+        "+18882402560",
+        "+18882446293",
+        "+18882461076",
+        "+18882467822",
+        "+18882474080",
+        "+18882580401",
+        "+18882624273",
+        "+18882667317",
+        "+18882790967",
+        "+18882992973",
+        "+18883087071",
+        "+18883100188",
+        "+18883174436",
+        "+18883257227",
+        "+18883286399",
+        "+18883338452",
+        "+18883503035",
+        "+18883541270",
+        "+18883571739",
+        "+18883643065",
+        "+18883731969",
+        "+18883828056",
+        "+18883908233",
+        "+18884083287",
+        "+18884114905",
+        "+18884131892",
+        "+18884141045",
+        "+18884210060",
+        "+18884231992",
+        "+18884264435",
+        "+18884266840",
+        "+18884277458",
+        "+18884383808",
+        "+18884433779",
+        "+18884433842",
+        "+18884493609",
+        "+18884505996",
+        "+18884640727",
+        "+18884663242",
+        "+18884706148",
+        "+18884832645",
+        "+18884835405",
+        "+18884897249",
+        "+18884898452",
+        "+18885018107",
+        "+18885115326",
+        "+18885135754",
+        "+18885221367",
+        "+18885413840",
+        "+18885420111",
+        "+18885591922",
+        "+18885788422",
+        "+18885808988",
+        "+18886254988",
+        "+18886433084",
+        "+18886448314",
+        "+18886452789",
+        "+18886516277",
+        "+18886636331",
+        "+18886643682",
+        "+18886707489",
+        "+18886933297",
+        "+18886936088",
+        "+18886936888",
+        "+18887144938",
+        "+18887217467",
+        "+18887274692",
+        "+18887274962",
+        "+18887355651",
+        "+18887398385",
+        "+18887411698",
+        "+18887425877",
+        "+18887838441",
+        "+18887852471",
+        "+18887860676",
+        "+18887923307",
+        "+18888005234",
+        "+18888329962",
+        "+18888378818",
+        "+18888411789",
+        "+18888513809",
+        "+18888728356",
+        "+18888814744",
+        "+18888849103",
+        "+18888884532",
+        "+18888887020",
+        "+18888922253",
+        "+18888976348",
+        "+18888992213",
+        "+18889014480",
+        "+18889224119",
+        "+18889477899",
+        "+18889495678",
+        "+18889630322",
+        "+18889666283",
+        "+18889749928",
+        "+18889760259",
+        "+18889772250",
+        "+18889945626",
+        "+18889947307",
+        "+18889990032",
+        "+18889998861"
+      ],
+      "short_codes": [],
+      "business_patterns": [
+        "+10000000000",
+        "+10000000003",
+        "+11000000000",
+        "+12222222222",
+        "+19990000000"
+      ],
+      "area_code_analysis": {
+        "000": 6,
+        "001": 1,
+        "002": 1,
+        "003": 1,
+        "005": 1,
+        "006": 3,
+        "007": 1,
+        "010": 2,
+        "011": 1,
+        "015": 1,
+        "023": 1,
+        "030": 2,
+        "036": 1,
+        "037": 1,
+        "039": 1,
+        "061": 1,
+        "067": 2,
+        "069": 1,
+        "075": 1,
+        "078": 1,
+        "090": 5,
+        "096": 1,
+        "100": 23,
+        "101": 16,
+        "102": 1,
+        "103": 3,
+        "104": 1,
+        "105": 2,
+        "106": 3,
+        "107": 3,
+        "108": 4,
+        "109": 3,
+        "110": 3,
+        "111": 1,
+        "112": 6,
+        "113": 3,
+        "116": 5,
+        "118": 6,
+        "119": 1,
+        "120": 13,
+        "121": 13,
+        "122": 4,
+        "123": 1,
+        "124": 8,
+        "125": 7,
+        "127": 1,
+        "128": 3,
+        "130": 2,
+        "131": 6,
+        "132": 4,
+        "133": 8,
+        "134": 29,
+        "135": 3,
+        "136": 2,
+        "137": 4,
+        "138": 10,
+        "139": 2,
+        "140": 4,
+        "141": 2,
+        "142": 6,
+        "143": 4,
+        "144": 4,
+        "145": 10,
+        "146": 8,
+        "147": 3,
+        "148": 3,
+        "149": 6,
+        "150": 6,
+        "151": 5,
+        "152": 4,
+        "153": 6,
+        "154": 12,
+        "155": 8,
+        "156": 9,
+        "157": 10,
+        "158": 4,
+        "159": 9,
+        "160": 4,
+        "161": 5,
+        "162": 8,
+        "163": 17,
+        "164": 15,
+        "165": 14,
+        "166": 5,
+        "167": 11,
+        "168": 6,
+        "169": 11,
+        "170": 25,
+        "171": 10,
+        "172": 5,
+        "173": 19,
+        "174": 21,
+        "175": 15,
+        "176": 2,
+        "177": 3,
+        "178": 1,
+        "179": 3,
+        "180": 6,
+        "181": 10,
+        "182": 3,
+        "183": 4,
+        "184": 5,
+        "185": 1,
+        "186": 6,
+        "187": 2,
+        "188": 3,
+        "189": 1,
+        "190": 2,
+        "191": 22,
+        "192": 5,
+        "193": 2,
+        "194": 9,
+        "195": 1,
+        "196": 2,
+        "197": 1,
+        "198": 3,
+        "199": 5,
+        "200": 21,
+        "201": 38,
+        "202": 116,
+        "203": 25,
+        "204": 1,
+        "205": 23,
+        "206": 23,
+        "207": 25,
+        "208": 14,
+        "209": 5,
+        "210": 12,
+        "211": 5,
+        "212": 620,
+        "213": 23,
+        "214": 10,
+        "215": 21,
+        "216": 11,
+        "217": 6,
+        "218": 16,
+        "219": 3,
+        "220": 1,
+        "221": 2,
+        "222": 4,
+        "223": 7,
+        "224": 5,
+        "225": 2,
+        "226": 1,
+        "228": 1,
+        "229": 6,
+        "231": 5,
+        "233": 2,
+        "234": 5,
+        "235": 1,
+        "238": 9,
+        "239": 3,
+        "240": 26,
+        "243": 1,
+        "245": 1,
+        "247": 3,
+        "248": 2,
+        "251": 23,
+        "252": 5,
+        "253": 7,
+        "254": 8,
+        "255": 1,
+        "256": 8,
+        "260": 2,
+        "262": 2,
+        "264": 1,
+        "266": 2,
+        "267": 29,
+        "268": 1,
+        "269": 2,
+        "270": 2,
+        "272": 2,
+        "273": 2,
+        "274": 1,
+        "275": 1,
+        "276": 5,
+        "278": 1,
+        "279": 2,
+        "280": 1,
+        "281": 4,
+        "282": 1,
+        "283": 2,
+        "285": 2,
+        "286": 1,
+        "288": 4,
+        "289": 1,
+        "292": 1,
+        "293": 1,
+        "295": 2,
+        "296": 1,
+        "297": 2,
+        "300": 3,
+        "301": 28,
+        "302": 16,
+        "303": 11,
+        "304": 7,
+        "305": 7,
+        "306": 1,
+        "307": 2,
+        "308": 3,
+        "309": 1,
+        "310": 13,
+        "311": 1,
+        "312": 45,
+        "313": 17,
+        "314": 19,
+        "315": 35,
+        "316": 3,
+        "317": 3,
+        "318": 1,
+        "319": 3,
+        "320": 1,
+        "321": 12,
+        "323": 18,
+        "324": 1,
+        "325": 2,
+        "326": 2,
+        "328": 1,
+        "330": 3,
+        "331": 2,
+        "332": 31,
+        "334": 12,
+        "336": 4,
+        "337": 2,
+        "339": 4,
+        "340": 3,
+        "344": 1,
+        "346": 3,
+        "347": 561,
+        "348": 1,
+        "349": 1,
+        "350": 1,
+        "351": 3,
+        "352": 2,
+        "356": 1,
+        "357": 1,
+        "360": 13,
+        "361": 5,
+        "363": 2,
+        "364": 2,
+        "365": 1,
+        "366": 1,
+        "367": 1,
+        "368": 3,
+        "369": 1,
+        "370": 4,
+        "372": 1,
+        "373": 1,
+        "375": 1,
+        "381": 4,
+        "382": 1,
+        "383": 1,
+        "384": 1,
+        "385": 10,
+        "386": 5,
+        "390": 2,
+        "391": 2,
+        "393": 2,
+        "395": 1,
+        "400": 2,
+        "401": 20,
+        "402": 3,
+        "404": 19,
+        "405": 6,
+        "406": 11,
+        "407": 13,
+        "408": 41,
+        "409": 1,
+        "410": 7,
+        "412": 25,
+        "413": 6,
+        "414": 8,
+        "415": 106,
+        "416": 5,
+        "417": 9,
+        "418": 3,
+        "419": 2,
+        "421": 3,
+        "423": 5,
+        "424": 18,
+        "425": 4,
+        "427": 1,
+        "428": 2,
+        "430": 3,
+        "431": 1,
+        "432": 1,
+        "433": 2,
+        "434": 8,
+        "435": 6,
+        "437": 2,
+        "438": 1,
+        "439": 2,
+        "440": 10,
+        "441": 3,
+        "442": 4,
+        "443": 16,
+        "444": 1,
+        "446": 2,
+        "449": 3,
+        "451": 2,
+        "453": 1,
+        "454": 1,
+        "456": 1,
+        "457": 1,
+        "458": 5,
+        "459": 1,
+        "460": 1,
+        "463": 4,
+        "466": 1,
+        "468": 1,
+        "469": 35,
+        "470": 8,
+        "472": 2,
+        "475": 5,
+        "476": 1,
+        "478": 7,
+        "479": 3,
+        "480": 10,
+        "484": 8,
+        "487": 1,
+        "497": 1,
+        "499": 1,
+        "500": 3,
+        "501": 6,
+        "502": 7,
+        "503": 4,
+        "504": 4,
+        "505": 3,
+        "506": 1,
+        "507": 4,
+        "508": 17,
+        "509": 4,
+        "510": 17,
+        "512": 22,
+        "513": 3,
+        "514": 5,
+        "515": 4,
+        "516": 119,
+        "517": 4,
+        "518": 37,
+        "520": 10,
+        "523": 1,
+        "530": 5,
+        "531": 3,
+        "534": 1,
+        "535": 1,
+        "537": 2,
+        "539": 1,
+        "540": 7,
+        "541": 4,
+        "545": 2,
+        "547": 1,
+        "548": 1,
+        "549": 1,
+        "551": 9,
+        "559": 2,
+        "561": 9,
+        "562": 3,
+        "564": 1,
+        "565": 1,
+        "567": 2,
+        "570": 7,
+        "571": 20,
+        "573": 6,
+        "574": 5,
+        "575": 1,
+        "579": 1,
+        "580": 4,
+        "581": 1,
+        "585": 24,
+        "586": 4,
+        "587": 2,
+        "588": 2,
+        "590": 2,
+        "592": 1,
+        "595": 1,
+        "596": 1,
+        "597": 2,
+        "598": 2,
+        "599": 1,
+        "601": 7,
+        "602": 4,
+        "603": 4,
+        "604": 5,
+        "605": 4,
+        "606": 3,
+        "607": 16,
+        "608": 7,
+        "609": 20,
+        "610": 3,
+        "611": 1,
+        "612": 12,
+        "613": 4,
+        "614": 17,
+        "615": 3,
+        "616": 2,
+        "617": 73,
+        "618": 2,
+        "619": 4,
+        "620": 2,
+        "623": 1,
+        "624": 1,
+        "626": 4,
+        "627": 6,
+        "628": 32,
+        "629": 2,
+        "630": 6,
+        "631": 422,
+        "633": 1,
+        "635": 2,
+        "636": 3,
+        "637": 2,
+        "640": 2,
+        "641": 1,
+        "642": 4,
+        "646": 423,
+        "647": 2,
+        "648": 3,
+        "649": 2,
+        "650": 128,
+        "651": 4,
+        "653": 2,
+        "656": 1,
+        "657": 4,
+        "659": 2,
+        "661": 5,
+        "662": 2,
+        "663": 1,
+        "667": 4,
+        "669": 3,
+        "673": 3,
+        "674": 2,
+        "675": 1,
+        "678": 14,
+        "680": 4,
+        "681": 8,
+        "682": 3,
+        "685": 2,
+        "689": 3,
+        "692": 1,
+        "693": 1,
+        "694": 1,
+        "695": 1,
+        "699": 2,
+        "700": 3,
+        "701": 7,
+        "702": 18,
+        "703": 22,
+        "704": 12,
+        "705": 1,
+        "706": 11,
+        "707": 1,
+        "708": 16,
+        "712": 13,
+        "713": 2,
+        "714": 13,
+        "715": 5,
+        "716": 24,
+        "717": 21,
+        "718": 707,
+        "719": 10,
+        "720": 21,
+        "723": 1,
+        "724": 2,
+        "725": 4,
+        "726": 3,
+        "727": 3,
+        "730": 1,
+        "731": 2,
+        "732": 39,
+        "733": 1,
+        "734": 7,
+        "735": 1,
+        "737": 6,
+        "740": 3,
+        "743": 3,
+        "745": 2,
+        "747": 5,
+        "748": 3,
+        "752": 1,
+        "754": 6,
+        "757": 5,
+        "760": 8,
+        "762": 2,
+        "763": 2,
+        "764": 1,
+        "765": 1,
+        "766": 2,
+        "769": 1,
+        "770": 4,
+        "771": 24,
+        "772": 4,
+        "773": 17,
+        "774": 4,
+        "775": 8,
+        "776": 1,
+        "777": 1,
+        "778": 2,
+        "780": 2,
+        "781": 14,
+        "782": 1,
+        "785": 2,
+        "786": 3,
+        "787": 5,
+        "788": 1,
+        "794": 2,
+        "795": 1,
+        "798": 2,
+        "800": 206,
+        "801": 8,
+        "802": 13,
+        "803": 5,
+        "804": 2,
+        "805": 7,
+        "806": 23,
+        "809": 3,
+        "810": 5,
+        "812": 1,
+        "813": 10,
+        "814": 11,
+        "815": 2,
+        "816": 3,
+        "817": 4,
+        "818": 8,
+        "820": 1,
+        "821": 1,
+        "822": 1,
+        "823": 1,
+        "824": 2,
+        "825": 1,
+        "828": 6,
+        "830": 8,
+        "831": 5,
+        "832": 5,
+        "833": 226,
+        "838": 5,
+        "839": 2,
+        "840": 1,
+        "843": 8,
+        "844": 141,
+        "845": 86,
+        "847": 10,
+        "848": 3,
+        "849": 1,
+        "850": 5,
+        "855": 103,
+        "856": 7,
+        "857": 16,
+        "858": 14,
+        "859": 3,
+        "860": 7,
+        "862": 24,
+        "863": 6,
+        "864": 5,
+        "865": 3,
+        "866": 113,
+        "868": 1,
+        "871": 1,
+        "872": 10,
+        "873": 2,
+        "875": 1,
+        "877": 167,
+        "878": 1,
+        "880": 2,
+        "881": 2,
+        "886": 2,
+        "888": 110,
+        "889": 1,
+        "890": 1,
+        "896": 1,
+        "901": 1,
+        "902": 1,
+        "903": 4,
+        "904": 7,
+        "905": 1,
+        "907": 1,
+        "908": 36,
+        "909": 5,
+        "910": 4,
+        "911": 1,
+        "912": 1,
+        "913": 10,
+        "914": 74,
+        "915": 2,
+        "916": 4,
+        "917": 325,
+        "918": 3,
+        "919": 12,
+        "920": 8,
+        "922": 1,
+        "925": 9,
+        "926": 1,
+        "927": 4,
+        "928": 14,
+        "929": 172,
+        "930": 2,
+        "931": 5,
+        "932": 1,
+        "933": 1,
+        "934": 8,
+        "936": 1,
+        "937": 2,
+        "938": 9,
+        "940": 7,
+        "941": 1,
+        "942": 1,
+        "943": 3,
+        "945": 12,
+        "947": 2,
+        "949": 7,
+        "951": 5,
+        "952": 6,
+        "954": 10,
+        "956": 6,
+        "957": 1,
+        "958": 1,
+        "959": 1,
+        "960": 1,
+        "962": 2,
+        "967": 1,
+        "970": 13,
+        "971": 5,
+        "972": 3,
+        "973": 66,
+        "976": 1,
+        "977": 1,
+        "978": 13,
+        "980": 6,
+        "982": 1,
+        "984": 1,
+        "985": 3,
+        "986": 1,
+        "987": 1,
+        "988": 1,
+        "989": 4,
+        "991": 2,
+        "993": 1,
+        "995": 1,
+        "999": 1
+      },
+      "format_analysis": {
+        "+10": 36,
+        "+11": 620,
+        "+12": 1235,
+        "+13": 957,
+        "+14": 486,
+        "+15": 418,
+        "+16": 1314,
+        "+17": 1120,
+        "+18": 1433,
+        "+19": 922,
+        "+21": 1,
+        "+23": 6,
+        "+30": 1,
+        "+31": 1,
+        "+33": 1,
+        "+35": 12,
+        "+37": 11,
+        "+39": 5,
+        "+41": 6,
+        "+43": 1,
+        "+44": 11,
+        "+45": 1,
+        "+47": 2,
+        "+48": 1,
+        "+49": 3,
+        "+50": 1,
+        "+51": 1,
+        "+52": 1,
+        "+61": 1,
+        "+66": 1,
+        "+67": 3,
+        "+68": 1,
+        "+80": 2,
+        "+84": 1,
+        "+85": 1,
+        "+86": 2,
+        "+88": 2,
+        "+91": 11,
+        "+97": 2
+      },
+      "suspicious_patterns": [
+        "+10000000000",
+        "+10000000003",
+        "+10000019714",
+        "+10000019844",
+        "+10000019872",
+        "+10000061460",
+        "+10033600001",
+        "+11000000000",
+        "+11015000000",
+        "+11119360830",
+        "+12100000000",
+        "+12122282802",
+        "+12125821222",
+        "+12126666666",
+        "+12127777477",
+        "+12129872222",
+        "+12170000000",
+        "+12222222222",
+        "+13133736733",
+        "+13474441440",
+        "+14157444444",
+        "+16466646697",
+        "+16675777877",
+        "+17000000011",
+        "+17170000007",
+        "+17170000008",
+        "+17180000000",
+        "+17184888886",
+        "+17187687777",
+        "+18000000000",
+        "+18188893688",
+        "+18282226225",
+        "+18333337236",
+        "+18333376733",
+        "+18666062266",
+        "+18666666666",
+        "+18884383808",
+        "+18885808988",
+        "+18886936888",
+        "+18888378818",
+        "+18888884532",
+        "+18888887020",
+        "+19770000000",
+        "+19990000000"
+      ]
+    },
+    "summary": {
+      "toll_free_count": 1066,
+      "short_codes_count": 0,
+      "business_patterns_count": 5,
+      "suspicious_patterns_count": 44,
+      "top_area_codes": {
+        "718": 707,
+        "212": 620,
+        "347": 561,
+        "646": 423,
+        "631": 422,
+        "917": 325,
+        "833": 226,
+        "800": 206,
+        "929": 172,
+        "877": 167
+      },
+      "format_breakdown": {
+        "+10": 36,
+        "+11": 620,
+        "+12": 1235,
+        "+13": 957,
+        "+14": 486,
+        "+15": 418,
+        "+16": 1314,
+        "+17": 1120,
+        "+18": 1433,
+        "+19": 922,
+        "+21": 1,
+        "+23": 6,
+        "+30": 1,
+        "+31": 1,
+        "+33": 1,
+        "+35": 12,
+        "+37": 11,
+        "+39": 5,
+        "+41": 6,
+        "+43": 1,
+        "+44": 11,
+        "+45": 1,
+        "+47": 2,
+        "+48": 1,
+        "+49": 3,
+        "+50": 1,
+        "+51": 1,
+        "+52": 1,
+        "+61": 1,
+        "+66": 1,
+        "+67": 3,
+        "+68": 1,
+        "+80": 2,
+        "+84": 1,
+        "+85": 1,
+        "+86": 2,
+        "+88": 2,
+        "+91": 11,
+        "+97": 2
+      }
+    }
+  },
+  "summary": {
+    "total_unknown_numbers": 8634,
+    "conversation_analysis": {
+      "numbers_with_conversations": 694,
+      "numbers_without_conversations": 0,
+      "conversation_percentage": 8.04,
+      "no_conversation_percentage": 0.0
+    },
+    "free_filtering_potential": {
+      "toll_free_numbers": 1066,
+      "short_codes": 0,
+      "business_patterns": 5,
+      "suspicious_patterns": 44,
+      "total_free_filterable": 1115,
+      "free_filter_percentage": 12.91,
+      "remaining_for_api": 7519,
+      "api_cost_estimate": "$75.19 (NumVerify)"
+    },
+    "recommendations": {
+      "immediate_actions": [
+        "Filter 1066 toll-free numbers (definitely commercial)",
+        "Filter 0 short codes (likely promotional)",
+        "Review 5 business pattern numbers",
+        "Exclude 44 suspicious test numbers"
+      ],
+      "api_strategy": "Use NumVerify API for remaining 7519 numbers",
+      "cost_benefit": "Free filtering reduces API costs by 12.9%"
+    }
+  }
+}
