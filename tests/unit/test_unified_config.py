@@ -63,42 +63,42 @@ class TestAppConfig:
         """Test date format validation."""
         # Valid dates
         config = AppConfig(
-            exclude_older_than="2023-01-01",
-            exclude_newer_than="2024-12-31"
+            older_than="2023-01-01",
+            newer_than="2024-12-31"
         )
-        assert config.exclude_older_than == "2023-01-01"
+        assert config.older_than == "2023-01-01"
 
-        assert config.exclude_newer_than == "2024-12-31"
+        assert config.newer_than == "2024-12-31"
         
         # Valid dates with time
         config = AppConfig(
-            exclude_older_than="2023-01-01 12:00:00",
-            exclude_newer_than="2024-12-31 23:59:59"
+            older_than="2023-01-01 12:00:00",
+            newer_than="2024-12-31 23:59:59"
         )
-        assert config.exclude_older_than == "2023-01-01 12:00:00"
+        assert config.older_than == "2023-01-01 12:00:00"
 
-        assert config.exclude_newer_than == "2024-12-31 23:59:59"
+        assert config.newer_than == "2024-12-31 23:59:59"
         
         # Invalid date format
         with pytest.raises(ValueError):
-            AppConfig(exclude_older_than="invalid-date")
+            AppConfig(older_than="invalid-date")
     
     def test_date_range_validation(self):
         """Test that date range validation works correctly."""
         # Valid range
         config = AppConfig(
-            exclude_older_than="2023-01-01",
-            exclude_newer_than="2024-12-31"
+            older_than="2023-01-01",
+            newer_than="2024-12-31"
         )
-        assert config.exclude_older_than == "2023-01-01"
+        assert config.older_than == "2023-01-01"
 
-        assert config.exclude_newer_than == "2024-12-31"
+        assert config.newer_than == "2024-12-31"
         
         # Invalid range (older > newer)
         with pytest.raises(ValueError):
             AppConfig(
-                exclude_older_than="2024-12-31",
-                exclude_newer_than="2023-01-01"
+                older_than="2024-12-31",
+                newer_than="2023-01-01"
             )
     
     def test_test_mode_conflicts(self):
@@ -331,12 +331,12 @@ class TestConfigurationIntegration:
     def test_validation_error_messages(self):
         """Test that validation errors provide helpful messages."""
         with pytest.raises(ValueError, match="Invalid date format"):
-            AppConfig(exclude_older_than="invalid-date")
+            AppConfig(older_than="invalid-date")
         
         with pytest.raises(ValueError, match="Invalid date range"):
             AppConfig(
-                exclude_older_than="2024-12-31",
-                exclude_newer_than="2023-01-01"
+                older_than="2024-12-31",
+                newer_than="2023-01-01"
             )
     
     def test_configuration_persistence(self):

@@ -125,8 +125,8 @@ class TestFilteringIntegration(BaseSMSTest):
         # Simulate CLI arguments
         cli_args = {
             'processing_dir': self.test_dir,
-            'older_than': '2023-01-01',
-            'newer_than': '2024-12-31',
+            'exclude_older_than': '2023-01-01',
+            'exclude_newer_than': '2024-12-31',
             'test_mode': False
         }
         

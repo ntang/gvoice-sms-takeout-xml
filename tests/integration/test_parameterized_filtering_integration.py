@@ -221,8 +221,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Simulate CLI arguments
         cli_args = {
             'processing_dir': self.test_dir,
-            'older_than': '2023-01-01',
-            'newer_than': '2024-12-31',
+            'exclude_older_than': '2023-01-01',
+            'exclude_newer_than': '2024-12-31',
             'filter_numbers_without_aliases': True,
             'filter_non_phone_numbers': True,
             'test_mode': False
@@ -407,8 +407,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         
         assert summary["date_filtering"]["enabled"] == True
         assert summary["phone_filtering"]["enabled"] == True
-        assert summary["date_filtering"]["older_than"] == "2023-01-01T00:00:00"
-        assert summary["date_filtering"]["newer_than"] == "2024-12-31T00:00:00"
+        assert summary["date_filtering"]["exclude_older_than"] == "2023-01-01T00:00:00"
+        assert summary["date_filtering"]["exclude_newer_than"] == "2024-12-31T00:00:00"
         assert summary["phone_filtering"]["filter_numbers_without_aliases"] == True
         assert summary["phone_filtering"]["filter_non_phone_numbers"] == True
         assert summary["phone_filtering"]["include_service_codes"] == False
