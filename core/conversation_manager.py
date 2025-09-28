@@ -367,7 +367,7 @@ class ConversationManager:
         """
         with self._lock:
             # Remove conversations with no messages after date filtering (if needed)
-            if config and (config.older_than or config.newer_than):
+            if config and (config.exclude_older_than or config.exclude_newer_than):
                 empty_conversations = []
                 for conversation_id, file_info in self.conversation_files.items():
                     if len(file_info["messages"]) == 0:
@@ -1265,38 +1265,25 @@ class ConversationManager:
         if not config:
             return False  # No config provided
         
-        # Check if any date filtering is enabled (new or deprecated options)
-        has_new_filters = (config.exclude_older_than is not None or 
-                          config.exclude_newer_than is not None or 
-                          config.include_date_range is not None)
-        has_old_filters = (config.older_than is not None or config.newer_than is not None)
+        # Check if any date filtering is enabled
+        has_filters = (config.exclude_older_than is not None or 
+                      config.exclude_newer_than is not None or 
+                      config.include_date_range is not None)
         
-        if not has_new_filters and not has_old_filters:
+        if not has_filters:
             return False  # No date filtering enabled
         
         try:
             from datetime import datetime
             message_date = datetime.fromtimestamp(timestamp / 1000.0)
             
-            # Use new clear options (preferred)
-            if has_new_filters:
-                # Check exclude-older-than filter (skip messages before this date)
-                if config.exclude_older_than and message_date < config.exclude_older_than:
-                    return True
-                
-                # Check exclude-newer-than filter (skip messages after this date)
-                if config.exclude_newer_than and message_date > config.exclude_newer_than:
-                    return True
+            # Check exclude-older-than filter (skip messages before this date)
+            if config.exclude_older_than and message_date < config.exclude_older_than:
+                return True
             
-            # Backward compatibility with deprecated options
-            elif has_old_filters:
-                # Check older-than filter (skip messages before this date)
-                if config.older_than and message_date < config.older_than:
-                    return True
-                
-                # Check newer-than filter (skip messages after this date)
-                if config.newer_than and message_date > config.newer_than:
-                    return True
+            # Check exclude-newer-than filter (skip messages after this date)
+            if config.exclude_newer_than and message_date > config.exclude_newer_than:
+                return True
                 
             return False
         except Exception:
