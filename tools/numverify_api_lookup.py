@@ -15,6 +15,7 @@ from typing import Dict, List, Optional
 class NumVerifyAPI:
     def __init__(self, api_key: str):
         self.api_key = api_key
+        # Use HTTP (not HTTPS) for free tier - free tier doesn't support SSL
         self.base_url = "http://apilayer.net/api/validate"
         self.results = {
             'api_provider': 'NumVerify',
@@ -51,10 +52,14 @@ class NumVerifyAPI:
                 'format': 1
             }
             
-            response = requests.get(self.base_url, params=params, timeout=10)
+            # Increased timeout for free tier (can be slower)
+            response = requests.get(self.base_url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
+            
+            # Debug: Print API response for troubleshooting
+            print(f"   📊 API Response: {data}")
             
             if data.get('success', False):
                 return {
@@ -72,19 +77,24 @@ class NumVerifyAPI:
                     'raw_response': data
                 }
             else:
+                error_info = data.get('error', {})
+                error_message = error_info.get('info', 'Unknown error') if isinstance(error_info, dict) else str(error_info)
+                print(f"   ❌ API Error: {error_message}")
                 return {
                     'phone_number': phone_number,
-                    'error': data.get('error', {}).get('info', 'Unknown error'),
+                    'error': error_message,
                     'raw_response': data
                 }
                 
         except requests.exceptions.RequestException as e:
+            print(f"   ❌ Network Error: {str(e)}")
             return {
                 'phone_number': phone_number,
                 'error': f'API request failed: {str(e)}',
                 'raw_response': None
             }
         except Exception as e:
+            print(f"   ❌ Unexpected Error: {str(e)}")
             return {
                 'phone_number': phone_number,
                 'error': f'Unexpected error: {str(e)}',
@@ -388,6 +398,13 @@ def main():
     if not api_key:
         print("❌ API key is required!")
         return
+    
+    # Free tier information
+    if mode in ["test", "custom"]:
+        print(f"\n💡 FREE TIER NOTES:")
+        print(f"   • Using HTTP endpoint (free tier doesn't support HTTPS)")
+        print(f"   • Increased timeout to 30 seconds (free tier can be slower)")
+        print(f"   • 1,000 requests/month limit on free tier")
     
     # Set output file
     if mode == "test":
