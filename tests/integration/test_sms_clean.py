@@ -1438,8 +1438,8 @@ class TestSMSCoreInfrastructure(unittest.TestCase):
 
         # Test build_attachment_mapping_with_progress_new (using PathManager)
         if hasattr(sms, 'PATH_MANAGER') and sms.PATH_MANAGER:
-            from core.attachment_manager_new import build_attachment_mapping_with_progress_new
-            result = build_attachment_mapping_with_progress_new(sms.PATH_MANAGER)
+            from core.attachment_manager import build_attachment_mapping_with_progress
+            result = build_attachment_mapping_with_progress(sms.PATH_MANAGER)
             self.assertIsInstance(result, dict)
         else:
             # Skip this test if PathManager is not available

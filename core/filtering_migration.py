@@ -169,16 +169,16 @@ class FilteringMigrationValidator:
         """Get result from global date filtering logic."""
         # This would use the original global filtering logic
         # For now, we'll simulate it by using the config values directly
-        if config.older_than is None and config.newer_than is None:
+        if config.exclude_older_than is None and config.exclude_newer_than is None:
             return False
         
         try:
             message_date = datetime.fromtimestamp(message_timestamp / 1000.0)
             
-            if config.older_than and message_date < config.older_than:
+            if config.exclude_older_than and message_date < config.exclude_older_than:
                 return True
             
-            if config.newer_than and message_date > config.newer_than:
+            if config.exclude_newer_than and message_date > config.exclude_newer_than:
                 return True
                 
         except (ValueError, OSError):

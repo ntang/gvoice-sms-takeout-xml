@@ -279,7 +279,7 @@ class FileDiscoveryStage(PipelineStage):
                     metadata["participants"] = [title_text]
                     
             # Look for date information
-            date_elements = soup.find_all(text=lambda text: text and any(
+            date_elements = soup.find_all(string=lambda text: text and any(
                 month in text for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
             ))

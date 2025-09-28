@@ -22,8 +22,8 @@ class TestParameterizedFiltering:
         self.test_dir = Path("/tmp/test_processing")
         self.base_config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,
-            newer_than=None,
+            exclude_older_than=None,
+            exclude_newer_than=None,
             filter_numbers_without_aliases=False,
             filter_non_phone_numbers=False,
             skip_filtered_contacts=True,
@@ -48,8 +48,8 @@ class TestParameterizedFiltering:
         """Test parameterized date filtering with older_than filter."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=None
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=None
         )
         
         # Test timestamps
@@ -63,8 +63,8 @@ class TestParameterizedFiltering:
         """Test parameterized date filtering with newer_than filter."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=None,
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         
         # Test timestamps
@@ -78,8 +78,8 @@ class TestParameterizedFiltering:
         """Test parameterized date filtering with both filters."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         
         # Test timestamps
@@ -149,7 +149,7 @@ class TestParameterizedFiltering:
         """Test parameterized combined filtering with both date and phone filters."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         
@@ -174,8 +174,8 @@ class TestParameterizedFiltering:
         # This test ensures backward compatibility
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31),
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31),
             filter_numbers_without_aliases=True
         )
         
@@ -188,8 +188,8 @@ class TestParameterizedFiltering:
         test_phone = "+1234567890"
         
         # Mock the global variables to match the config
-        with patch('sms.DATE_FILTER_OLDER_THAN', config.older_than), \
-             patch('sms.DATE_FILTER_NEWER_THAN', config.newer_than), \
+        with patch('sms.DATE_FILTER_OLDER_THAN', config.exclude_older_than), \
+             patch('sms.DATE_FILTER_NEWER_THAN', config.exclude_newer_than), \
              patch('sms.FILTER_NUMBERS_WITHOUT_ALIASES', config.filter_numbers_without_aliases):
             
             # Test date filtering equivalence
@@ -224,7 +224,7 @@ class TestParameterizedFiltering:
         
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         

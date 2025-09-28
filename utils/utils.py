@@ -327,6 +327,177 @@ def is_valid_email(email: str) -> bool:
     return bool(re.match(email_pattern, email))
 
 
+# ====================================================================
+# ATTACHMENT COPYING FUNCTIONS (Consolidated from improved_file_operations.py)
+# ====================================================================
+
+def copy_attachments_sequential(filenames: set, attachments_dir: Path) -> None:
+    """
+    Copy attachments sequentially with error handling and progress tracking.
+    
+    Args:
+        filenames: Set of attachment filenames to copy
+        attachments_dir: Destination directory for attachments
+    """
+    import shutil
+    
+    # Ensure destination directory exists
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+    
+    copied_count = 0
+    skipped_count = 0
+    error_count = 0
+    
+    logger.info(f"Starting sequential copy of {len(filenames)} attachments")
+    
+    for filename in filenames:
+        try:
+            # Source file in Calls directory
+            source_file = Path("Calls") / filename  # Relative to processing directory
+            
+            # Destination file in attachments directory
+            dest_file = attachments_dir / filename
+            
+            if dest_file.exists():
+                logger.debug(f"Attachment already exists: {filename}")
+                skipped_count += 1
+                continue
+            
+            # Copy file with metadata preservation
+            shutil.copy2(source_file, dest_file)
+            copied_count += 1
+            logger.debug(f"Copied: {filename}")
+                    
+        except Exception as e:
+            logger.error(f"Failed to copy attachment {filename}: {e}")
+            error_count += 1
+    
+    logger.info(
+        f"Attachment copying completed: {copied_count} copied, {skipped_count} skipped, {error_count} errors"
+    )
+
+
+def copy_attachments_parallel(filenames: set, attachments_dir: Path, max_workers: int = 4) -> None:
+    """
+    Copy attachments in parallel with error handling and progress tracking.
+    
+    Args:
+        filenames: Set of attachment filenames to copy
+        attachments_dir: Destination directory for attachments
+        max_workers: Maximum number of worker threads
+    """
+    import shutil
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    # Ensure destination directory exists
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+    
+    def copy_single_file(filename):
+        """Copy a single file and return result."""
+        try:
+            source_file = Path("Calls") / filename
+            dest_file = attachments_dir / filename
+            
+            if dest_file.exists():
+                return {"filename": filename, "status": "skipped", "error": None}
+            
+            shutil.copy2(source_file, dest_file)
+            return {"filename": filename, "status": "copied", "error": None}
+            
+        except Exception as e:
+            return {"filename": filename, "status": "error", "error": str(e)}
+    
+    copied_count = 0
+    skipped_count = 0
+    error_count = 0
+    
+    logger.info(f"Starting parallel copy of {len(filenames)} attachments with {max_workers} workers")
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all copy tasks
+        future_to_filename = {executor.submit(copy_single_file, filename): filename 
+                             for filename in filenames}
+        
+        # Process completed tasks
+        for future in as_completed(future_to_filename):
+            result = future.result()
+            
+            if result["status"] == "copied":
+                copied_count += 1
+                logger.debug(f"Copied: {result['filename']}")
+            elif result["status"] == "skipped":
+                skipped_count += 1
+                logger.debug(f"Skipped: {result['filename']}")
+            else:  # error
+                error_count += 1
+                logger.error(f"Failed to copy {result['filename']}: {result['error']}")
+    
+    logger.info(
+        f"Parallel attachment copying completed: {copied_count} copied, {skipped_count} skipped, {error_count} errors"
+    )
+
+
+def copy_chunk_parallel(filenames: list, attachments_dir: Path) -> dict:
+    """
+    Copy a chunk of attachments in parallel and return statistics.
+    
+    Args:
+        filenames: List of attachment filenames to copy
+        attachments_dir: Destination directory for attachments
+        
+    Returns:
+        dict: Statistics about the copy operation
+    """
+    import shutil
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    # Ensure destination directory exists
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+    
+    def copy_single_file(filename):
+        """Copy a single file and return result."""
+        try:
+            source_file = Path("Calls") / filename
+            dest_file = attachments_dir / filename
+            
+            if dest_file.exists():
+                return {"filename": filename, "status": "skipped", "error": None}
+            
+            shutil.copy2(source_file, dest_file)
+            return {"filename": filename, "status": "copied", "error": None}
+            
+        except Exception as e:
+            return {"filename": filename, "status": "error", "error": str(e)}
+    
+    copied_count = 0
+    skipped_count = 0
+    error_count = 0
+    
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        # Submit all copy tasks
+        future_to_filename = {executor.submit(copy_single_file, filename): filename 
+                             for filename in filenames}
+        
+        # Process completed tasks
+        for future in as_completed(future_to_filename):
+            result = future.result()
+            
+            if result["status"] == "copied":
+                copied_count += 1
+            elif result["status"] == "skipped":
+                skipped_count += 1
+            else:  # error
+                error_count += 1
+                logger.error(f"Failed to copy {result['filename']}: {result['error']}")
+    
+    return {
+        "copied": copied_count,
+        "skipped": skipped_count,
+        "errors": error_count,
+        "total": len(filenames)
+    }
+
+
 def get_memory_usage() -> dict:
     """Get current memory usage information."""
     try:

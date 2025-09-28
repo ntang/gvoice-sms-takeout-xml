@@ -59,8 +59,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Create processing context
         self.base_config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,
-            newer_than=None,
+            exclude_older_than=None,
+            exclude_newer_than=None,
             filter_numbers_without_aliases=False,
             filter_non_phone_numbers=False,
             skip_filtered_contacts=True,
@@ -168,8 +168,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Create configuration with date filtering
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31),
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31),
             filter_numbers_without_aliases=True,
             filter_non_phone_numbers=True
         )
@@ -195,7 +195,7 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Create configuration with filtering enabled
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         
@@ -221,8 +221,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Simulate CLI arguments
         cli_args = {
             'processing_dir': self.test_dir,
-            'older_than': '2023-01-01',
-            'newer_than': '2024-12-31',
+            'exclude_older_than': '2023-01-01',
+            'exclude_newer_than': '2024-12-31',
             'filter_numbers_without_aliases': True,
             'filter_non_phone_numbers': True,
             'test_mode': False
@@ -232,8 +232,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
         # Verify configuration is built correctly
-        assert config.older_than == datetime(2023, 1, 1)
-        assert config.newer_than == datetime(2024, 12, 31)
+        assert config.exclude_older_than == datetime(2023, 1, 1)
+        assert config.exclude_newer_than == datetime(2024, 12, 31)
         assert config.filter_numbers_without_aliases == True
         assert config.filter_non_phone_numbers == True
         
@@ -250,8 +250,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         # Create configuration with filtering
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31),
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31),
             filter_numbers_without_aliases=True,
             filter_non_phone_numbers=True
         )
@@ -298,7 +298,7 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         """Test that filtering behavior is consistent across different processing functions."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         
@@ -343,7 +343,7 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True,
             filter_non_phone_numbers=True
         )
@@ -390,8 +390,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         """Test that filtering configuration summary works correctly."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31),
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31),
             filter_numbers_without_aliases=True,
             filter_non_phone_numbers=True,
             include_service_codes=False
@@ -407,8 +407,8 @@ class TestParameterizedFilteringIntegration(BaseSMSTest):
         
         assert summary["date_filtering"]["enabled"] == True
         assert summary["phone_filtering"]["enabled"] == True
-        assert summary["date_filtering"]["older_than"] == "2023-01-01T00:00:00"
-        assert summary["date_filtering"]["newer_than"] == "2024-12-31T00:00:00"
+        assert summary["date_filtering"]["exclude_older_than"] == "2023-01-01T00:00:00"
+        assert summary["date_filtering"]["exclude_newer_than"] == "2024-12-31T00:00:00"
         assert summary["phone_filtering"]["filter_numbers_without_aliases"] == True
         assert summary["phone_filtering"]["filter_non_phone_numbers"] == True
         assert summary["phone_filtering"]["include_service_codes"] == False

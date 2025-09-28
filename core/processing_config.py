@@ -56,9 +56,6 @@ class ProcessingConfig:
     exclude_newer_than: Optional[datetime] = None  # Exclude messages after this date
     include_date_range: Optional[str] = None        # Include only messages in range (YYYY-MM-DD_YYYY-MM-DD)
     
-    # Backward compatibility (deprecated)
-    older_than: Optional[datetime] = None  # [DEPRECATED] Use exclude_older_than
-    newer_than: Optional[datetime] = None  # [DEPRECATED] Use exclude_newer_than
     
     # Test Mode
     test_mode: bool = False
@@ -106,19 +103,7 @@ class ProcessingConfig:
         # Performance settings are now hardcoded in shared_constants.py for optimal defaults
     
     def _validate_date_ranges(self) -> None:
-        """Validate date filtering logic and prevent conflicting options."""
-        # Check for conflicting date filter options
-        new_options = [self.exclude_older_than, self.exclude_newer_than, self.include_date_range]
-        old_options = [self.older_than, self.newer_than]
-        
-        new_options_used = sum(1 for opt in new_options if opt is not None)
-        old_options_used = sum(1 for opt in old_options if opt is not None)
-        
-        if new_options_used > 0 and old_options_used > 0:
-            raise ValueError(
-                "Cannot mix new date filtering options (--exclude-older-than, --exclude-newer-than, --include-date-range) "
-                "with deprecated options (--older-than, --newer-than). Use only the new options."
-            )
+        """Validate date filtering logic."""
         
         # Validate include-date-range format and logic
         if self.include_date_range:
@@ -156,14 +141,6 @@ class ProcessingConfig:
                 raise ValueError(
                     f"exclude_older_than ({self.exclude_older_than.strftime('%Y-%m-%d')}) must be before "
                     f"exclude_newer_than ({self.exclude_newer_than.strftime('%Y-%m-%d')})"
-                )
-        
-        # Backward compatibility validation (deprecated)
-        if self.older_than and self.newer_than:
-            if self.older_than >= self.newer_than:
-                raise ValueError(
-                    f"[DEPRECATED] older_than ({self.older_than}) must be before newer_than ({self.newer_than}). "
-                    f"Consider using --exclude-older-than and --exclude-newer-than instead."
                 )
     
     def _validate_output_format(self) -> None:
@@ -221,12 +198,6 @@ class ProcessingConfig:
         if "exclude_newer_than" in config_dict and config_dict["exclude_newer_than"]:
             config_dict["exclude_newer_than"] = datetime.fromisoformat(config_dict["exclude_newer_than"])
         
-        # Backward compatibility (deprecated options)
-        if "older_than" in config_dict and config_dict["older_than"]:
-            config_dict["older_than"] = datetime.fromisoformat(config_dict["older_than"])
-        
-        if "newer_than" in config_dict and config_dict["newer_than"]:
-            config_dict["newer_than"] = datetime.fromisoformat(config_dict["newer_than"])
         
         return cls(**config_dict)
     
@@ -440,23 +411,6 @@ class ConfigurationBuilder:
         if cli_args.get('include_date_range'):
             # Store as string - validation and parsing happens in _validate_date_ranges
             config_kwargs['include_date_range'] = cli_args['include_date_range']
-        
-        # Handle backward compatibility (deprecated options)
-        if cli_args.get('older_than'):
-            try:
-                from dateutil import parser
-                config_kwargs['older_than'] = parser.parse(cli_args['older_than'])
-                logger.warning("--older-than is deprecated. Use --exclude-older-than instead.")
-            except Exception as e:
-                logger.warning(f"Failed to parse older_than date: {e}")
-        
-        if cli_args.get('newer_than'):
-            try:
-                from dateutil import parser
-                config_kwargs['newer_than'] = parser.parse(cli_args['newer_than'])
-                logger.warning("--newer-than is deprecated. Use --exclude-newer-than instead.")
-            except Exception as e:
-                logger.warning(f"Failed to parse newer_than date: {e}")
         
         # Store the explicitly set CLI fields for later merging
         config = ProcessingConfig(**config_kwargs)

@@ -77,19 +77,19 @@ class TestProcessingConfig:
         newer = datetime(2023, 12, 31)
         config = ProcessingConfig(
             processing_dir=Path("/tmp/test"),
-            older_than=older,
-            newer_than=newer
+            exclude_older_than=older,
+            exclude_newer_than=newer
         )
-        assert config.older_than == older
+        assert config.exclude_older_than == older
 
-        assert config.newer_than == newer
+        assert config.exclude_newer_than == newer
         
         # Test invalid date range
-        with pytest.raises(ValueError, match="older_than.*must be before.*newer_than"):
+        with pytest.raises(ValueError, match="exclude_older_than.*must be before.*exclude_newer_than"):
             ProcessingConfig(
                 processing_dir=Path("/tmp/test"),
-                older_than=newer,  # Swapped
-                newer_than=older
+                exclude_older_than=newer,  # Swapped
+                exclude_newer_than=older
             )
     
     def test_output_format_validation(self):
@@ -225,26 +225,26 @@ class TestConfigurationBuilder:
         """Test date parsing from CLI arguments."""
         cli_args = {
             'processing_dir': '/tmp/test',
-            'older_than': '2023-01-01',
-            'newer_than': '2023-12-31'
+            'exclude_older_than': '2023-01-01',
+            'exclude_newer_than': '2023-12-31'
         }
         
         config = ConfigurationBuilder.from_cli_args(cli_args)
         
-        assert config.older_than == datetime(2023, 1, 1)
+        assert config.exclude_older_than == datetime(2023, 1, 1)
 
-        assert config.newer_than == datetime(2023, 12, 31)
+        assert config.exclude_newer_than == datetime(2023, 12, 31)
     
     def test_from_cli_args_date_parsing_failure(self):
         """Test that date parsing failures are handled gracefully."""
         cli_args = {
             'processing_dir': '/tmp/test',
-            'older_than': 'invalid-date'
+            'exclude_older_than': 'invalid-date'
         }
         
         # Should not raise an error, just log a warning
         config = ConfigurationBuilder.from_cli_args(cli_args)
-        assert config.older_than is None
+        assert config.exclude_older_than is None
     
     def test_create_with_presets(self):
         """Test creating configuration with presets."""

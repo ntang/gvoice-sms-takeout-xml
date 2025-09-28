@@ -18,12 +18,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.path_manager import PathManager, PathValidationError, PathContext
-from core.attachment_manager_new import (
-    build_file_location_index_new,
-    copy_mapped_attachments_new,
-    build_attachment_mapping_with_progress_new,
-    extract_src_with_source_files_new,
-    list_att_filenames_with_progress_new
+from core.attachment_manager import (
+    build_file_location_index,
+    copy_mapped_attachments,
+    build_attachment_mapping_with_progress,
+    extract_src_with_source_files,
+    list_att_filenames_with_progress
 )
 
 
@@ -203,23 +203,23 @@ class TestNewAttachmentFunctions(unittest.TestCase):
         """Clean up test environment."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_build_file_location_index_new(self):
+    def test_build_file_location_index(self):
         """Test new file location index building."""
         filenames = ["image_0.jpg", "image_1.jpg"]
-        index = build_file_location_index_new(filenames, self.path_manager)
+        index = build_file_location_index(filenames, self.path_manager)
         
         self.assertEqual(len(index), 2)
         for filename, path in index.items():
             self.assertTrue(path.exists())
             self.assertTrue(path.is_absolute())
     
-    def test_copy_mapped_attachments_new(self):
+    def test_copy_mapped_attachments(self):
         """Test new attachment copying functionality."""
         # Build mapping
-        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        mapping = build_attachment_mapping_with_progress(self.path_manager)
         
         # Copy attachments
-        copy_mapped_attachments_new(mapping, self.path_manager)
+        copy_mapped_attachments(mapping, self.path_manager)
         
         # Verify files were copied to correct location
         attachments_dir = self.path_manager.attachments_dir
@@ -233,9 +233,9 @@ class TestNewAttachmentFunctions(unittest.TestCase):
             self.assertTrue(file.exists())
             self.assertTrue(file.stat().st_size > 0)
     
-    def test_build_attachment_mapping_with_progress_new(self):
+    def test_build_attachment_mapping_with_progress(self):
         """Test new attachment mapping functionality."""
-        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        mapping = build_attachment_mapping_with_progress(self.path_manager)
         
         # Verify mapping was created
         self.assertGreater(len(mapping), 0)
@@ -245,9 +245,9 @@ class TestNewAttachmentFunctions(unittest.TestCase):
             self.assertIsInstance(source_path, Path)
             self.assertTrue(source_path.exists())
     
-    def test_extract_src_with_source_files_new(self):
+    def test_extract_src_with_source_files(self):
         """Test new src extraction functionality."""
-        src_to_files = extract_src_with_source_files_new(self.path_manager.processing_dir)
+        src_to_files = extract_src_with_source_files(self.path_manager.processing_dir)
         
         # Verify src elements were extracted
         self.assertGreater(len(src_to_files), 0)
@@ -257,9 +257,9 @@ class TestNewAttachmentFunctions(unittest.TestCase):
             self.assertIsInstance(html_files, list)
             self.assertGreater(len(html_files), 0)
     
-    def test_list_att_filenames_with_progress_new(self):
+    def test_list_att_filenames_with_progress(self):
         """Test new attachment filename listing."""
-        filenames = list_att_filenames_with_progress_new(self.path_manager.processing_dir)
+        filenames = list_att_filenames_with_progress(self.path_manager.processing_dir)
         
         # Verify filenames were found
         self.assertGreater(len(filenames), 0)
@@ -293,7 +293,7 @@ class TestNewAttachmentFunctions(unittest.TestCase):
         
         # Test performance and memory usage
         start_time = time.time()
-        mapping = build_attachment_mapping_with_progress_new(large_path_manager)
+        mapping = build_attachment_mapping_with_progress(large_path_manager)
         mapping_time = time.time() - start_time
         
         # Verify performance is acceptable (< 10 seconds for 100 files)
@@ -307,7 +307,7 @@ class TestNewAttachmentFunctions(unittest.TestCase):
         mapping = {"missing": ("missing.jpg", missing_file)}
         
         # Should handle gracefully without crashing
-        copy_mapped_attachments_new(mapping, self.path_manager)
+        copy_mapped_attachments(mapping, self.path_manager)
         
         # Verify no files were copied
         attachments_dir = self.path_manager.attachments_dir
@@ -325,8 +325,8 @@ class TestNewAttachmentFunctions(unittest.TestCase):
         
         # Perform operations
         for i in range(5):
-            mapping = build_attachment_mapping_with_progress_new(self.path_manager)
-            copy_mapped_attachments_new(mapping, self.path_manager)
+            mapping = build_attachment_mapping_with_progress(self.path_manager)
+            copy_mapped_attachments(mapping, self.path_manager)
             gc.collect()
         
         final_memory = process.memory_info().rss
@@ -377,11 +377,11 @@ class TestPathManagerIntegration(unittest.TestCase):
     def test_complete_pipeline_integration(self):
         """Test complete attachment processing pipeline."""
         # Step 1: Build mapping
-        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        mapping = build_attachment_mapping_with_progress(self.path_manager)
         self.assertGreater(len(mapping), 0)
         
         # Step 2: Copy attachments
-        copy_mapped_attachments_new(mapping, self.path_manager)
+        copy_mapped_attachments(mapping, self.path_manager)
         
         # Step 3: Verify results
         attachments_dir = self.path_manager.attachments_dir
@@ -409,7 +409,7 @@ class TestPathManagerIntegration(unittest.TestCase):
         att_file.write_text("nested fake image data")
         
         # Test that PathManager can handle nested structure
-        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        mapping = build_attachment_mapping_with_progress(self.path_manager)
         
         # Verify nested file was found
         nested_src = "nested_image.jpg"
@@ -431,8 +431,8 @@ class TestPathManagerIntegration(unittest.TestCase):
                 worker_path_manager = PathManager(self.processing_dir, self.output_dir)
                 
                 # Perform operations
-                mapping = build_attachment_mapping_with_progress_new(worker_path_manager)
-                copy_mapped_attachments_new(mapping, worker_path_manager)
+                mapping = build_attachment_mapping_with_progress(worker_path_manager)
+                copy_mapped_attachments(mapping, worker_path_manager)
                 
                 results.append(worker_id)
                 
@@ -497,7 +497,7 @@ class TestPathManagerIntegration(unittest.TestCase):
             print(f"  {f.name}")
         
         # Test the enhanced attachment mapping
-        mapping = build_attachment_mapping_with_progress_new(self.path_manager)
+        mapping = build_attachment_mapping_with_progress(self.path_manager)
         
         # Debug: Print the mapping results
         print(f"\nMapping results:")

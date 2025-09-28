@@ -66,8 +66,8 @@ class TestFilteringIntegration(BaseSMSTest):
         # Create configuration with date filters
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         
         # Patch SMS module
@@ -125,8 +125,8 @@ class TestFilteringIntegration(BaseSMSTest):
         # Simulate CLI arguments
         cli_args = {
             'processing_dir': self.test_dir,
-            'older_than': '2023-01-01',
-            'newer_than': '2024-12-31',
+            'exclude_older_than': '2023-01-01',
+            'exclude_newer_than': '2024-12-31',
             'test_mode': False
         }
         
@@ -185,7 +185,7 @@ class TestFilteringIntegration(BaseSMSTest):
         """Test that shared_constants module is updated consistently."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
+            exclude_older_than=datetime(2023, 1, 1),
             filter_numbers_without_aliases=True
         )
         
@@ -208,8 +208,8 @@ class TestFilteringIntegration(BaseSMSTest):
         """Test filtering edge cases and error conditions."""
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=None,  # No older filter
-            newer_than=datetime(2024, 12, 31)  # Only newer filter
+            exclude_older_than=None,  # No older filter
+            exclude_newer_than=datetime(2024, 12, 31)  # Only newer filter
         )
         
         # Patch SMS module
@@ -236,11 +236,11 @@ class TestFilteringIntegration(BaseSMSTest):
     def test_filtering_with_invalid_dates(self):
         """Test filtering behavior with invalid date configurations."""
         # Test with invalid date range (older > newer)
-        with pytest.raises(ValueError, match="older_than.*must be before newer_than"):
+        with pytest.raises(ValueError, match="exclude_older_than.*must be before.*exclude_newer_than"):
             ProcessingConfig(
                 processing_dir=self.test_dir,
-                older_than=datetime(2024, 1, 1),
-                newer_than=datetime(2023, 12, 31)  # Invalid: newer is before older
+                exclude_older_than=datetime(2024, 1, 1),
+                exclude_newer_than=datetime(2023, 12, 31)  # Invalid: newer is before older
             )
 
     def test_filtering_restoration_after_unpatch(self):
@@ -253,8 +253,8 @@ class TestFilteringIntegration(BaseSMSTest):
         # Apply configuration
         config = ProcessingConfig(
             processing_dir=self.test_dir,
-            older_than=datetime(2023, 1, 1),
-            newer_than=datetime(2024, 12, 31)
+            exclude_older_than=datetime(2023, 1, 1),
+            exclude_newer_than=datetime(2024, 12, 31)
         )
         
         self.patcher = patch_sms_module(config)
