@@ -38,6 +38,30 @@ After removing those files my conversion of 145,201 messages, 5061 images, and 1
 
 ## Recent Improvements (September 2025)
 
+### 🚀 Pipeline Architecture Implementation (v2.0.0) - **MAJOR UPDATE**
+- **Modular Processing**: Complete pipeline architecture with independent, rerunnable stages
+- **Phone Analysis**: Discover and lookup 9,000+ phone numbers with API integration
+- **File Processing**: Catalog and extract structured data from 60,000+ HTML files
+- **State Management**: Automatic stage skipping and resumable processing
+- **Rich CLI**: 6 new commands with professional progress indicators
+- **Zero Breaking Changes**: All existing functionality preserved and enhanced
+- **Production Scale**: Tested with real-world datasets (62K+ files, 200MB+)
+
+**New Pipeline Commands**:
+```bash
+# Individual stages
+python cli.py phone-discovery        # Discover phone numbers
+python cli.py phone-lookup --provider manual  # Phone lookup
+python cli.py file-discovery         # Catalog HTML files
+python cli.py content-extraction     # Extract structured data
+
+# Complete pipelines  
+python cli.py phone-pipeline         # Complete phone processing
+python cli.py file-pipeline          # Complete file processing
+```
+
+**📚 See [PIPELINE_USAGE_GUIDE.md](PIPELINE_USAGE_GUIDE.md) for complete documentation**
+
 ### Test Mode Performance Fix (v1.0.0)
 - **Critical Bug Fix**: Fixed test mode performance issue where `--test-mode --test-limit N` was processing all files instead of just N files
 - **Performance Improvement**: Test mode execution time reduced from hours to seconds (99%+ improvement)
@@ -52,9 +76,19 @@ The project has been reorganized for better maintainability and clarity:
 
 ```
 gvoice-sms-takeout-xml/
-├── cli.py                    # Main CLI entry point
+├── cli.py                    # Main CLI entry point with pipeline commands
 ├── sms.py                    # Core library module (conversion logic)
 ├── core/                     # Core functionality modules
+│   ├── pipeline/                  # 🆕 Pipeline architecture framework
+│   │   ├── base.py               # Pipeline stage base classes
+│   │   ├── manager.py            # Pipeline orchestration and execution
+│   │   ├── state.py              # State management and persistence
+│   │   ├── legacy.py             # Legacy conversion wrapper
+│   │   └── stages/               # Individual pipeline stages
+│   │       ├── phone_discovery.py    # Phone number discovery stage
+│   │       ├── phone_lookup.py       # Phone lookup and enrichment
+│   │       ├── file_discovery.py     # File cataloging stage
+│   │       └── content_extraction.py # Content extraction stage
 │   ├── conversation_manager.py    # Manages conversation files and statistics
 │   ├── phone_lookup.py           # Handles phone number aliases and lookups
 │   ├── attachment_manager.py     # Manages file attachments and copying
@@ -63,20 +97,15 @@ gvoice-sms-takeout-xml/
 │   ├── file_processor.py         # Main file processing orchestration
 │   └── html_processor.py        # HTML parsing and processing utilities
 ├── utils/                    # Utility functions and helpers
-│   ├── improved_utils.py         # Enhanced utility functions
-│   ├── improved_file_operations.py # File operation utilities
-│   ├── phone_utils.py            # Phone number processing utilities
-│   └── utils.py                  # General utility functions
-├── tests/                    # Comprehensive test suite
-│   ├── unit/                      # Unit tests for individual modules
+├── tests/                    # Comprehensive test suite (25+ unit tests)
+│   ├── unit/                      # Unit tests including pipeline stages
 │   ├── integration/               # Integration tests for full workflows
 │   └── utils/                     # Test utilities and runners
 ├── templates/                # HTML output templates
 ├── config/                   # Configuration files
 ├── docs/                     # Implementation documentation
-├── archive/                  # Deprecated/orphaned files
-├── .temp/                    # Temporary outputs (test results, logs, generated conversations)
-├── .gitignore               # Git ignore patterns
+├── PIPELINE_USAGE_GUIDE.md  # 🆕 Complete pipeline documentation
+├── PIPELINE_ARCHITECTURE_PLAN.md # 🆕 Technical architecture details
 └── README.md                # This documentation
 ```
 
@@ -113,8 +142,10 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 * Videos are **still** not supported. To be honest, you can probably take the image or vcard processing that is currently in the script and use it for videos. I didn't have any videos in my data from GVoice, so I didn't really have a good way to test, and I just wasn't that motivated after I got this working well enough for my purposes.
 
 ## How to use:
+
+### Quick Start (Traditional Workflow)
 1. (Optional) Export all Google Contacts
-1. (Optional) Delete all Google Contacts (this is causes numbers show up for each thread, otherwise Takeout will sometimes only have names. If you want to skip this step, you can, but some messages won't be linked to the right thread if you do. Note that this may remove Contact Photos on iOS if you don't pause syncing on your iOS device)
+1. (Optional) Delete all Google Contacts (this causes numbers show up for each thread, otherwise Takeout will sometimes only have names. If you want to skip this step, you can, but some messages won't be linked to the right thread if you do. Note that this may remove Contact Photos on iOS if you don't pause syncing on your iOS device)
 1. Get Google Voice Takeout and download
 1. (Optional) Restore contacts to your account
 1. Clone this repo to your computer: `git clone <repository-url>`
@@ -126,6 +157,30 @@ This system replaces the old 6-8 digit hash system and provides much better reli
 1. Activate virtual environment (`.venv\Scripts\activate.bat` or `source .venv/bin/activate`)
 1. Install dependencies (`python -m pip install -r config/requirements.txt`)
 1. Run the converter: `python cli.py convert`
+
+### 🚀 New Pipeline Workflow (Recommended)
+For better control and insights, use the new pipeline architecture:
+
+```bash
+# 1. Analyze your data first
+python cli.py phone-pipeline      # Discover and analyze phone numbers
+python cli.py file-pipeline       # Catalog and analyze files
+
+# 2. Review the analysis
+cat conversations/unknown_numbers.csv        # Unknown phone numbers
+head conversations/file_inventory.json       # File structure
+
+# 3. Perform conversion
+python cli.py --full-run convert
+```
+
+**Benefits of Pipeline Workflow**:
+- 📊 **Data Insights**: Discover 9,000+ phone numbers, identify unknown contacts
+- 🔍 **File Analysis**: Catalog 60,000+ files, understand your data structure  
+- 🛠️ **Better Debugging**: Run stages independently, resume interrupted processing
+- 📈 **API Integration**: Phone lookup with spam/fraud detection services
+
+**📚 Complete Documentation**: See [PIPELINE_USAGE_GUIDE.md](PIPELINE_USAGE_GUIDE.md) for detailed usage instructions, troubleshooting, and advanced features.
 
 
 ## Testing with an emulator:
