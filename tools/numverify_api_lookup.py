@@ -61,7 +61,8 @@ class NumVerifyAPI:
             # Debug: Print API response for troubleshooting
             print(f"   📊 API Response: {data}")
             
-            if data.get('success', False):
+            # Check if we have valid data (some responses don't have 'success' field but have valid data)
+            if data.get('success', False) or (data.get('valid') is not None and data.get('number')):
                 return {
                     'phone_number': phone_number,
                     'valid': data.get('valid', False),
@@ -77,8 +78,16 @@ class NumVerifyAPI:
                     'raw_response': data
                 }
             else:
+                # Check if there's an actual error message
                 error_info = data.get('error', {})
-                error_message = error_info.get('info', 'Unknown error') if isinstance(error_info, dict) else str(error_info)
+                if isinstance(error_info, dict) and error_info.get('info'):
+                    error_message = error_info.get('info')
+                elif isinstance(error_info, str) and error_info:
+                    error_message = error_info
+                else:
+                    # If no clear error but no valid data, it might be a rate limit or other issue
+                    error_message = f"No valid data returned: {data}"
+                
                 print(f"   ❌ API Error: {error_message}")
                 return {
                     'phone_number': phone_number,
@@ -223,9 +232,9 @@ class NumVerifyAPI:
             
             self.results['detailed_results'].append(detailed_result)
             
-            # Delay between calls to respect rate limits
+            # Delay between calls to respect rate limits (free tier is more restrictive)
             if i < len(numbers_to_process):
-                time.sleep(delay)
+                time.sleep(2.0)  # Increased delay for free tier rate limits
         
         # Calculate cost
         self.results['cost_estimate'] = self.results['successful_lookups'] * 0.01
