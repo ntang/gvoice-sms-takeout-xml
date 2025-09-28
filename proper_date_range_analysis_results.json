@@ -1,0 +1,34 @@
+{
+  "date_range": "2022-08-01 to 2025-06-01",
+  "analysis_results": {
+    "total_html_files": 830,
+    "files_with_dates": 679,
+    "overall_date_range": {
+      "min_date": "2015-01-14T00:00:00",
+      "max_date": "2025-09-27T00:00:00"
+    },
+    "date_range_filter": {
+      "start": "2022-08-01T00:00:00",
+      "end": "2025-06-01T00:00:00"
+    },
+    "dates_within_range": 57893,
+    "dates_outside_range": 7,
+    "percentage_within_range": 99.98791018998273
+  },
+  "filtering_results": {
+    "total_remaining_numbers": 7535,
+    "numbers_with_conversations": 646,
+    "numbers_within_date_range": 646,
+    "numbers_outside_date_range": 0,
+    "numbers_no_conversation": 6889,
+    "percentage_within_range": 8.573324485733245
+  },
+  "export_files": {
+    "within_date_range_file": "properly_filtered_within_date_range.csv",
+    "outside_date_range_file": "properly_filtered_outside_date_range.csv",
+    "no_conversation_file": "properly_filtered_no_conversations.csv",
+    "within_count": 646,
+    "outside_count": 0,
+    "no_conversation_count": 6889
+  }
+}
