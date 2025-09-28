@@ -109,8 +109,8 @@ def create_processing_context(config: 'ProcessingConfig') -> 'ProcessingContext'
         limited_html_files=None,  # Will be set later if needed
         skip_filtered_contacts=config.skip_filtered_contacts,
         include_service_codes=config.include_service_codes,
-        date_filter_older_than=config.older_than,
-        date_filter_newer_than=config.newer_than,
+        date_filter_older_than=config.exclude_older_than,
+        date_filter_newer_than=config.exclude_newer_than,
         filter_numbers_without_aliases=config.filter_numbers_without_aliases,
         filter_non_phone_numbers=config.filter_non_phone_numbers,
         full_run=config.full_run,

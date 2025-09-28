@@ -41,10 +41,9 @@ class FilteringService:
         if self.config is None:
             return False
         
-        has_new_filters = (self.config.exclude_older_than is not None or self.config.exclude_newer_than is not None)
-        has_old_filters = (self.config.older_than is not None or self.config.newer_than is not None)
+        has_filters = (self.config.exclude_older_than is not None or self.config.exclude_newer_than is not None)
         
-        if not has_new_filters and not has_old_filters:
+        if not has_filters:
             return False  # No date filtering enabled
         
         # Convert timestamp to datetime for comparison
@@ -60,14 +59,6 @@ class FilteringService:
                 logger.debug(f"Message skipped due to exclude_newer_than filter: {message_date} > {self.config.exclude_newer_than}")
                 return True
             
-            # Check old field names for backward compatibility
-            if self.config.older_than and message_date < self.config.older_than:
-                logger.debug(f"Message skipped due to older_than filter: {message_date} < {self.config.older_than}")
-                return True
-            
-            if self.config.newer_than and message_date > self.config.newer_than:
-                logger.debug(f"Message skipped due to newer_than filter: {message_date} > {self.config.newer_than}")
-                return True
                 
         except (ValueError, OSError) as e:
             logger.warning(f"Invalid timestamp {message_timestamp}: {e}")
@@ -206,9 +197,9 @@ class FilteringService:
         """
         return {
             "date_filtering": {
-                "older_than": self.config.older_than.isoformat() if self.config.older_than else None,
-                "newer_than": self.config.newer_than.isoformat() if self.config.newer_than else None,
-                "enabled": self.config.older_than is not None or self.config.newer_than is not None
+                "exclude_older_than": self.config.exclude_older_than.isoformat() if self.config.exclude_older_than else None,
+                "exclude_newer_than": self.config.exclude_newer_than.isoformat() if self.config.exclude_newer_than else None,
+                "enabled": self.config.exclude_older_than is not None or self.config.exclude_newer_than is not None
             },
             "phone_filtering": {
                 "filter_numbers_without_aliases": self.config.filter_numbers_without_aliases,

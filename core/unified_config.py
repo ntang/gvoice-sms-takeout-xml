@@ -292,8 +292,8 @@ class AppConfig(BaseSettings):
     @model_validator(mode='after')
     def validate_date_range(self):
         """Validate that date range is logical if both dates are provided."""
-        older_than = self.older_than
-        newer_than = self.newer_than
+        older_than = self.exclude_older_than
+        newer_than = self.exclude_newer_than
         
         if older_than and newer_than:
             try:

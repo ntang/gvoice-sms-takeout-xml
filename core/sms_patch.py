@@ -112,14 +112,14 @@ class SMSModulePatcher:
         
         # Patch date filtering variables
         if hasattr(sms, 'DATE_FILTER_OLDER_THAN'):
-            sms.DATE_FILTER_OLDER_THAN = config.older_than
+            sms.DATE_FILTER_OLDER_THAN = config.exclude_older_than
             self._patched_globals.add('DATE_FILTER_OLDER_THAN')
-            logger.debug(f"Patched DATE_FILTER_OLDER_THAN: {config.older_than}")
+            logger.debug(f"Patched DATE_FILTER_OLDER_THAN: {config.exclude_older_than}")
         
         if hasattr(sms, 'DATE_FILTER_NEWER_THAN'):
-            sms.DATE_FILTER_NEWER_THAN = config.newer_than
+            sms.DATE_FILTER_NEWER_THAN = config.exclude_newer_than
             self._patched_globals.add('DATE_FILTER_NEWER_THAN')
-            logger.debug(f"Patched DATE_FILTER_NEWER_THAN: {config.newer_than}")
+            logger.debug(f"Patched DATE_FILTER_NEWER_THAN: {config.exclude_newer_than}")
         
         # Patch phone filtering variables
         if hasattr(sms, 'FILTER_NUMBERS_WITHOUT_ALIASES'):
@@ -157,8 +157,8 @@ class SMSModulePatcher:
             from core import shared_constants
             
             # Update date filtering variables in shared_constants
-            shared_constants.DATE_FILTER_OLDER_THAN = config.older_than
-            shared_constants.DATE_FILTER_NEWER_THAN = config.newer_than
+            shared_constants.DATE_FILTER_OLDER_THAN = config.exclude_older_than
+            shared_constants.DATE_FILTER_NEWER_THAN = config.exclude_newer_than
             
             # Update phone filtering variables in shared_constants
             shared_constants.FILTER_NUMBERS_WITHOUT_ALIASES = config.filter_numbers_without_aliases
