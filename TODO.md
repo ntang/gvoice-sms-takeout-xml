@@ -3,7 +3,7 @@
 ## 📋 **CURRENT STATUS**
 
 ### Repository State:
-- ✅ **Pipeline Architecture**: **COMPLETE** - All 3 phases implemented and production-ready
+- ✅ **Pipeline Architecture**: **COMPLETE** - All 3 phases implemented, tested, and merged to main
 - ✅ **Phone Discovery & Lookup**: Production-ready module processing 9,046+ phone numbers  
 - ✅ **File Discovery & Content Extraction**: Catalogs 62,314 HTML files with structured data parsing
 - ✅ **Date Filtering**: Fully implemented and functional - messages outside date range are filtered at write time
@@ -11,13 +11,87 @@
 - ✅ **Exception Handling**: Improved with specific error types and enhanced logging
 - ✅ **Test Suite**: All core functionality tests passing + **25 new pipeline unit tests**
 - ✅ **Comprehensive Testing**: All functionality verified, zero regressions, backward compatibility confirmed
-- ✅ **All changes committed and pushed to origin/feature/pipeline-architecture**
+- ✅ **Documentation**: Complete pipeline usage guide and updated README
+- 🔄 **CURRENT**: **Deprecated Code Cleanup** - Phase 1 analysis complete, ready for execution
 
 ### Recent Major Completions:
-1. **Complete Pipeline Architecture** (4e4d41b) - All 3 phases implemented with comprehensive testing
-2. **Phone Lookup Module** (0d16278) - Phone discovery, API integration, CLI commands, comprehensive testing  
-3. **File Processing Module** (5a390cf) - File discovery, content extraction, batch processing capabilities
-4. **Date Filtering Implementation** (11a1acd) - Complete message-level date filtering with conversation cleanup
+1. **Complete Pipeline Architecture** (8fb1972) - All 3 phases implemented, tested, documented, and merged to main
+2. **Comprehensive Documentation** (8fb1972) - PIPELINE_USAGE_GUIDE.md and updated README with full usage instructions
+3. **Phone Lookup Module** (0d16278) - Phone discovery, API integration, CLI commands, comprehensive testing  
+4. **File Processing Module** (5a390cf) - File discovery, content extraction, batch processing capabilities
+5. **Date Filtering Implementation** (11a1acd) - Complete message-level date filtering with conversation cleanup
+
+---
+
+## 🔄 **CURRENT: Deprecated Code Cleanup**
+
+### **📋 Phase 1: Analysis Complete** 
+**Branch**: `cleanup/remove-deprecated-code`
+**Status**: ✅ **COMPLETE** - Comprehensive analysis documented
+
+#### **Analysis Results**:
+- **Total Deprecated Items**: 47 items across 8 categories
+- **Lines of Code for Removal**: ~3,200+ lines  
+- **Files for Complete Removal**: 15+ files
+- **Files for Partial Cleanup**: 12+ files
+- **Complexity Reduction**: ~25+ code branches, multiple configuration paths
+
+#### **Categories Identified**:
+1. **Archive Directory**: ~800+ lines (complete removal)
+2. **Duplicate Attachment Managers**: ~640 lines (consolidation needed)
+3. **Configuration Deprecations**: ~150+ lines (backward compatibility cleanup)
+4. **Deprecated Test Files**: ~1,200+ lines (individual test file removal)
+5. **Utility Duplications**: ~200+ lines (consolidation needed)
+6. **Temporary/Debug Files**: ~200 lines (simple removal)
+7. **Backup Files**: N/A (data files for removal)
+8. **Outdated Documentation**: ~300+ lines (review needed)
+
+#### **Deliverables**:
+- ✅ **DEPRECATED_CODE_ANALYSIS.md**: Comprehensive analysis with detailed cleanup plan
+- ✅ **Risk Assessment**: Low to High risk levels identified for each category
+- ✅ **Testing Strategy**: Phase-by-phase testing approach documented
+- ✅ **Success Metrics**: Quantitative and qualitative goals defined
+
+### **📋 Phase 2: Execution Plan (PENDING APPROVAL)**
+
+#### **Phase 2A: Low-Risk Removals** ⭐ Low Risk
+**Target**: Remove 1,000+ lines, 20+ files
+- Remove entire `archive/` directory
+- Remove temporary test/debug files  
+- Remove backup directory
+- **Testing**: Run full test suite
+
+#### **Phase 2B: Test File Consolidation** ⭐⭐ Medium Risk  
+**Target**: Remove 1,200+ lines, 15+ test files
+- Verify test coverage in main test suite
+- Remove individual fix/feature test files
+- **Testing**: Run comprehensive test suite, verify no coverage loss
+
+#### **Phase 2C: Attachment Manager Consolidation** ⭐⭐ Medium Risk
+**Target**: Remove 640+ lines, simplify imports
+- Update test imports to use `attachment_manager_new`
+- Rename and consolidate attachment managers
+- Update all imports to remove `_new` suffix
+- **Testing**: Run attachment-related tests
+
+#### **Phase 2D: Configuration System Cleanup** ⭐⭐⭐ High Risk
+**Target**: Remove 200+ lines, reduce complexity
+- Remove deprecated configuration fields (`older_than`, `newer_than`)
+- Remove backward compatibility code
+- Clean up migration utilities
+- **Testing**: Comprehensive CLI and configuration testing
+
+#### **Phase 2E: Utility Consolidation** ⭐⭐ Medium Risk
+**Target**: Remove 200+ lines
+- Analyze function usage and duplication
+- Consolidate into primary utility files
+- Update imports
+- **Testing**: Run utility-dependent tests
+
+#### **Expected Results**:
+- **Code Reduction**: ~3,200+ lines removed across 27+ files
+- **Complexity Reduction**: Remove 25+ conditional branches, 2+ deprecated config options
+- **Maintenance Benefits**: Single source of truth, cleaner imports, better test organization
 
 ---
 
