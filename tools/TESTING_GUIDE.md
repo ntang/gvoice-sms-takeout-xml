@@ -9,23 +9,19 @@ This guide shows you how to test the NumVerify API with a small sample of number
 
 ## 🚀 QUICK START
 
-### Step 1: Create Test Sample
+### Single Command Testing
 ```bash
 cd /Users/nicholastang/gvoice-sms-takeout-xml
 source env/bin/activate
-python tools/create_test_sample.py
+python tools/numverify_api_lookup.py
 ```
 
-This creates `test_sample_numbers.csv` with 5 random numbers from your dataset.
+When prompted:
+1. Choose "1" for Test mode (10 numbers) - $0.10
+2. Enter your NumVerify API key
+3. Review results in `numverify_test_results.csv`
 
-### Step 2: Test API Functionality
-```bash
-python tools/test_numverify_api.py
-```
-
-Enter your NumVerify API key when prompted.
-
-### Step 3: Review Results
+### Step 2: Review Results
 - Check `numverify_test_results.csv` for detailed results
 - Verify API responses are correct
 - Confirm cost is as expected
@@ -34,23 +30,23 @@ Enter your NumVerify API key when prompted.
 
 ## 📊 TESTING OPTIONS
 
-### Option 1: Random Sample (Recommended)
-- **File**: `tools/create_test_sample.py`
-- **Numbers**: 5 random numbers from your dataset
-- **Cost**: $0.05
-- **Time**: ~3 minutes
+### Option 1: Test Mode (Recommended)
+- **Numbers**: 10 random numbers from your dataset
+- **Cost**: $0.10
+- **Time**: ~5 minutes
+- **Output**: `numverify_test_results.csv`
 
-### Option 2: Manual Test Numbers
-- **File**: `tools/test_numverify_api.py` (fallback mode)
-- **Numbers**: Pre-defined test numbers (US, UK, France, toll-free)
-- **Cost**: $0.05
-- **Time**: ~3 minutes
+### Option 2: Custom Mode
+- **Numbers**: Specify exact count (1-646)
+- **Cost**: $0.01 per number
+- **Time**: ~1 minute per 10 numbers
+- **Output**: `numverify_custom_{count}_results.csv`
 
-### Option 3: Custom Sample
-Modify `create_test_sample.py` to change sample size:
-```python
-sample_size = 10  # Change from 5 to 10 for more thorough testing
-```
+### Option 3: Full Mode
+- **Numbers**: All 646 numbers
+- **Cost**: $6.46
+- **Time**: ~10-15 minutes
+- **Output**: `numverify_lookup_results.csv`
 
 ---
 
@@ -153,9 +149,9 @@ Before proceeding with full implementation:
 ## 🚀 NEXT STEPS
 
 ### If Test Passes:
-1. ✅ Proceed with full implementation
-2. ✅ Run `python tools/numverify_api_lookup.py`
-3. ✅ Process all 646 numbers
+1. ✅ Run the same script again: `python tools/numverify_api_lookup.py`
+2. ✅ Choose "2" for Full mode (646 numbers)
+3. ✅ Process all remaining numbers
 4. ✅ Integrate results into your system
 
 ### If Test Fails:
@@ -189,4 +185,4 @@ Your test is successful when:
 - ✅ No authentication or network errors
 - ✅ Classification logic works correctly
 
-**Ready to test? Run the commands above!** 🚀
+**Ready to test? Run: `python tools/numverify_api_lookup.py` and choose option 1!** 🚀

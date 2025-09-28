@@ -274,6 +274,64 @@ class NumVerifyAPI:
         print(f"❓ Invalid numbers: {self.results['invalid_numbers']}")
         print(f"💰 Estimated cost: ${self.results['cost_estimate']:.2f}")
 
+def create_test_sample(input_file: str, test_file: str, sample_size: int = 10):
+    """
+    Create a test sample from the main input file.
+    
+    Args:
+        input_file: Path to main CSV file
+        test_file: Path to output test CSV file
+        sample_size: Number of numbers to include in test sample
+    """
+    import random
+    
+    print(f"📊 Creating test sample from {input_file}")
+    print(f"🎯 Sample size: {sample_size} numbers")
+    
+    # Load all numbers
+    all_numbers = []
+    with open(input_file, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            phone = row['phone_number'].strip()
+            if phone:
+                all_numbers.append(row)
+    
+    print(f"📁 Total numbers available: {len(all_numbers)}")
+    
+    # Select random sample
+    if len(all_numbers) <= sample_size:
+        sample_numbers = all_numbers
+        print(f"⚠️ Dataset smaller than sample size, using all {len(all_numbers)} numbers")
+    else:
+        sample_numbers = random.sample(all_numbers, sample_size)
+        print(f"🎲 Randomly selected {sample_size} numbers")
+    
+    # Export sample
+    with open(test_file, 'w', newline='', encoding='utf-8') as f:
+        fieldnames = ['phone_number', 'min_date', 'max_date', 'date_count', 'notes']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for row in sample_numbers:
+            writer.writerow({
+                'phone_number': row['phone_number'],
+                'min_date': row.get('min_date', ''),
+                'max_date': row.get('max_date', ''),
+                'date_count': row.get('date_count', ''),
+                'notes': f"Test sample - {row.get('notes', '')}"
+            })
+    
+    print(f"✅ Test sample exported to: {test_file}")
+    print(f"💰 Estimated test cost: ${len(sample_numbers) * 0.01:.2f}")
+    
+    # Show sample numbers
+    print(f"\n📋 Sample numbers:")
+    for i, row in enumerate(sample_numbers, 1):
+        print(f"  {i}. {row['phone_number']} ({row.get('min_date', 'Unknown date')})")
+    
+    return test_file
+
 def main():
     """Main function for NumVerify API lookup."""
     print("🚀 NumVerify API Phone Number Lookup Tool")
@@ -286,14 +344,77 @@ def main():
         print("Please ensure the file exists before running this tool.")
         return
     
+    # Ask user for mode
+    print("🔧 Choose operation mode:")
+    print("1. Test mode (10 numbers) - $0.10")
+    print("2. Full mode (646 numbers) - $6.46")
+    print("3. Custom mode (specify number count)")
+    
+    while True:
+        try:
+            choice = input("\nEnter choice (1/2/3): ").strip()
+            if choice == "1":
+                mode = "test"
+                sample_size = 10
+                break
+            elif choice == "2":
+                mode = "full"
+                sample_size = None
+                break
+            elif choice == "3":
+                mode = "custom"
+                sample_size = int(input("Enter number of numbers to process: "))
+                if sample_size <= 0:
+                    print("❌ Sample size must be positive!")
+                    continue
+                break
+            else:
+                print("❌ Invalid choice. Please enter 1, 2, or 3.")
+        except ValueError:
+            print("❌ Invalid input. Please enter a number for custom mode.")
+        except KeyboardInterrupt:
+            print("\n❌ Operation cancelled.")
+            return
+    
+    # Create test sample if needed
+    if mode in ["test", "custom"]:
+        test_file = f"test_sample_{sample_size}_numbers.csv"
+        create_test_sample(input_file, test_file, sample_size)
+        input_file = test_file
+        print(f"\n📁 Using test file: {input_file}")
+    
     # Get API key
-    api_key = input("🔑 Enter your NumVerify API key: ").strip()
+    api_key = input("\n🔑 Enter your NumVerify API key: ").strip()
     if not api_key:
         print("❌ API key is required!")
         return
     
     # Set output file
-    output_file = "numverify_lookup_results.csv"
+    if mode == "test":
+        output_file = "numverify_test_results.csv"
+    elif mode == "custom":
+        output_file = f"numverify_custom_{sample_size}_results.csv"
+    else:
+        output_file = "numverify_lookup_results.csv"
+    
+    # Show cost estimate
+    if mode == "test":
+        cost = 10 * 0.01
+    elif mode == "custom":
+        cost = sample_size * 0.01
+    else:
+        cost = 646 * 0.01
+    
+    print(f"\n💰 Estimated cost: ${cost:.2f}")
+    print(f"📁 Input file: {input_file}")
+    print(f"📁 Output file: {output_file}")
+    
+    # Confirm before proceeding
+    if cost > 1.00:  # Only confirm for expensive operations
+        confirm = input(f"\n⚠️ This will cost ${cost:.2f}. Continue? (y/N): ").strip().lower()
+        if confirm != 'y':
+            print("❌ Operation cancelled.")
+            return
     
     # Initialize API client
     api_client = NumVerifyAPI(api_key)
@@ -302,6 +423,13 @@ def main():
     try:
         api_client.process_numbers(input_file, output_file, delay=0.1)
         print(f"\n✅ Lookup complete! Check {output_file} for results.")
+        
+        if mode == "test":
+            print(f"\n🧪 TEST MODE COMPLETE!")
+            print(f"✅ If results look good, run again with mode 2 (Full mode)")
+            print(f"✅ API key is working correctly")
+            print(f"✅ Ready for full implementation")
+        
     except KeyboardInterrupt:
         print(f"\n⚠️ Process interrupted by user.")
         print(f"Partial results may be available in {output_file}")
