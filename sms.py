@@ -735,8 +735,6 @@ def get_limited_file_list_param(processing_dir: Path, limit: int) -> List[Path]:
     logger.info(
         f"🧪 TEST MODE: Limited file discovery to first {len(html_files)} HTML files")
     return html_files
-
-
 def main(config: Optional["ProcessingConfig"] = None,
      context: Optional["ProcessingContext"] = None):
     """Main conversion function with comprehensive progress logging and performance optimization."""
@@ -1461,8 +1459,6 @@ def extract_src_with_progress(html_directory: str = None) -> List[str]:
         logger.error(f"Failed to extract src from {html_directory}: {e}")
 
     return src_list
-
-
 def is_valid_image_src(src: str) -> bool:
     """
     Validate that a src attribute contains a valid image reference.
@@ -1969,7 +1965,7 @@ def list_att_filenames_with_progress(directory: str = None) -> List[str]:
         return []
 
 
-@lru_cache(maxsize=50000)
+@lru_cache(maxsize=25000)
 def normalize_filename(filename: str) -> str:
     """
     Remove file extension and parenthesized numbers from filename.
@@ -2008,7 +2004,7 @@ def custom_filename_sort(filename: str) -> Tuple[str, int, str]:
     return (filename, float("inf"), "")
 
 
-@lru_cache(maxsize=25000)
+@lru_cache(maxsize=50000)
 def src_to_filename_mapping_cached(
     src_elements_str: str, att_filenames_str: str
 ) -> Dict[str, str]:
@@ -2238,8 +2234,6 @@ def is_sms_mms_file(filename: str) -> bool:
 
     # Default to True for unknown files (process them to be safe)
     return True
-
-
 # get_file_type function moved to html_processor module
 
 
@@ -6012,8 +6006,6 @@ def get_participant_phone_numbers(participants_raw: List) -> List[str]:
     # Use the new function and return just the phone numbers
     participants, _ = get_participant_phone_numbers_and_aliases(participants_raw)
     return participants
-
-
 def format_number(phone_number: phonenumbers.PhoneNumber) -> str:
     """
     Format phone number to E164 standard.
@@ -6806,8 +6798,6 @@ def validate_processing_directory(processing_dir: Path) -> bool:
 
     logger.info(f"Found {len(html_files)} HTML files in processing directory")
     return True
-
-
 def validate_entire_configuration() -> bool:
     """
     Comprehensive validation of the entire application configuration.
@@ -8210,8 +8200,6 @@ def write_call_entry(
         logger.error(f"Global manager states - phone: {PHONE_LOOKUP_MANAGER is not None}, conv: {CONVERSATION_MANAGER is not None}")
         import traceback
         logger.error(f"Full stack trace: {traceback.format_exc()}")
-
-
 def extract_call_details_from_soup(soup: BeautifulSoup) -> Dict[str, str]:
     """Extract detailed call information from an already parsed BeautifulSoup object."""
     try:
@@ -8522,7 +8510,7 @@ def write_voicemail_entry(
             sender=alias,
             message=message_text,
             message_type="voicemail",
-            config=config or (context.config if context else None),  # Pass config for date filtering and content tracking
+            config=config,  # Pass config for date filtering
         )
         
         # Update latest timestamp for this conversation
