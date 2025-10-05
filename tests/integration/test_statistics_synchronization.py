@@ -97,7 +97,7 @@ class TestStatisticsSynchronization(BaseSMSTest):
         )
 
         # Assert: HTML files should have content
-        conversation_files = list(self.test_dir.glob("*.html"))
+        conversation_files = list(sms.CONVERSATION_MANAGER.output_dir.glob("*.html"))
         conversation_files = [f for f in conversation_files if f.name != "index.html"]
 
         self.assertGreater(
@@ -250,7 +250,7 @@ class TestStatisticsSynchronization(BaseSMSTest):
         final_stats = sms.CONVERSATION_MANAGER.get_total_stats()
 
         # Check HTML files
-        conversation_files = list(self.test_dir.glob("*.html"))
+        conversation_files = list(sms.CONVERSATION_MANAGER.output_dir.glob("*.html"))
         conversation_files = [f for f in conversation_files if f.name != "index.html"]
 
         # Assert: HTML file count should correspond to statistics

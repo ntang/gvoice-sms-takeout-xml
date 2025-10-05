@@ -2266,8 +2266,14 @@ def process_html_files(src_filename_map: Dict[str, str], config: Optional["Proce
         logger.error(f"Calls directory not found: {calls_directory}")
         return stats
 
+    # If src_filename_map is provided, use those files instead of scanning directory
+    if src_filename_map:
+        logger.info(f"Using provided src_filename_map with {len(src_filename_map)} files")
+        html_files_list = [Path(f) for f in src_filename_map.keys()]
+        total_files = len(html_files_list)
+        logger.info(f"Processing {total_files} files from src_filename_map")
     # In test mode, use the global limited file list
-    if TEST_MODE and LIMITED_HTML_FILES:
+    elif TEST_MODE and LIMITED_HTML_FILES:
         logger.info(f"🧪 TEST MODE: Using global limited file list with {len(LIMITED_HTML_FILES)} files")
         # Filter to only include files from the Calls directory
         html_files_list = [f for f in LIMITED_HTML_FILES if "Calls" in str(f)]

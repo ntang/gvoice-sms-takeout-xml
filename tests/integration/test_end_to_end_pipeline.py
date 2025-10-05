@@ -301,8 +301,8 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         }
         sms.CONVERSATION_MANAGER.generate_index_html(stats, elapsed_time=10.5)
         
-        # Check that index.html exists
-        index_file = self.test_dir / "index.html"
+        # Check that index.html exists in the output directory
+        index_file = sms.CONVERSATION_MANAGER.output_dir / "index.html"
         self.assertTrue(
             index_file.exists(),
             "index.html should be generated after processing"
