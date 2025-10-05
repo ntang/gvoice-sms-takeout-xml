@@ -46,12 +46,10 @@ class TestStatisticsTrackingIntegration(BaseSMSTest):
         </html>
         """
 
-    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_sms_message_processing_updates_statistics(self):
         """Test that processing SMS messages updates conversation and global stats.
         
-        This test will FAIL initially because write_message_with_content() doesn't
-        update conversation_stats['sms_count'], leading to zero global statistics.
+        This test verifies that statistics are properly tracked during message processing.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"
@@ -146,12 +144,11 @@ class TestStatisticsTrackingIntegration(BaseSMSTest):
             f"but got {total_stats['num_sms']}. This indicates statistics are not accumulating across files."
         )
 
-    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_empty_conversation_files_when_statistics_zero(self):
         """Test that empty statistics result in empty conversation files.
         
-        This test will FAIL if the finalization process doesn't check statistics
-        before writing files, or if statistics are incorrectly zero.
+        This test verifies that the finalization process properly handles
+        cases where statistics are zero.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"

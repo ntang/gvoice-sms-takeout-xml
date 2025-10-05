@@ -68,7 +68,7 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         sms.setup_processing_paths(self.test_dir, False, False, None)
         
         # Action: Process the HTML file through the complete pipeline
-        sms.process_html_files([test_file])
+        sms.process_html_files({str(test_file): str(test_file)})
         
         # Action: Finalize conversation files
         sms.CONVERSATION_MANAGER.finalize_conversation_files()
@@ -119,7 +119,7 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         sms.setup_processing_paths(self.test_dir, False, False, None)
         
         # Action: Process and finalize
-        sms.process_html_files([test_file])
+        sms.process_html_files({str(test_file): str(test_file)})
         sms.CONVERSATION_MANAGER.finalize_conversation_files()
         
         # Find the generated conversation file
@@ -196,26 +196,28 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
             "Conversation file should contain 'Me' for sent messages"
         )
 
-    @pytest.mark.skip(reason="HTML template format changed - div structure now used instead of table")
     def test_conversation_file_has_proper_table_structure(self):
         """Test that conversation files use proper table structure for messages.
         
         This test will FAIL initially because files are empty and don't contain
         the expected table structure for displaying messages.
         """
-        # Setup: Create test HTML file
-        test_file = self.test_dir / "test_conversation.html"
+        # Setup: Create test HTML file in Calls directory
+        calls_dir = self.test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        test_file = calls_dir / "test_conversation.html"
         test_file.write_text(self.realistic_html_content)
         
         # Setup: Initialize processing
         sms.setup_processing_paths(self.test_dir, False, False, None)
         
         # Action: Process and finalize
-        sms.process_html_files([test_file])
+        sms.process_html_files({str(test_file): str(test_file)})
         sms.CONVERSATION_MANAGER.finalize_conversation_files()
         
-        # Find the generated conversation file
-        conversation_files = list(self.test_dir.glob("*.html"))
+        # Find the generated conversation file in the output directory
+        output_dir = sms.CONVERSATION_MANAGER.output_dir
+        conversation_files = list(output_dir.glob("*.html"))
         conversation_files = [f for f in conversation_files if f.name != "index.html"]
         
         if len(conversation_files) == 0:
@@ -232,9 +234,9 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         )
         
         self.assertIn(
-            "<th>Date/Time</th>",
+            "<th>Timestamp</th>",
             content,
-            "Conversation file should contain table headers for Date/Time"
+            "Conversation file should contain table headers for Timestamp"
         )
         
         self.assertIn(
@@ -249,6 +251,12 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
             "Conversation file should contain table headers for Message"
         )
         
+        self.assertIn(
+            "<th>Attachments</th>",
+            content,
+            "Conversation file should contain table headers for Attachments"
+        )
+        
         # Assert: Table rows should be present
         self.assertIn(
             "<tr>",
@@ -258,31 +266,40 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         
         # Assert: Table cells should be present
         self.assertIn(
-            "<td>",
+            "<td class=",
             content,
             "Conversation file should contain table cells with message data"
         )
 
-    @pytest.mark.skip(reason="Index generation API changed - generate_index_html now requires stats parameter")
     def test_index_html_generation_with_conversations(self):
         """Test that index.html is generated with proper conversation links.
         
-        This test will FAIL initially if index.html doesn't properly list
-        the conversation files or if conversation files are empty.
+        This test verifies that index.html is properly generated with
+        conversation file links and statistics.
         """
-        # Setup: Create test HTML file
-        test_file = self.test_dir / "test_conversation.html"
+        # Setup: Create test HTML file in Calls directory
+        calls_dir = self.test_dir / "Calls"
+        calls_dir.mkdir(parents=True, exist_ok=True)
+        test_file = calls_dir / "test_conversation.html"
         test_file.write_text(self.realistic_html_content)
         
         # Setup: Initialize processing
         sms.setup_processing_paths(self.test_dir, False, False, None)
         
         # Action: Process and finalize
-        sms.process_html_files([test_file])
+        sms.process_html_files({str(test_file): str(test_file)})
         sms.CONVERSATION_MANAGER.finalize_conversation_files()
         
-        # Generate index.html
-        sms.CONVERSATION_MANAGER.generate_index_html(elapsed_time=10.5)
+        # Generate index.html with proper stats parameter
+        stats = {
+            'num_sms': 1,
+            'num_calls': 0,
+            'num_voicemails': 0,
+            'num_img': 0,
+            'num_vcf': 0,
+            'total_messages': 1
+        }
+        sms.CONVERSATION_MANAGER.generate_index_html(stats, elapsed_time=10.5)
         
         # Check that index.html exists
         index_file = self.test_dir / "index.html"
@@ -318,12 +335,11 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
             "index.html should not show zero SMS messages when messages were processed"
         )
 
-    @pytest.mark.skip(reason="Statistics tracking disconnected - needs architecture review")
     def test_processing_statistics_flow(self):
         """Test that processing statistics flow correctly through the pipeline.
         
-        This test will FAIL initially because statistics are not updated during
-        message processing, leading to zero statistics throughout the pipeline.
+        This test verifies that statistics are properly tracked and updated
+        during message processing and finalization.
         """
         # Setup: Create test HTML file
         test_file = self.test_dir / "test_conversation.html"
@@ -336,7 +352,7 @@ class TestEndToEndProcessingPipeline(BaseSMSTest):
         initial_stats = sms.CONVERSATION_MANAGER.get_total_stats()
         
         # Action: Process the file
-        sms.process_html_files([test_file])
+        sms.process_html_files({str(test_file): str(test_file)})
         
         # Check statistics after processing
         after_processing_stats = sms.CONVERSATION_MANAGER.get_total_stats()

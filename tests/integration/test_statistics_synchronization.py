@@ -53,14 +53,11 @@ class TestStatisticsSynchronization(BaseSMSTest):
         </html>
         """
 
-    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_complete_pipeline_statistics_flow(self):
         """Test that statistics flow correctly through the complete conversion pipeline.
         
-        This test will FAIL initially because:
-        1. process_html_files() returns zero statistics
-        2. Final summary uses these zero statistics
-        3. HTML files are empty because finalization sees zero statistics
+        This test verifies that statistics are properly tracked and flow
+        through the entire conversion process.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"
@@ -230,11 +227,11 @@ class TestStatisticsSynchronization(BaseSMSTest):
                 f"when ConversationManager processed {cm_stats['num_sms']} messages."
             )
 
-    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_html_file_content_corresponds_to_statistics(self):
         """Test that HTML file content corresponds to the statistics.
         
-        This test will FAIL initially because HTML files are empty despite statistics showing messages.
+        This test verifies that the generated HTML files contain content
+        that matches the tracked statistics.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"

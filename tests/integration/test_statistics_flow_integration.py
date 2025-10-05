@@ -209,11 +209,11 @@ class TestStatisticsFlowIntegration(BaseSMSTest):
                     "This indicates different parts of the system are using different statistics sources."
                 )
 
-    @pytest.mark.skip(reason="Statistics tracking architecture needs review")
     def test_statistics_disconnect_detection(self):
         """Test that we can detect when statistics disconnect occurs.
         
-        This test will FAIL initially because the disconnect exists and is not detected.
+        This test verifies that statistics are consistent across different
+        parts of the system.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"

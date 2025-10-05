@@ -151,7 +151,6 @@ class TestSMSOutput(BaseSMSTest):
         # 5. Message count is correct
         self.assertIn("Total Messages: 3", content)
 
-    @pytest.mark.skip(reason="Index template format changed - test expectations outdated")
     def test_index_generation_regression(self):
         """Regression test for index generation with missing conversation stats."""
         test_dir = Path(self.test_dir)
@@ -205,10 +204,9 @@ class TestSMSOutput(BaseSMSTest):
         # Check index.html content - should include conversation files even without cached stats
         with open(index_file, "r", encoding="utf-8") as f:
             content = f.read()
-            self.assertIn("Google Voice Conversations", content)
+            self.assertIn("📱 Google Voice Conversations", content)
             self.assertIn("Processing completed in 1.5", content)
-            self.assertIn("Output format: HTML", content)
-            self.assertIn("Total conversations: 2", content)
+            self.assertIn("Complete overview of all processed conversations", content)
             self.assertIn("SMS Messages", content)
             self.assertIn("Call Logs", content)
             # These should now be present due to our fix
@@ -3086,7 +3084,6 @@ class TestSMSOutput(BaseSMSTest):
         print("✅ This ensures all messages (from SusanT, Inessa, etc.) end up in the same file")
         print("✅ The fix prevents messages from being scattered across different conversation files")
 
-    @pytest.mark.skip(reason="Statistics tracking implementation changed - test uses obsolete internal methods")
     def test_index_page_attachment_count_accuracy(self):
         """Test that the index page shows accurate attachment counts (not counting placeholders)."""
         # Create test data with real attachments and placeholder attachments
