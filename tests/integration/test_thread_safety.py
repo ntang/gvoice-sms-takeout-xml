@@ -5,7 +5,6 @@ This module tests the thread-safety and multiprocess safety of the SMS converter
 It verifies that concurrent operations don't cause data corruption, race conditions, or crashes.
 """
 
-import pytest
 import unittest
 import threading
 import time
@@ -60,7 +59,7 @@ class TestThreadSafety(unittest.TestCase):
         shared_constants.PROCESSING_DIRECTORY = None
         shared_constants.OUTPUT_DIRECTORY = None
         shared_constants.LOG_FILENAME = None
-        
+
         # Clear manager internal state before resetting
         if shared_constants.CONVERSATION_MANAGER:
             try:
@@ -73,7 +72,7 @@ class TestThreadSafety(unittest.TestCase):
                     shared_constants.CONVERSATION_MANAGER.message_buffer.clear()
             except Exception:
                 pass  # Ignore cleanup errors
-        
+
         if shared_constants.PHONE_LOOKUP_MANAGER:
             try:
                 # Clear phone lookup manager state
@@ -81,7 +80,7 @@ class TestThreadSafety(unittest.TestCase):
                     shared_constants.PHONE_LOOKUP_MANAGER.phone_aliases.clear()
             except Exception:
                 pass  # Ignore cleanup errors
-        
+
         shared_constants.CONVERSATION_MANAGER = None
         shared_constants.PHONE_LOOKUP_MANAGER = None
         shared_constants.PATH_MANAGER = None
@@ -94,7 +93,7 @@ class TestThreadSafety(unittest.TestCase):
         shared_constants.FULL_RUN = False
         shared_constants.TEST_MODE = False
         shared_constants.TEST_LIMIT = 100
-        
+
         # Clear all LRU caches to prevent test interference
         sms.extract_src_cached.cache_clear()
         sms.list_att_filenames_cached.cache_clear()
@@ -106,13 +105,14 @@ class TestThreadSafety(unittest.TestCase):
         sms.search_fallback_numbers_cached.cache_clear()
         sms.get_message_type_cached.cache_clear()
         sms.get_mms_sender_cached.cache_clear()
-        # sms.get_first_phone_number_cached.cache_clear()  # Function no longer uses @lru_cache due to unhashable parameters
+        # sms.get_first_phone_number_cached.cache_clear()  # Function no longer
+        # uses @lru_cache due to unhashable parameters
         sms.get_participant_phone_numbers_cached.cache_clear()
         sms.parse_timestamp_cached.cache_clear()
         # sms.build_attachment_xml_part_cached.cache_clear()  # Function removed - only HTML output supported
         sms.get_image_type.cache_clear()
         sms.encode_file_content.cache_clear()
-        
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_thread_safe_stats_aggregator(self):
@@ -408,7 +408,7 @@ class TestMultiprocessSafety(unittest.TestCase):
         shared_constants.PROCESSING_DIRECTORY = None
         shared_constants.OUTPUT_DIRECTORY = None
         shared_constants.LOG_FILENAME = None
-        
+
         # Clear manager internal state before resetting
         if shared_constants.CONVERSATION_MANAGER:
             try:
@@ -421,7 +421,7 @@ class TestMultiprocessSafety(unittest.TestCase):
                     shared_constants.CONVERSATION_MANAGER.message_buffer.clear()
             except Exception:
                 pass  # Ignore cleanup errors
-        
+
         if shared_constants.PHONE_LOOKUP_MANAGER:
             try:
                 # Clear phone lookup manager state
@@ -429,7 +429,7 @@ class TestMultiprocessSafety(unittest.TestCase):
                     shared_constants.PHONE_LOOKUP_MANAGER.phone_aliases.clear()
             except Exception:
                 pass  # Ignore cleanup errors
-        
+
         shared_constants.CONVERSATION_MANAGER = None
         shared_constants.PHONE_LOOKUP_MANAGER = None
         shared_constants.PATH_MANAGER = None
@@ -442,7 +442,7 @@ class TestMultiprocessSafety(unittest.TestCase):
         shared_constants.FULL_RUN = False
         shared_constants.TEST_MODE = False
         shared_constants.TEST_LIMIT = 100
-        
+
         # Clear all LRU caches to prevent test interference
         sms.extract_src_cached.cache_clear()
         sms.list_att_filenames_cached.cache_clear()
@@ -454,13 +454,14 @@ class TestMultiprocessSafety(unittest.TestCase):
         sms.search_fallback_numbers_cached.cache_clear()
         sms.get_message_type_cached.cache_clear()
         sms.get_mms_sender_cached.cache_clear()
-        # sms.get_first_phone_number_cached.cache_clear()  # Function no longer uses @lru_cache due to unhashable parameters
+        # sms.get_first_phone_number_cached.cache_clear()  # Function no longer
+        # uses @lru_cache due to unhashable parameters
         sms.get_participant_phone_numbers_cached.cache_clear()
         sms.parse_timestamp_cached.cache_clear()
         # sms.build_attachment_xml_part_cached.cache_clear()  # Function removed - only HTML output supported
         sms.get_image_type.cache_clear()
         sms.encode_file_content.cache_clear()
-        
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_global_variables_initialization(self):

@@ -17,18 +17,18 @@ from core.processing_config import (
 
 class TestProcessingConfig:
     """Test the ProcessingConfig class."""
-    
+
     def test_basic_config_creation(self):
         """Test basic configuration creation with required parameters."""
         config = ProcessingConfig(processing_dir=Path("/tmp/test"))
-        
+
         assert config.processing_dir == Path("/tmp/test")
 
         assert config.output_dir == Path("/tmp/test/conversations")
         assert config.output_format == "html"
 
         assert config.enable_phone_prompts is False
-    
+
     def test_custom_config_creation(self):
         """Test configuration creation with custom values."""
         config = ProcessingConfig(
@@ -37,17 +37,17 @@ class TestProcessingConfig:
             enable_phone_prompts=True,
             strict_mode=True
         )
-        
+
         assert config.output_format == "html"
         assert config.enable_phone_prompts is True
 
         assert config.strict_mode is True
-    
+
     def test_output_directory_auto_generation(self):
         """Test that output directory is auto-generated if not provided."""
         config = ProcessingConfig(processing_dir=Path("/tmp/test"))
         assert config.output_dir == Path("/tmp/test/conversations")
-    
+
     def test_custom_output_directory(self):
         """Test custom output directory setting."""
         config = ProcessingConfig(
@@ -55,7 +55,7 @@ class TestProcessingConfig:
             output_dir=Path("/tmp/custom/output")
         )
         assert config.output_dir == Path("/tmp/custom/output")
-    
+
     def test_numeric_validation(self):
         """Test numeric constraint validation."""
         # Test valid values
@@ -64,12 +64,12 @@ class TestProcessingConfig:
             test_limit=50
         )
         assert config.test_limit == 50
-        
+
         # Test invalid test_limit (validation happens in get_validation_errors, not constructor)
         config = ProcessingConfig(processing_dir=Path("/tmp/test"), test_limit=0)
         errors = config.get_validation_errors()
         assert any("test_limit must be positive" in error for error in errors)
-    
+
     def test_date_range_validation(self):
         """Test date range validation."""
         # Test valid date range
@@ -83,7 +83,7 @@ class TestProcessingConfig:
         assert config.exclude_older_than == older
 
         assert config.exclude_newer_than == newer
-        
+
         # Test invalid date range
         with pytest.raises(ValueError, match="exclude_older_than.*must be before.*exclude_newer_than"):
             ProcessingConfig(
@@ -91,7 +91,7 @@ class TestProcessingConfig:
                 exclude_older_than=newer,  # Swapped
                 exclude_newer_than=older
             )
-    
+
     def test_output_format_validation(self):
         """Test output format validation."""
         # Test valid formats
@@ -100,11 +100,11 @@ class TestProcessingConfig:
         assert config1.output_format == "html"
 
         assert config2.output_format == "html"
-        
+
         # Test invalid format
         with pytest.raises(ValueError, match="output_format must be 'html'"):
             ProcessingConfig(processing_dir=Path("/tmp/test"), output_format="json")
-    
+
     def test_effective_value_methods(self):
         """Test effective value calculation methods."""
         config = ProcessingConfig(
@@ -114,7 +114,7 @@ class TestProcessingConfig:
             enable_phone_prompts=True,
             output_format="html"
         )
-        
+
         assert config.is_test_mode() is True
         assert config.get_test_limit() == 50
         assert config.should_enable_phone_prompts() is False  # Disabled in test mode
@@ -123,7 +123,7 @@ class TestProcessingConfig:
         assert config.get_processing_directory() == Path("/tmp/test")
 
         assert config.get_output_directory() == Path("/tmp/test/conversations")
-    
+
     def test_serialization_methods(self):
         """Test configuration serialization and deserialization."""
         config = ProcessingConfig(
@@ -131,7 +131,7 @@ class TestProcessingConfig:
             output_format="html",
             enable_phone_prompts=True
         )
-        
+
         # Test to_dict
         config_dict = config.to_dict()
         assert isinstance(config_dict, dict)
@@ -139,7 +139,7 @@ class TestProcessingConfig:
 
         assert config_dict["output_format"] == "html"
         assert config_dict["enable_phone_prompts"] is True
-        
+
         # Test from_dict
         restored_config = ProcessingConfig.from_dict(config_dict)
         assert restored_config.processing_dir == config.processing_dir
@@ -152,32 +152,31 @@ class TestProcessingConfig:
 
 class TestConfigurationDefaults:
     """Test the ConfigurationDefaults class."""
-    
+
     def test_default_values(self):
         """Test default configuration values."""
         defaults = ConfigurationDefaults.get_defaults()
-        
+
         assert defaults["enable_phone_prompts"] is False
         assert defaults["strict_mode"] is False
         assert defaults["test_mode"] is False
         assert defaults["test_limit"] == 100
         assert defaults["skip_filtered_contacts"] is True
-    
+
     def test_test_presets(self):
         """Test test mode preset values."""
         test_presets = ConfigurationDefaults.get_test_presets()
-        
+
         assert test_presets["test_mode"] is True
         assert test_presets["test_limit"] == 100
         assert test_presets["full_run"] is False
         assert test_presets["enable_phone_prompts"] is False
         assert test_presets["strict_mode"] is True
 
-    
     def test_production_presets(self):
         """Test production mode preset values."""
         prod_presets = ConfigurationDefaults.get_production_presets()
-        
+
         assert prod_presets["test_mode"] is False
         assert prod_presets["full_run"] is True
         assert prod_presets["strict_mode"] is False
@@ -185,7 +184,7 @@ class TestConfigurationDefaults:
 
 class TestConfigurationBuilder:
     """Test the ConfigurationBuilder class."""
-    
+
     def test_from_cli_args_basic(self):
         """Test building configuration from basic CLI arguments."""
         cli_args = {
@@ -194,33 +193,33 @@ class TestConfigurationBuilder:
             'max_workers': 8,
             'phone_prompts': True
         }
-        
+
         config = ConfigurationBuilder.from_cli_args(cli_args)
-        
+
         assert config.processing_dir == Path("/tmp/test")
 
         assert config.output_format == "html"
         assert config.enable_phone_prompts is True
-    
+
     def test_from_cli_args_missing_required(self):
         """Test that missing processing_dir raises error."""
         cli_args = {
             'output_format': 'html'
         }
-        
+
         with pytest.raises(ValueError, match="processing_dir is required"):
             ConfigurationBuilder.from_cli_args(cli_args)
-    
+
     def test_from_cli_args_string_path(self):
         """Test that string paths are converted to Path objects."""
         cli_args = {
             'processing_dir': '/tmp/test'
         }
-        
+
         config = ConfigurationBuilder.from_cli_args(cli_args)
         assert isinstance(config.processing_dir, Path)
         assert config.processing_dir == Path("/tmp/test")
-    
+
     def test_from_cli_args_date_parsing(self):
         """Test date parsing from CLI arguments."""
         cli_args = {
@@ -228,65 +227,65 @@ class TestConfigurationBuilder:
             'exclude_older_than': '2023-01-01',
             'exclude_newer_than': '2023-12-31'
         }
-        
+
         config = ConfigurationBuilder.from_cli_args(cli_args)
-        
+
         assert config.exclude_older_than == datetime(2023, 1, 1)
 
         assert config.exclude_newer_than == datetime(2023, 12, 31)
-    
+
     def test_from_cli_args_date_parsing_failure(self):
         """Test that date parsing failures are handled gracefully."""
         cli_args = {
             'processing_dir': '/tmp/test',
             'exclude_older_than': 'invalid-date'
         }
-        
+
         # Should not raise an error, just log a warning
         config = ConfigurationBuilder.from_cli_args(cli_args)
         assert config.exclude_older_than is None
-    
+
     def test_create_with_presets(self):
         """Test creating configuration with presets."""
         # Test default preset
         config = ConfigurationBuilder.create_with_presets(Path("/tmp/test"))
         assert config.test_mode is False
         assert config.strict_mode is False
-        
+
         # Test test preset
         test_config = ConfigurationBuilder.create_with_presets(Path("/tmp/test"), "test")
         assert test_config.test_mode is True
         assert test_config.strict_mode is True
-        
+
         # Test production preset
         prod_config = ConfigurationBuilder.create_with_presets(Path("/tmp/test"), "production")
         assert prod_config.test_mode is False
         assert prod_config.full_run is True
-    
+
     def test_merge_configs(self):
         """Test merging multiple configurations."""
         config1 = ProcessingConfig(
             processing_dir=Path("/tmp/test1"),
             enable_phone_prompts=False
         )
-        
+
         config2 = ProcessingConfig(
             processing_dir=Path("/tmp/test2"),
             enable_phone_prompts=True
         )
-        
+
         merged = ConfigurationBuilder.merge_configs(config1, config2)
-        
+
         # Later config should override earlier config
         assert merged.processing_dir == Path("/tmp/test2")
         assert merged.enable_phone_prompts is True
-    
+
     def test_merge_configs_single(self):
         """Test merging single configuration."""
         config = ProcessingConfig(processing_dir=Path("/tmp/test"))
         merged = ConfigurationBuilder.merge_configs(config)
         assert merged == config
-    
+
     def test_merge_configs_empty(self):
         """Test that merging empty configs raises error."""
         with pytest.raises(ValueError, match="At least one configuration must be provided"):
@@ -295,7 +294,7 @@ class TestConfigurationBuilder:
 
 class TestConfigurationIntegration:
     """Test integration between configuration components."""
-    
+
     def test_full_configuration_flow(self):
         """Test complete configuration flow from CLI to usage."""
         # Simulate CLI arguments
@@ -306,43 +305,43 @@ class TestConfigurationIntegration:
             'strict_mode': True,
             'test_mode': False
         }
-        
+
         # Build configuration
         config = ConfigurationBuilder.from_cli_args(cli_args)
-        
+
         # Verify configuration
         assert config.get_output_format() == "html"
         assert config.should_enable_phone_prompts() is True
         assert config.strict_mode is True
 
         assert config.is_test_mode() is False
-        
+
         # Test serialization round-trip
         config_dict = config.to_dict()
         restored_config = ProcessingConfig.from_dict(config_dict)
-        
+
         assert restored_config.get_output_format() == config.get_output_format()
 
         assert restored_config.should_enable_phone_prompts() == config.should_enable_phone_prompts()
         assert restored_config.strict_mode == config.strict_mode
-    
+
     def test_configuration_with_presets_and_overrides(self):
         """Test creating configuration with presets and CLI overrides."""
         # Start with test preset
         base_config = ConfigurationBuilder.create_with_presets(Path("/tmp/test"), "test")
-        
+
         # Override with CLI arguments
         cli_args = {
             'processing_dir': '/tmp/test',
             'phone_prompts': True,  # Override preset
             'output_format': 'html'  # Override preset
         }
-        
+
         cli_config = ConfigurationBuilder.from_cli_args(cli_args)
-        
+
         # Merge configurations
         final_config = ConfigurationBuilder.merge_configs(base_config, cli_config)
-        
+
         # Verify merged result
         assert final_config.test_mode is True  # From preset
         assert final_config.strict_mode is True  # From preset

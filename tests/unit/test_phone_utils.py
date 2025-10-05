@@ -4,6 +4,7 @@ Comprehensive test suite for phone_utils.py module.
 Tests the new unified phone number processing using phonenumbers library.
 """
 
+from utils.phone_utils import PhoneNumberProcessor, is_valid_phone_number, normalize_phone_number, is_toll_free_number, extract_phone_numbers_from_text
 import unittest
 import tempfile
 import shutil
@@ -15,7 +16,6 @@ import logging
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from utils.phone_utils import PhoneNumberProcessor, is_valid_phone_number, normalize_phone_number, is_toll_free_number, extract_phone_numbers_from_text
 
 # Set up logging for tests
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             ("", False),            # Empty string
             (None, False),          # None value
         ]
-        
+
         for input_val, expected in special_cases:
             with self.subTest(input=input_val):
                 result = self.processor._is_special_case(input_val or "")
@@ -65,7 +65,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "+18775551234",  # 877
             "+18885551234",  # 888
         ]
-        
+
         for number in active_toll_free:
             with self.subTest(number=number):
                 self.assertTrue(self.processor.is_toll_free_number(number))
@@ -84,7 +84,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "+18875551234",  # 887
             "+18895551234",  # 889
         ]
-        
+
         for number in reserved_toll_free:
             with self.subTest(number=number):
                 self.assertTrue(self.processor.is_toll_free_number(number))
@@ -98,7 +98,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "+44123456789",  # UK number
             "+33123456789",  # France number
         ]
-        
+
         for number in non_toll_free:
             with self.subTest(number=number):
                 self.assertFalse(self.processor.is_toll_free_number(number))
@@ -115,7 +115,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "212-555-1234",  # NY without country code
             "212.555.1234",  # NY without country code
         ]
-        
+
         for number in valid_numbers:
             with self.subTest(number=number):
                 self.assertTrue(self.processor.is_valid_phone_number(number))
@@ -130,7 +130,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "555-1234",   # Missing country code
             "+15551234567890123456789",  # Too long
         ]
-        
+
         for number in invalid_numbers:
             with self.subTest(input=number):
                 result = self.processor.is_valid_phone_number(number or "")
@@ -144,20 +144,20 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "+18335551234",  # Toll-free
             "+1555123456",   # Short code (if detected)
         ]
-        
+
         for number in filtered_numbers:
             with self.subTest(number=number):
                 # Should be valid without filtering
                 self.assertTrue(self.processor.is_valid_phone_number(number, filter_non_phone=False))
                 # Should be filtered out with filtering enabled
                 self.assertFalse(self.processor.is_valid_phone_number(number, filter_non_phone=True))
-        
+
         # Numbers that should pass through filtering
         passing_numbers = [
             "+12125551234",  # Valid US number
             "+13105551234",  # Valid US number
         ]
-        
+
         for number in passing_numbers:
             with self.subTest(number=number):
                 # Should be valid both with and without filtering
@@ -175,7 +175,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             ("Dashed: 212-555-1234", ["+12125551234"]),      # Normalized to E.164
             ("Mixed: +12125551234 and tel:+13105551234", ["+12125551234", "+13105551234"]),
         ]
-        
+
         for text, expected in test_cases:
             with self.subTest(text=text):
                 extracted = self.processor.extract_phone_numbers_from_text(text)
@@ -189,12 +189,12 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             ("+12125551234", "+12125551234"),      # Already E.164
             ("12125551234", "+12125551234"),        # US domestic
             ("+1-212-555-1234", "+12125551234"),   # Formatted US
-            ("+1 (212) 555-1234", "+12125551234"), # Parentheses
+            ("+1 (212) 555-1234", "+12125551234"),  # Parentheses
             ("+1.212.555.1234", "+12125551234"),   # Dotted
             ("(212) 555-1234", "+12125551234"),    # US without country code
             ("212-555-1234", "+12125551234"),      # US without country code
         ]
-        
+
         for input_num, expected in test_cases:
             with self.subTest(input=input_num):
                 normalized = self.processor.normalize_phone_number(input_num)
@@ -204,14 +204,14 @@ class TestPhoneNumberProcessor(unittest.TestCase):
         """Test comprehensive number type information."""
         # Test with a valid US mobile number
         info = self.processor.get_number_type_info("+12125551234")
-        
+
         self.assertIsInstance(info, dict)
         self.assertTrue(info["is_valid"])
         self.assertTrue(info["is_possible"])
         self.assertEqual(info["country_code"], 1)
         self.assertEqual(info["national_number"], "2125551234")
         self.assertEqual(info["e164_format"], "+12125551234")
-        
+
         # Test with toll-free number
         toll_free_info = self.processor.get_number_type_info("+18005551234")
         self.assertTrue(toll_free_info["is_toll_free"])
@@ -244,7 +244,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "8875551234",
             "8895551234",
         ]
-        
+
         for number in reserved_numbers:
             with self.subTest(number=number):
                 self.assertTrue(self.processor._is_reserved_toll_free(number))
@@ -257,7 +257,7 @@ class TestPhoneNumberProcessor(unittest.TestCase):
             "2125551234",  # Regular number
             "1234567890",  # Regular number
         ]
-        
+
         for number in non_reserved:
             with self.subTest(number=number):
                 # These should not be detected by reserved prefix checking
@@ -274,7 +274,7 @@ class TestBackwardCompatibility(unittest.TestCase):
         # Test valid numbers
         self.assertTrue(is_valid_phone_number("+12125551234"))
         self.assertTrue(is_valid_phone_number("+12125551234", filter_non_phone=False))
-        
+
         # Test filtering
         self.assertFalse(is_valid_phone_number("+18005551234", filter_non_phone=True))
         self.assertTrue(is_valid_phone_number("+18005551234", filter_non_phone=False))
@@ -314,7 +314,7 @@ class TestEdgeCases(unittest.TestCase):
             "+1-212--555-1234",  # Double dash
             "+1(212)555-1234",   # Missing space after parentheses
         ]
-        
+
         for number in malformed:
             with self.subTest(number=number):
                 # Should handle gracefully without crashing
@@ -336,7 +336,7 @@ class TestEdgeCases(unittest.TestCase):
             "+1-212-555-1234#",
             "+1-212-555-1234$",
         ]
-        
+
         for number in special_chars:
             with self.subTest(number=number):
                 # Should handle gracefully
@@ -346,7 +346,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_empty_and_none_inputs(self):
         """Test handling of empty and None inputs."""
         empty_inputs = ["", None, "   ", "\t", "\n"]
-        
+
         for input_val in empty_inputs:
             with self.subTest(input=input_val):
                 result = self.processor.is_valid_phone_number(input_val or "")
@@ -363,7 +363,7 @@ class TestPerformance(unittest.TestCase):
     def test_bulk_validation_performance(self):
         """Test performance of bulk phone number validation."""
         import time
-        
+
         # Generate test phone numbers
         test_numbers = [
             "+12125551234", "+13105551234", "+14105551234",
@@ -371,53 +371,53 @@ class TestPerformance(unittest.TestCase):
             "+12125551235", "+13105551235", "+14105551235",
             "+18805551234", "+18815551234", "+18825551234",
         ] * 100  # 1200 total numbers
-        
+
         # Benchmark validation
         start_time = time.time()
         for number in test_numbers:
             self.processor.is_valid_phone_number(number)
         validation_time = time.time() - start_time
-        
+
         # Benchmark toll-free detection
         start_time = time.time()
         for number in test_numbers:
             self.processor.is_toll_free_number(number)
         toll_free_time = time.time() - start_time
-        
+
         # Assert reasonable performance (should be fast)
         self.assertLess(validation_time, 1.0)  # Less than 1 second for 1200 numbers
         self.assertLess(toll_free_time, 1.0)   # Less than 1 second for 1200 numbers
-        
+
         logger.info(f"Validation time: {validation_time:.3f}s for {len(test_numbers)} numbers")
         logger.info(f"Toll-free detection time: {toll_free_time:.3f}s for {len(test_numbers)} numbers")
 
     def test_extraction_performance(self):
         """Test performance of phone number extraction."""
         import time
-        
+
         # Create test text with many phone numbers
         test_text = " ".join([
-            f"Call me at +1212{str(i).zfill(7)}" 
+            f"Call me at +1212{str(i).zfill(7)}"
             for i in range(100)
         ])
-        
+
         # Benchmark extraction
         start_time = time.time()
         extracted = self.processor.extract_phone_numbers_from_text(test_text)
         extraction_time = time.time() - start_time
-        
+
         # Assert reasonable performance
         self.assertLess(extraction_time, 2.0)  # Less than 2 seconds for 100 numbers
         # The extraction might find duplicates due to multiple extraction methods
         # So we check that we get at least the expected number
         self.assertGreaterEqual(len(extracted), 100)
-        
+
         logger.info(f"Extraction time: {extraction_time:.3f}s for {len(extracted)} numbers")
 
 
 if __name__ == "__main__":
     # Set up logging for tests
     logging.basicConfig(level=logging.INFO)
-    
+
     # Run tests
     unittest.main(verbosity=2)
