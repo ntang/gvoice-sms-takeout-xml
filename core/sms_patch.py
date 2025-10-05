@@ -409,24 +409,12 @@ def is_sms_module_patched() -> bool:
     Returns:
         True if patched, False otherwise
     """
-    # First check if we have any active patchers (for testing and tracking)
+    # Primary check: active patchers list (most reliable)
     if len(_active_patchers) > 0:
         return True
     
-    try:
-        import sms
-        
-        # Check if key functions have been replaced
-        if hasattr(sms, 'setup_processing_paths'):
-            func = getattr(sms, 'setup_processing_paths')
-            # Check if it's our patched version by looking for the patched attribute
-            return hasattr(func, '_is_patched') and func._is_patched
-        
-        return False
-    except ImportError:
-        # In test environments, check if we have any active patchers
-        # This is a fallback for when the real sms module isn't available
-        return len(_active_patchers) > 0
+    # Secondary check: if no active patchers, we're not patched
+    return False
 
 
 # Convenience functions for common operations

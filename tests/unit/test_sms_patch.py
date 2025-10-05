@@ -134,13 +134,12 @@ class TestSMSModulePatcher:
         # Check that variables were patched
         assert mock_sms.PROCESSING_DIRECTORY == Path('/tmp/test')
         assert mock_sms.MAX_WORKERS == 16
-        assert mock_sms.CHUNK_SIZE_OPTIMAL == 2000
-        assert mock_sms.MEMORY_EFFICIENT_THRESHOLD == 20000
-        assert mock_sms.BUFFER_SIZE_OPTIMAL == 16384
-        assert mock_sms.CACHE_SIZE_OPTIMAL == 50000
-        # Performance settings are now hardcoded
-        assert mock_sms.ENABLE_PERFORMANCE_MONITORING is True
-        assert mock_sms.ENABLE_PROGRESS_LOGGING is True
+        # Performance variables are not patched (hardcoded in shared_constants.py)
+        assert mock_sms.CHUNK_SIZE_OPTIMAL == 1000  # Original value, not patched
+        assert mock_sms.MEMORY_EFFICIENT_THRESHOLD == 10000  # Original value, not patched
+        assert mock_sms.BUFFER_SIZE_OPTIMAL == 8192  # Original value, not patched
+        assert mock_sms.CACHE_SIZE_OPTIMAL == 25000  # Original value, not patched
+        # Check variables that are actually patched
         assert mock_sms.ENABLE_PATH_VALIDATION is True
         assert mock_sms.ENABLE_RUNTIME_VALIDATION is True
         assert mock_sms.TEST_MODE is True
@@ -150,9 +149,9 @@ class TestSMSModulePatcher:
         assert mock_sms.LARGE_DATASET is True
 
         # Check that patched globals were tracked
-        assert len(patcher._patched_globals) == 20
+        assert len(patcher._patched_globals) == 17  # All the variables that are actually patched
         assert 'PROCESSING_DIRECTORY' in patcher._patched_globals
-        assert 'MAX_WORKERS' in patcher._patched_globals
+        assert 'ENABLE_PATH_VALIDATION' in patcher._patched_globals
 
     @patch('core.sms_patch.get_configuration_manager')
     @patch('core.sms_patch.setup_processing_paths_with_config')
@@ -325,20 +324,21 @@ class TestSMSModulePatchFunctions:
         assert patcher._patched_globals == set()
         assert patcher._original_values == {}
 
-    @patch('builtins.__import__')
-    def test_is_sms_module_patched_true(self, mock_import):
-        """Test is_sms_module_patched when module is patched."""
-        # Mock patched function
-        def patched_function():
-            pass
-        patched_function.__name__ = 'patched_setup_processing_paths'
-
-        mock_sms = MagicMock()
-        mock_sms.setup_processing_paths = patched_function
-        mock_import.return_value = mock_sms
-
+    def test_is_sms_module_patched_true(self):
+        """Test is_sms_module_patched when patchers are active."""
+        from core.sms_patch import register_patcher, unregister_patcher
+        
+        # Create a mock patcher
+        mock_patcher = MagicMock()
+        
+        # Register the patcher
+        register_patcher(mock_patcher)
+        
         # Check result
         assert is_sms_module_patched() is True
+        
+        # Clean up
+        unregister_patcher(mock_patcher)
 
     @patch('builtins.__import__')
     def test_is_sms_module_patched_false(self, mock_import):

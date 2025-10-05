@@ -3145,13 +3145,17 @@ class TestSMSOutput(BaseSMSTest):
         from core.conversation_manager import ConversationManager
         conv_manager = ConversationManager(test_output_dir, output_format="html")
         
-        # Manually set conversation stats to simulate real processing (using new format)
+        # Manually set conversation stats to simulate real processing (using correct format)
         conv_manager.conversation_stats = {
             "conversation_with_real_attachments": {
                 "sms_count": 3,
                 "calls_count": 0,
                 "voicemails_count": 0,
-                "attachments_count": 2,
+                "attachments_count": 2,  # For _get_conversation_stats_accurate method
+                "num_img": 1,  # 1 image attachment (for _count_real_attachments method)
+                "num_vcf": 1,  # 1 vCard attachment (for _count_real_attachments method)
+                "num_audio": 0,
+                "num_video": 0,
                 "latest_timestamp": 1640995200000,
                 "latest_message_time": "2022-01-01 00:00:00"
             },
@@ -3159,7 +3163,11 @@ class TestSMSOutput(BaseSMSTest):
                 "sms_count": 2,
                 "calls_count": 0,
                 "voicemails_count": 0,
-                "attachments_count": 0,
+                "attachments_count": 0,  # For _get_conversation_stats_accurate method
+                "num_img": 0,
+                "num_vcf": 0,
+                "num_audio": 0,
+                "num_video": 0,
                 "latest_timestamp": 1640995200000,
                 "latest_message_time": "2022-01-01 00:00:00"
             }

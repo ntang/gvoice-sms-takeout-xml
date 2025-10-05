@@ -210,10 +210,10 @@ class TestStatisticsFlowIntegration(BaseSMSTest):
                 )
 
     def test_statistics_disconnect_detection(self):
-        """Test that we can detect when statistics disconnect occurs.
-        
-        This test verifies that statistics are consistent across different
-        parts of the system.
+        """Test that statistics are consistent between systems.
+
+        This test verifies that ConversationManager and process_html_files()
+        return consistent statistics, ensuring the disconnect has been fixed.
         """
         # Setup: Create Calls directory structure
         calls_dir = self.test_dir / "Calls"
@@ -236,17 +236,15 @@ class TestStatisticsFlowIntegration(BaseSMSTest):
         
         # Detect statistics disconnect
         disconnect_detected = (
-            cm_stats['num_sms'] > 0 and process_stats['num_sms'] == 0
-        ) or (
             cm_stats['num_sms'] != process_stats['num_sms']
         )
         
-        # Assert: Statistics disconnect should be detected
-        self.assertTrue(
+        # Assert: Statistics should be consistent (no disconnect)
+        self.assertFalse(
             disconnect_detected,
-            f"Statistics disconnect should be detected: ConversationManager shows "
-            f"{cm_stats['num_sms']} SMS messages, but process_html_files() returned "
-            f"{process_stats['num_sms']}. This disconnect needs to be fixed."
+            f"Statistics should be consistent between systems: ConversationManager shows "
+            f"{cm_stats['num_sms']} SMS messages, and process_html_files() returned "
+            f"{process_stats['num_sms']}. The disconnect has been fixed."
         )
         
         # Assert: If disconnect is detected, it should be logged or handled
