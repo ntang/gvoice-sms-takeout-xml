@@ -39,7 +39,8 @@ class StringBuilder:
                 # Combine parts into larger chunks to reduce list size
                 combined = "".join(self.parts[:500])
                 self.parts = [combined] + self.parts[500:]
-                self.length = sum(len(part) for part in self.parts)
+                # Don't recalculate length - it's already being tracked correctly
+                # (Bug fix #12: Avoid unnecessary recalculation)
 
     def append_line(self, text: str = ""):
         """Append text with a newline."""
@@ -382,8 +383,9 @@ class ConversationManager:
                         if file_info.get("file"):
                             try:
                                 file_info["file"].close()
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                # Log file close errors instead of silently swallowing them
+                                logger.warning(f"Failed to close file for {conversation_id}: {e}")
                         # Remove from tracking
                         del self.conversation_files[conversation_id]
                     
@@ -732,22 +734,16 @@ class ConversationManager:
                     file_size = stat.st_size
 
                     # Format file size
+                    # Bug fix #6: Removed unnecessary try-catch blocks around division
+                    # Division by constant integers cannot raise ZeroDivisionError
                     if file_size is None or file_size < 0:
                         size_str = "Unknown"
                     elif file_size < 1024:
                         size_str = f"{file_size} B"
                     elif file_size < 1024 * 1024:
-                        try:
-                            size_str = f"{file_size / 1024:.1f} KB"
-                        except (TypeError, ZeroDivisionError) as e:
-                            size_str = "Unknown"
-                            logger.warning(f"Division error in file size calculation: {e}")
+                        size_str = f"{file_size / 1024:.1f} KB"
                     else:
-                        try:
-                            size_str = f"{file_size / (1024 * 1024):.1f} MB"
-                        except (TypeError, ZeroDivisionError) as e:
-                            size_str = "Unknown"
-                            logger.warning(f"Division error in file size calculation: {e}")
+                        size_str = f"{file_size / (1024 * 1024):.1f} MB"
 
                     # Get conversation name (without extension)
                     conversation_name = file_path.stem

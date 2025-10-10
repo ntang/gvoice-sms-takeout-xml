@@ -159,16 +159,19 @@ def _compute_directory_hash(processing_dir: Path) -> str:
         Hash string representing directory state
     """
     try:
-        # Use directory modification time and file count as a simple hash
-        # This is much faster than hashing all file contents
+        # Use directory modification time, size, and file count for cache validation
+        # Including file count ensures cache is invalidated when files are added/removed
         dir_stat = processing_dir.stat()
         calls_dir = processing_dir / "Calls"
         calls_stat = calls_dir.stat() if calls_dir.exists() else None
-        
-        hash_input = f"{dir_stat.st_mtime}_{dir_stat.st_size}"
+
+        # Count files in processing directory and Calls subdirectory
+        file_count = sum(1 for _ in processing_dir.rglob("*") if _.is_file())
+
+        hash_input = f"{dir_stat.st_mtime}_{dir_stat.st_size}_{file_count}"
         if calls_stat:
             hash_input += f"_{calls_stat.st_mtime}_{calls_stat.st_size}"
-        
+
         return hashlib.md5(hash_input.encode()).hexdigest()[:16]  # Short hash for performance
         
     except Exception:
