@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Google Voice SMS Takeout HTML Converter - CLI Interface (New Configuration System)
+Google Voice SMS Takeout HTML Converter - CLI Interface
 
 This module provides a CLI interface that integrates with the new configuration
-system with the new configuration architecture.
+architecture for processing Google Voice Takeout exports.
 """
 
 import logging
@@ -221,13 +221,13 @@ def validate_and_setup(config: ProcessingConfig) -> bool:
 @click.option(
     '--test-mode/--no-test-mode',
     default=False,
-    help="Enable testing mode with limited processing (default: disabled, 100 entries when enabled). FIXED: Now processes exactly the specified number of files instead of all files."
+    help="Enable test mode to process a limited number of files (default: disabled, processes 100 files when enabled)."
 )
 @click.option(
     '--test-limit',
     type=int,
     default=100,
-    help="Number of entries to process in test mode (default: 100). FIXED: Now correctly limits processing to this number of files."
+    help="Number of files to process in test mode (default: 100)."
 )
 @click.option(
     '--full-run/--no-full-run',
