@@ -236,7 +236,7 @@ class TestFilteringIntegration(BaseSMSTest):
     def test_filtering_with_invalid_dates(self):
         """Test filtering behavior with invalid date configurations."""
         # Test with invalid date range (older > newer)
-        with pytest.raises(ValueError, match="exclude_older_than.*must be before.*exclude_newer_than"):
+        with pytest.raises(ValueError, match="exclude_older_than.*must be on or before.*exclude_newer_than"):
             ProcessingConfig(
                 processing_dir=self.test_dir,
                 exclude_older_than=datetime(2024, 1, 1),

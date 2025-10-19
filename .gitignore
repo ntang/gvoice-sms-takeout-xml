@@ -82,3 +82,9 @@ temp/*
 conversations/
 gvoice_converter.log
 phone_lookup.txt
+
+# NumVerify API temporary files
+numverify_*.json
+numverify_*.csv
+*_classification_analysis.html
+test_sample_*.csv

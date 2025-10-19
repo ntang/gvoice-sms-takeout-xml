@@ -341,7 +341,7 @@ class ConfigurationManager:
             # This is just a runtime check
             _ = config.processing_dir
             _ = config.output_dir
-            _ = config.max_workers
+            # Note: max_workers was removed from ProcessingConfig and moved to shared_constants
             return True
         except Exception as e:
             logger.error(f"Configuration validation failed: {e}")

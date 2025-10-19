@@ -80,8 +80,11 @@ class PhoneLookupManager:
                                             filter_info = "filter"
                                             self.phone_aliases[phone] = alias
                                         else:
-                                            # Unknown third column, treat as part of alias
-                                            alias = f"{alias}|{filter_part}"
+                                            # Unknown third column - log warning and ignore
+                                            logger.warning(
+                                                f"Unknown filter format '{filter_part}' for {phone}, ignoring. "
+                                                f"Valid formats: 'filter', 'filter=type', or 'EXCLUDE:reason'"
+                                            )
                                             self.phone_aliases[phone] = alias
                                     else:
                                         # No filter, just alias
@@ -533,14 +536,10 @@ def get_own_number_from_context(participants: List[str], own_number: Optional[st
     # If own_number is provided and in participants, use it
     if own_number and own_number in participants:
         return own_number
-    
-    # Fallback: look for common patterns that might indicate "self"
-    # This is a heuristic and should be logged for debugging
-    for participant in participants:
-        if any(indicator in participant.lower() for indicator in ['me', 'self', 'own']):
-            logger.debug(f"Using heuristic own number detection: {participant}")
-            return participant
-    
-    # If we can't determine own number, return None
-    # The filtering function should handle this gracefully
+
+    # Cannot reliably determine own number from participants
+    # Previous heuristic (checking for 'me', 'self', 'own' in participant names)
+    # caused false positives with common names like "James", "Amelie", etc.
+    # It's better to return None and let the caller handle the case gracefully.
+    logger.debug(f"Could not determine own number from {len(participants)} participants")
     return None

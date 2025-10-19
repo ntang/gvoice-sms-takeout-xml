@@ -116,10 +116,10 @@ class ProcessingConfig:
                 start_str, end_str = self.include_date_range.split('_', 1)
                 start_date = datetime.strptime(start_str, '%Y-%m-%d')
                 end_date = datetime.strptime(end_str, '%Y-%m-%d')
-                
-                if start_date >= end_date:
+
+                if start_date > end_date:
                     raise ValueError(
-                        f"include_date_range start date ({start_str}) must be before end date ({end_str})"
+                        f"include_date_range start date ({start_str}) must be on or before end date ({end_str})"
                     )
                     
                 # Set the equivalent exclude options for internal use
@@ -137,9 +137,9 @@ class ProcessingConfig:
         
         # Validate exclude options logic
         if self.exclude_older_than and self.exclude_newer_than:
-            if self.exclude_older_than >= self.exclude_newer_than:
+            if self.exclude_older_than > self.exclude_newer_than:
                 raise ValueError(
-                    f"exclude_older_than ({self.exclude_older_than.strftime('%Y-%m-%d')}) must be before "
+                    f"exclude_older_than ({self.exclude_older_than.strftime('%Y-%m-%d')}) must be on or before "
                     f"exclude_newer_than ({self.exclude_newer_than.strftime('%Y-%m-%d')})"
                 )
     

@@ -85,7 +85,7 @@ class TestProcessingConfig:
         assert config.exclude_newer_than == newer
 
         # Test invalid date range
-        with pytest.raises(ValueError, match="exclude_older_than.*must be before.*exclude_newer_than"):
+        with pytest.raises(ValueError, match="exclude_older_than.*must be on or before.*exclude_newer_than"):
             ProcessingConfig(
                 processing_dir=Path("/tmp/test"),
                 exclude_older_than=newer,  # Swapped
