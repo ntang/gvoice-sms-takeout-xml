@@ -3,11 +3,16 @@ Thread-safe logging utilities to prevent race conditions in parallel processing.
 
 This module provides enhanced logging handlers that are safe for use with
 concurrent threads and parallel processing.
+
+Fix for Bug #13: File logging disabled due to thread safety issues.
+This implementation uses QueueHandler and QueueListener to ensure thread-safe
+logging even with MAX_WORKERS > 1.
 """
 
 import logging
 import logging.handlers
 import queue
+import sys
 import threading
 import atexit
 from typing import Optional
@@ -35,38 +40,49 @@ class QueuedFileHandler(logging.handlers.QueueHandler):
     """
     A queued file handler that processes log records in a separate thread.
     This prevents blocking the main processing threads.
+
+    Uses an unbounded queue to ensure log records are never dropped.
+    The listener thread processes records from the queue and writes to file.
     """
-    
-    def __init__(self, filename: Path, maxsize: int = 1000):
-        # Create a queue for log records
+
+    def __init__(self, filename: Path, maxsize: int = -1):
+        # Create an unbounded queue for log records (-1 = no size limit)
+        # This ensures we never drop log records under heavy load
         log_queue = queue.Queue(maxsize=maxsize)
         super().__init__(log_queue)
-        
+
+        # Ensure parent directory exists
+        filename.parent.mkdir(parents=True, exist_ok=True)
+
         # Create the actual file handler
         self.file_handler = ThreadSafeFileHandler(
-            filename, 
-            mode='a', 
+            filename,
+            mode='a',
             encoding='utf-8'
         )
         self.file_handler.setFormatter(
             logging.Formatter("%(asctime)s - %(levelname)s - [%(threadName)s] - %(message)s")
         )
-        
+
         # Start the listener thread
         self.listener = logging.handlers.QueueListener(
-            log_queue, 
+            log_queue,
             self.file_handler,
             respect_handler_level=True
         )
         self.listener.start()
-        
-        # Register cleanup on exit
+
+        # Register cleanup on exit (individual handler cleanup)
         atexit.register(self.cleanup)
-    
+
     def cleanup(self):
         """Clean up the queue listener."""
-        if hasattr(self, 'listener'):
-            self.listener.stop()
+        if hasattr(self, 'listener') and self.listener:
+            try:
+                self.listener.stop()
+                self.listener = None
+            except Exception:
+                pass  # Already stopped or errored
 
 
 def setup_thread_safe_logging(
@@ -129,17 +145,69 @@ def setup_thread_safe_logging(
 def get_thread_safe_logger(name: str) -> logging.Logger:
     """
     Get a thread-safe logger instance.
-    
+
     Args:
         name: Logger name
-        
+
     Returns:
         Logger instance configured for thread safety
     """
     logger = logging.getLogger(name)
-    
+
     # Ensure thread safety by adding a lock if not present
     if not hasattr(logger, '_thread_lock'):
         logger._thread_lock = threading.Lock()
-    
+
     return logger
+
+
+# Global logging manager for application-wide cleanup
+_global_logging_manager: Optional['LoggingManager'] = None
+_manager_lock = threading.Lock()
+
+
+class LoggingManager:
+    """
+    Central manager for thread-safe logging with proper cleanup.
+
+    This class manages all logging handlers and ensures proper shutdown
+    when the application exits. Use this instead of direct setup functions
+    for better resource management.
+    """
+
+    def __init__(self):
+        self.queue_handlers = []
+        self.listeners = []
+        self._cleanup_registered = False
+
+    def register_handler(self, handler: QueuedFileHandler):
+        """Register a queue handler for cleanup tracking."""
+        self.queue_handlers.append(handler)
+        if handler.listener:
+            self.listeners.append(handler.listener)
+
+        # Register cleanup on first handler
+        if not self._cleanup_registered:
+            atexit.register(self.cleanup_all)
+            self._cleanup_registered = True
+
+    def cleanup_all(self):
+        """Clean up all registered listeners and handlers."""
+        for listener in self.listeners:
+            try:
+                listener.stop()
+            except Exception as e:
+                print(f"Warning: Failed to stop listener: {e}", file=sys.stderr)
+
+        self.listeners.clear()
+        self.queue_handlers.clear()
+
+
+def get_logging_manager() -> LoggingManager:
+    """Get the global logging manager instance."""
+    global _global_logging_manager
+
+    with _manager_lock:
+        if _global_logging_manager is None:
+            _global_logging_manager = LoggingManager()
+        return _global_logging_manager

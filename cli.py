@@ -24,7 +24,14 @@ from core.sms_patch import patch_sms_module, unpatch_sms_module, is_sms_module_p
 
 
 def setup_logging(config: ProcessingConfig) -> None:
-    """Set up logging based on configuration."""
+    """
+    Set up thread-safe logging based on configuration.
+
+    Bug #13 FIX: Uses QueueHandler and QueueListener for thread-safe
+    file logging that works correctly even with MAX_WORKERS > 1.
+    """
+    from utils.thread_safe_logging import setup_thread_safe_logging
+
     # Determine log level
     if config.debug:
         log_level = logging.DEBUG
@@ -32,44 +39,35 @@ def setup_logging(config: ProcessingConfig) -> None:
         log_level = logging.INFO
     else:
         log_level = getattr(logging, config.log_level.upper())
-    
-    # CRITICAL FIX: Disable file logging entirely to prevent corruption
-    # Use console-only logging for maximum stability
-    import threading
-    
-    # Create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - [%(threadName)s] - %(message)s"
+
+    # Determine log file path
+    log_file = None
+    if hasattr(config, 'output_dir') and config.output_dir:
+        # Place log file in output directory
+        log_file = config.output_dir / config.log_filename
+    elif hasattr(config, 'processing_dir') and config.processing_dir:
+        # Fallback to processing directory
+        log_file = config.processing_dir / config.log_filename
+    else:
+        # Last resort: current directory
+        log_file = Path(config.log_filename)
+
+    # Set up thread-safe logging with both console and file output
+    # This uses QueueHandler to prevent thread safety issues
+    setup_thread_safe_logging(
+        log_level=log_level,
+        log_file=log_file,
+        console_logging=True,
+        include_thread_name=True
     )
-    
-    # Clear any existing handlers to prevent conflicts
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # ONLY use console handler - no file logging to prevent corruption
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(log_level)
-    
-    # Configure root logger with ONLY console output
-    logging.basicConfig(
-        level=log_level,
-        handlers=[console_handler],
-        force=True  # Force reconfiguration
-    )
-    
-    # Log that file logging is disabled for stability
-    logging.info("🔧 File logging disabled for maximum stability - using console output only")
-    
-    # Set module-specific logging levels
-    if config.debug:
-        logging.getLogger("concurrent.futures").setLevel(logging.INFO)
-        logging.getLogger(__name__).setLevel(logging.DEBUG)
-    
-    # Log the configured log level
+
+    # Log initialization
     logger = logging.getLogger(__name__)
-    logger.info(f"📝 Log level set to: {logging.getLevelName(log_level)}")
+    logger.info("=" * 60)
+    logger.info("✅ Thread-safe logging initialized (Bug #13 FIXED)")
+    logger.info(f"📝 Log level: {logging.getLevelName(log_level)}")
+    logger.info(f"📁 Log file: {log_file}")
+    logger.info("=" * 60)
 
 
 def patch_sms_module_with_config(config: ProcessingConfig) -> None:
