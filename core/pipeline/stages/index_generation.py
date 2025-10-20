@@ -192,14 +192,19 @@ class IndexGenerationStage(PipelineStage):
                 cached_metadata.get('conversations', {})
             )
 
-            # 4. Generate index.html
+            # 4. Load statistics from HTML generation stage
+            html_state_file = context.output_dir / "html_processing_state.json"
+            stats = self._load_html_stats(html_state_file)
+
+            # 5. Generate index.html
             self._generate_index_html(
                 context.output_dir,
                 conv_files,
-                metadata
+                metadata,
+                stats
             )
 
-            # 5. Save metadata cache
+            # 6. Save metadata cache
             files_hash = self._compute_files_hash(conv_files)
             self._save_metadata_cache(cache_file, metadata, files_hash)
 
@@ -244,6 +249,38 @@ class IndexGenerationStage(PipelineStage):
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Could not load metadata cache (will rebuild): {e}")
             return {'conversations': {}}
+
+    def _load_html_stats(self, state_file: Path) -> Dict:
+        """Load statistics from HTML processing state file."""
+        if not state_file.exists():
+            logger.warning("HTML processing state file not found - using zero stats")
+            return {
+                'num_sms': 0,
+                'num_img': 0,
+                'num_vcf': 0,
+                'num_calls': 0,
+                'num_voicemails': 0
+            }
+
+        try:
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+                return state.get('stats', {
+                    'num_sms': 0,
+                    'num_img': 0,
+                    'num_vcf': 0,
+                    'num_calls': 0,
+                    'num_voicemails': 0
+                })
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Could not load HTML stats: {e}")
+            return {
+                'num_sms': 0,
+                'num_img': 0,
+                'num_vcf': 0,
+                'num_calls': 0,
+                'num_voicemails': 0
+            }
 
     def _save_metadata_cache(self, cache_file: Path, metadata: Dict, files_hash: str):
         """Save metadata cache to JSON file (atomic write)."""
@@ -350,7 +387,7 @@ class IndexGenerationStage(PipelineStage):
                 'last_modified': 0
             }
 
-    def _generate_index_html(self, output_dir: Path, conv_files: List[Path], metadata: Dict):
+    def _generate_index_html(self, output_dir: Path, conv_files: List[Path], metadata: Dict, stats: Dict):
         """
         Generate index.html using template.
 
@@ -358,6 +395,7 @@ class IndexGenerationStage(PipelineStage):
             output_dir: Output directory
             conv_files: List of conversation files
             metadata: Conversation metadata dictionary
+            stats: Statistics from HTML generation stage
         """
         # Load template (located in project root /templates/)
         # Path: /Users/.../gvoice-sms-takeout-xml/templates/index.html
@@ -371,10 +409,12 @@ class IndexGenerationStage(PipelineStage):
         # Build conversation rows
         conversation_rows = self._build_conversation_rows(conv_files, metadata)
 
-        # Calculate statistics
-        total_sms = sum(m.get('sms_count', 0) for m in metadata.values())
-        total_calls = sum(m.get('call_count', 0) for m in metadata.values())
-        total_voicemails = sum(m.get('voicemail_count', 0) for m in metadata.values())
+        # Use statistics from HTML generation stage
+        total_sms = stats.get('num_sms', 0)
+        total_calls = stats.get('num_calls', 0)
+        total_voicemails = stats.get('num_voicemails', 0)
+        total_img = stats.get('num_img', 0)
+        total_vcf = stats.get('num_vcf', 0)
         total_messages = total_sms + total_calls + total_voicemails
 
         # Format template variables
@@ -384,8 +424,8 @@ class IndexGenerationStage(PipelineStage):
             'num_sms': total_sms,
             'num_calls': total_calls,
             'num_voicemails': total_voicemails,
-            'num_img': 0,  # Would need to parse HTML
-            'num_vcf': 0,  # Would need to parse HTML
+            'num_img': total_img,
+            'num_vcf': total_vcf,
             'total_messages': total_messages,
             'conversation_rows': conversation_rows,
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
