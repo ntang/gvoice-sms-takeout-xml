@@ -18,9 +18,8 @@ from .attachment_mapping import AttachmentMappingStage
 from .attachment_copying import AttachmentCopyingStage
 # Phase 3a: HTML Generation
 from .html_generation import HtmlGenerationStage
-
-# Future stages (will be implemented in later phases)
-# from .index_generation import IndexGenerationStage
+# Phase 4: Index Generation
+from .index_generation import IndexGenerationStage
 
 __all__ = [
     # Phase 2: Phone Processing
@@ -35,5 +34,6 @@ __all__ = [
     'AttachmentCopyingStage',
     # Phase 3a: HTML Generation
     'HtmlGenerationStage',
-    # Future stages will be added here
+    # Phase 4: Index Generation
+    'IndexGenerationStage',
 ]

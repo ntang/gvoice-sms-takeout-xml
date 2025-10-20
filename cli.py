@@ -929,6 +929,76 @@ def html_generation(ctx):
 
 @cli.command()
 @click.pass_context
+def index_generation(ctx):
+    """Generate index.html from conversation files (requires html-generation stage)."""
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import (
+            AttachmentMappingStage,
+            AttachmentCopyingStage,
+            HtmlGenerationStage,
+            IndexGenerationStage
+        )
+
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+
+        # Register all stages (index_generation depends on html_generation)
+        manager.register_stage(AttachmentMappingStage())
+        manager.register_stage(AttachmentCopyingStage())
+        manager.register_stage(HtmlGenerationStage())
+        manager.register_stage(IndexGenerationStage())
+
+        click.echo("📝 Starting index generation pipeline...")
+
+        # Execute pipeline (will auto-skip completed stages)
+        results = manager.execute_pipeline(config=config)
+
+        # Check index_generation result
+        if results["index_generation"].success:
+            metadata = results["index_generation"].metadata
+            click.echo(f"✅ Index generation completed!")
+
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 Total conversations: {metadata.get('total_conversations', 0)}")
+                click.echo(f"   📋 Files processed: {metadata.get('total_conversations', 0)}")
+                click.echo(f"   ⏭️  Files skipped: {metadata.get('files_skipped', 0)}")
+                click.echo(f"   💾 Output: {config.processing_dir / 'conversations' / 'index.html'}")
+
+            # Show errors if any
+            if results["index_generation"].errors:
+                click.echo(f"\n⚠️  Errors:")
+                for error in results["index_generation"].errors[:5]:
+                    click.echo(f"   {error}")
+                if len(results["index_generation"].errors) > 5:
+                    click.echo(f"   ... and {len(results['index_generation'].errors) - 5} more")
+        else:
+            click.echo("❌ Index generation failed:")
+            for error in results["index_generation"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+
+    except Exception as e:
+        click.echo(f"❌ Index generation failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.pass_context
 def convert(ctx):
     """Convert Google Voice export files to SMS backup format."""
     config = ctx.obj['config']
