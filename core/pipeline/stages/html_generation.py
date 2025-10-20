@@ -149,10 +149,12 @@ class HtmlGenerationStage(PipelineStage):
             2. Load attachment mapping
             3. Get list of HTML files
             4. Filter out already-processed files
-            5. Process remaining files
-            6. Finalize all conversations
-            7. Generate index.html
-            8. Save updated state
+            5. Initialize ConversationManager and PhoneLookupManager
+            6. Create ProcessingContext
+            7. Process remaining files
+            8. Finalize all conversations
+            9. Generate index.html
+            10. Save updated state
 
         Args:
             context: Pipeline context
@@ -257,11 +259,35 @@ class HtmlGenerationStage(PipelineStage):
                 output_format="html"
             )
 
-            # Initialize phone lookup manager
+            # Initialize phone lookup manager (disable prompts for pipeline)
             phone_lookup_file = context.processing_dir / "phone_lookup.txt"
-            phone_lookup_manager = PhoneLookupManager(phone_lookup_file)
+            phone_lookup_manager = PhoneLookupManager(
+                phone_lookup_file,
+                enable_prompts=False  # Disable interactive prompts in pipeline
+            )
 
-            # 6. Process files
+            # 6. Create ProcessingContext for sms.py
+            from core.processing_context import ProcessingContext
+            from core.path_manager import PathManager
+
+            # Create a minimal ProcessingContext with the managers
+            processing_context = ProcessingContext(
+                conversation_manager=conversation_manager,
+                phone_lookup_manager=phone_lookup_manager,
+                path_manager=PathManager(
+                    processing_dir=context.processing_dir,
+                    output_dir=context.output_dir
+                ),
+                config=None,  # Optional - will use defaults
+                processing_dir=context.processing_dir,
+                output_dir=context.output_dir,
+                log_filename="gvoice_converter.log",
+                test_mode=False,
+                test_limit=0,
+                limited_html_files=files_to_process
+            )
+
+            # 7. Process files
             from sms import process_html_files_param
 
             new_stats = process_html_files_param(
@@ -270,7 +296,7 @@ class HtmlGenerationStage(PipelineStage):
                 conversation_manager=conversation_manager,
                 phone_lookup_manager=phone_lookup_manager,
                 config=None,  # Will use defaults
-                context=None,
+                context=processing_context,  # Pass the context!
                 limited_files=files_to_process  # Only process new files!
             )
 
@@ -278,11 +304,11 @@ class HtmlGenerationStage(PipelineStage):
                        f"{new_stats.get('num_img', 0)} images, "
                        f"{new_stats.get('num_vcf', 0)} vCards")
 
-            # 7. Finalize all conversations
+            # 8. Finalize all conversations
             logger.info("   Finalizing conversations...")
             conversation_manager.finalize_conversation_files(config=None)
 
-            # 8. Generate index.html
+            # 9. Generate index.html
             logger.info("   Generating index...")
             elapsed_time = time.time() - start_time
 
@@ -297,7 +323,7 @@ class HtmlGenerationStage(PipelineStage):
 
             conversation_manager.generate_index_html(total_stats, elapsed_time)
 
-            # 9. Update state
+            # 10. Update state
             processed_files_set.update(str(f) for f in files_to_process)
 
             self._save_state(state_file, {
