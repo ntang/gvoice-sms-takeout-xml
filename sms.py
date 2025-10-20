@@ -4950,7 +4950,7 @@ def write_mms_messages(
                         if img_src:
                             img_filename = img_src.get("src")
                             if img_filename in src_filename_map:
-                                actual_filename, _ = src_filename_map[img_filename]
+                                actual_filename = src_filename_map[img_filename]
                                 if actual_filename != "No unused match found":
                                     # Create clickable link to the image
                                     attachments.append(
@@ -5112,26 +5112,17 @@ def build_vcard_parts(message: BeautifulSoup, src_filename_map: Dict[str, Tuple[
     for vcard in vcards:
         href = vcard.get("href", "")
         if href in src_filename_map:
-            filename, _ = src_filename_map[href]
+            filename = src_filename_map[href]
             if filename and filename != "No unused match found":
-                # Look for the file in the Calls subdirectory
-                source_file_path = PROCESSING_DIRECTORY / "Calls" / filename
-                
-                # If the file doesn't exist in Calls, try to find it using the source_path from mapping
+                # Look for the file in the processing directory using the mapped filename
+                source_file_path = PROCESSING_DIRECTORY / filename
+
+                # If the file doesn't exist, log a warning and skip
                 if not source_file_path.exists():
-                    # Try to get the actual source path from the mapping
-                    if href in src_filename_map:
-                        _, actual_source_path = src_filename_map[href]
-                        if actual_source_path and Path(actual_source_path).exists():
-                            source_file_path = Path(actual_source_path)
-                            logger.debug(f"Using actual source path: {source_file_path}")
-                        else:
-                            logger.warning(f"Source path not found for {filename}, skipping")
-                            continue
-                    else:
-                        logger.warning(f"No mapping found for href '{href}', skipping")
-                        continue
-                
+                    logger.warning(f"Source file not found: {source_file_path}, skipping")
+                    continue
+
+                # Process the vCard file
                 if source_file_path.exists():
                     try:
                         # Use the attachments directory created in
@@ -6546,9 +6537,9 @@ def resolve_attachment_path_fallback(filename: str, src: str, src_filename_map: 
     
     # Method 3: Try to reconstruct path from src reference
     if src and src in src_filename_map:
-        _, source_path = src_filename_map[src]
-        if source_path:
-            reconstructed_path = Path(source_path)
+        mapped_filename = src_filename_map[src]
+        if mapped_filename:
+            reconstructed_path = PROCESSING_DIRECTORY / mapped_filename
             if reconstructed_path.exists():
                 logger.info(f"✅ Reconstructed path for {filename}: {reconstructed_path}")
                 return reconstructed_path
