@@ -331,7 +331,10 @@ def phone_discovery(ctx, output):
     """Discover and catalog phone numbers from HTML files."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import PhoneDiscoveryStage
@@ -351,18 +354,27 @@ def phone_discovery(ctx, output):
         
         if results["phone_discovery"].success:
             metadata = results["phone_discovery"].metadata
-            click.echo(f"✅ Discovery completed successfully!")
-            click.echo(f"   📊 Discovered: {metadata['discovered_count']} phone numbers")
-            click.echo(f"   ❓ Unknown: {metadata['unknown_count']} numbers")
-            click.echo(f"   ✓ Known: {metadata['known_count']} numbers")
-            click.echo(f"   📁 Files processed: {metadata['files_processed']}")
-            
+
+            # Check if stage was skipped (Bug #14 fix)
+            if metadata.get('skipped'):
+                click.echo(f"✅ Discovery already completed (skipped)")
+                click.echo(f"   ⏭️  Stage was previously run - use --force to re-run")
+            else:
+                click.echo(f"✅ Discovery completed successfully!")
+                click.echo(f"   📊 Discovered: {metadata.get('discovered_count', 'N/A')} phone numbers")
+                click.echo(f"   ❓ Unknown: {metadata.get('unknown_count', 'N/A')} numbers")
+                click.echo(f"   ✓ Known: {metadata.get('known_count', 'N/A')} numbers")
+                click.echo(f"   📁 Files processed: {metadata.get('files_processed', 'N/A')}")
+
             if output:
                 # Copy output to specified location
                 import shutil
                 src = config.processing_dir / "conversations" / "phone_inventory.json"
-                shutil.copy2(src, output)
-                click.echo(f"   💾 Output saved to: {output}")
+                if src.exists():
+                    shutil.copy2(src, output)
+                    click.echo(f"   💾 Output saved to: {output}")
+                else:
+                    click.echo(f"   ⚠️  Output file not found: {src}")
         else:
             click.echo("❌ Phone discovery failed:")
             for error in results["phone_discovery"].errors:
@@ -388,7 +400,10 @@ def phone_lookup(ctx, input, provider, api_key, export_unknown):
     """Perform phone number lookup and enrichment."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import PhoneDiscoveryStage, PhoneLookupStage
@@ -457,7 +472,10 @@ def phone_pipeline(ctx, api, api_key):
     """Run complete phone discovery and lookup pipeline."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import PhoneDiscoveryStage, PhoneLookupStage
@@ -531,7 +549,10 @@ def file_discovery(ctx, output):
     """Discover and catalog HTML files in the processing directory."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import FileDiscoveryStage
@@ -551,18 +572,27 @@ def file_discovery(ctx, output):
         
         if results["file_discovery"].success:
             metadata = results["file_discovery"].metadata
-            click.echo(f"✅ File discovery completed successfully!")
-            click.echo(f"   📊 Total files: {metadata['total_files']}")
-            click.echo(f"   📁 File types: {metadata['type_counts']}")
-            click.echo(f"   💾 Total size: {metadata['total_size_mb']} MB")
-            click.echo(f"   🔍 Largest file: {metadata['largest_file_mb']} MB")
-            
+
+            # Check if stage was skipped (Bug #14 fix)
+            if metadata.get('skipped'):
+                click.echo(f"✅ File discovery already completed (skipped)")
+                click.echo(f"   ⏭️  Stage was previously run - use --force to re-run")
+            else:
+                click.echo(f"✅ File discovery completed successfully!")
+                click.echo(f"   📊 Total files: {metadata.get('total_files', 'N/A')}")
+                click.echo(f"   📁 File types: {metadata.get('type_counts', 'N/A')}")
+                click.echo(f"   💾 Total size: {metadata.get('total_size_mb', 'N/A')} MB")
+                click.echo(f"   🔍 Largest file: {metadata.get('largest_file_mb', 'N/A')} MB")
+
             if output:
                 # Copy output to specified location
                 import shutil
                 src = config.processing_dir / "conversations" / "file_inventory.json"
-                shutil.copy2(src, output)
-                click.echo(f"   💾 Output saved to: {output}")
+                if src.exists():
+                    shutil.copy2(src, output)
+                    click.echo(f"   💾 Output saved to: {output}")
+                else:
+                    click.echo(f"   ⚠️  Output file not found: {src}")
         else:
             click.echo("❌ File discovery failed:")
             for error in results["file_discovery"].errors:
@@ -585,7 +615,10 @@ def content_extraction(ctx, max_files, output):
     """Extract structured content from HTML files."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import FileDiscoveryStage, ContentExtractionStage
@@ -644,7 +677,10 @@ def file_pipeline(ctx, max_files):
     """Run complete file discovery and content extraction pipeline."""
     try:
         config = ctx.obj['config']
-        
+
+        # Set up logging (Bug #15 fix)
+        setup_logging(config)
+
         # Import pipeline components
         from core.pipeline import PipelineManager
         from core.pipeline.stages import FileDiscoveryStage, ContentExtractionStage
@@ -700,6 +736,191 @@ def file_pipeline(ctx, max_files):
             
     except Exception as e:
         click.echo(f"❌ File pipeline failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def attachment_mapping(ctx):
+    """Build attachment mapping as a pipeline stage."""
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import AttachmentMappingStage
+
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+
+        # Register stage
+        stage = AttachmentMappingStage()
+        manager.register_stage(stage)
+
+        click.echo("🔍 Starting attachment mapping...")
+
+        # Execute stage
+        results = manager.execute_pipeline(config=config)
+
+        if results["attachment_mapping"].success:
+            metadata = results["attachment_mapping"].metadata
+            click.echo(f"✅ Attachment mapping completed!")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 Total mappings: {metadata['total_mappings']}")
+                click.echo(f"   💾 Output: {metadata['output_file']}")
+        else:
+            click.echo("❌ Attachment mapping failed:")
+            for error in results["attachment_mapping"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+
+    except Exception as e:
+        click.echo(f"❌ Attachment mapping failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def attachment_copying(ctx):
+    """Copy attachments to output directory (requires attachment-mapping)."""
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import AttachmentMappingStage, AttachmentCopyingStage
+
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+
+        # Register both stages (attachment_copying depends on attachment_mapping)
+        manager.register_stage(AttachmentMappingStage())
+        manager.register_stage(AttachmentCopyingStage())
+
+        click.echo("📋 Starting attachment copying pipeline...")
+
+        # Execute pipeline (will auto-skip attachment_mapping if already done)
+        results = manager.execute_pipeline(config=config)
+
+        # Check attachment_copying result
+        if results["attachment_copying"].success:
+            metadata = results["attachment_copying"].metadata
+            click.echo(f"✅ Attachment copying completed!")
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📋 Copied: {metadata['total_copied']}")
+                click.echo(f"   ⏭️  Skipped: {metadata['total_skipped']}")
+                click.echo(f"   ⚠️  Errors: {metadata['total_errors']}")
+                click.echo(f"   💾 Output: {metadata['output_dir']}")
+
+            # Show errors if any
+            if results["attachment_copying"].errors:
+                click.echo(f"\n⚠️  Warnings:")
+                for error in results["attachment_copying"].errors[:5]:  # Show first 5
+                    click.echo(f"   {error}")
+                if len(results["attachment_copying"].errors) > 5:
+                    click.echo(f"   ... and {len(results['attachment_copying'].errors) - 5} more")
+        else:
+            click.echo("❌ Attachment copying failed:")
+            for error in results["attachment_copying"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+
+    except Exception as e:
+        click.echo(f"❌ Attachment copying failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def html_generation(ctx):
+    """Generate HTML conversations from processed files (requires attachment stages)."""
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+
+        # Import pipeline components
+        from core.pipeline import PipelineManager
+        from core.pipeline.stages import (
+            AttachmentMappingStage,
+            AttachmentCopyingStage,
+            HtmlGenerationStage
+        )
+
+        # Create pipeline manager
+        manager = PipelineManager(
+            processing_dir=config.processing_dir,
+            output_dir=config.processing_dir / "conversations"
+        )
+
+        # Register all three stages (html_generation depends on both attachment stages)
+        manager.register_stage(AttachmentMappingStage())
+        manager.register_stage(AttachmentCopyingStage())
+        manager.register_stage(HtmlGenerationStage())
+
+        click.echo("📝 Starting HTML generation pipeline...")
+
+        # Execute pipeline (will auto-skip completed stages)
+        results = manager.execute_pipeline(config=config)
+
+        # Check html_generation result
+        if results["html_generation"].success:
+            metadata = results["html_generation"].metadata
+            click.echo(f"✅ HTML generation completed!")
+
+            if metadata.get('skipped'):
+                click.echo(f"   ⏭️  Stage was skipped (already completed)")
+            else:
+                click.echo(f"   📊 SMS: {metadata.get('total_sms', 0)}")
+                click.echo(f"   🖼️  Images: {metadata.get('total_img', 0)}")
+                click.echo(f"   📇 vCards: {metadata.get('total_vcf', 0)}")
+                click.echo(f"   📞 Calls: {metadata.get('total_calls', 0)}")
+                click.echo(f"   🎙️  Voicemails: {metadata.get('total_voicemails', 0)}")
+                click.echo(f"   📋 Files processed this run: {metadata.get('files_processed', 0)}")
+                click.echo(f"   ⏭️  Files skipped: {metadata.get('files_skipped', 0)}")
+                click.echo(f"   💾 Output: {config.processing_dir / 'conversations'}")
+
+            # Show errors if any
+            if results["html_generation"].errors:
+                click.echo(f"\n⚠️  Errors:")
+                for error in results["html_generation"].errors[:5]:
+                    click.echo(f"   {error}")
+                if len(results["html_generation"].errors) > 5:
+                    click.echo(f"   ... and {len(results['html_generation'].errors) - 5} more")
+        else:
+            click.echo("❌ HTML generation failed:")
+            for error in results["html_generation"].errors:
+                click.echo(f"   {error}")
+            ctx.exit(1)
+
+    except Exception as e:
+        click.echo(f"❌ HTML generation failed: {e}")
         if ctx.obj.get('debug'):
             import traceback
             traceback.print_exc()
@@ -925,6 +1146,67 @@ def show_config(ctx):
     click.echo(f"Phone prompts: {config.enable_phone_prompts}")
     click.echo(f"Strict mode: {config.strict_mode}")
     click.echo(f"Large dataset: {config.large_dataset}")
+
+
+@cli.command()
+@click.option('--attachment', is_flag=True, help='Clear attachment cache (.cache/)')
+@click.option('--pipeline', is_flag=True, help='Clear pipeline state (pipeline_state/)')
+@click.option('--all', 'clear_all', is_flag=True, help='Clear both caches')
+@click.pass_context
+def clear_cache(ctx, attachment, pipeline, clear_all):
+    """Clear caches to force fresh processing.
+
+    This project uses two caches:
+
+    1. Attachment Cache (.cache/) - Speeds up attachment mapping
+
+    2. Pipeline State (pipeline_state/) - Tracks completed stages
+
+    Use --all to clear both, or specify individual caches.
+    """
+    import shutil
+
+    config = ctx.obj['config']
+    processing_dir = config.processing_dir
+
+    cleared = []
+
+    # Clear attachment cache
+    if attachment or clear_all:
+        cache_dir = processing_dir / ".cache"
+        if cache_dir.exists():
+            try:
+                shutil.rmtree(cache_dir)
+                cleared.append("Attachment cache (.cache/)")
+                click.echo(f"✅ Cleared: {cache_dir}")
+            except Exception as e:
+                click.echo(f"❌ Failed to clear attachment cache: {e}")
+        else:
+            click.echo(f"ℹ️  Attachment cache does not exist: {cache_dir}")
+
+    # Clear pipeline state
+    if pipeline or clear_all:
+        state_dir = processing_dir / "conversations" / "pipeline_state"
+        if state_dir.exists():
+            try:
+                shutil.rmtree(state_dir)
+                cleared.append("Pipeline state (pipeline_state/)")
+                click.echo(f"✅ Cleared: {state_dir}")
+            except Exception as e:
+                click.echo(f"❌ Failed to clear pipeline state: {e}")
+        else:
+            click.echo(f"ℹ️  Pipeline state does not exist: {state_dir}")
+
+    # Show summary
+    if not (attachment or pipeline or clear_all):
+        click.echo("❌ No cache specified. Use --attachment, --pipeline, or --all")
+        click.echo("\nRun 'python cli.py clear-cache --help' for more information")
+        ctx.exit(1)
+    elif cleared:
+        click.echo(f"\n🎉 Cleared {len(cleared)} cache(s): {', '.join(cleared)}")
+        click.echo("\nNext run will rebuild from scratch.")
+    else:
+        click.echo("\nℹ️  No caches found to clear.")
 
 
 if __name__ == '__main__':

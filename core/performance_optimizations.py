@@ -74,22 +74,27 @@ class AttachmentCache:
             logger.debug(f"Failed to save attachment cache: {e}")
 
 
-def scan_directory_optimized(directory: Path, extensions: Set[str]) -> List[str]:
+def scan_directory_optimized(directory: Path, extensions: Set[str], base_dir: Path = None) -> List[str]:
     """
     Optimized directory scanning with early termination and filtering.
-    
+
     Args:
         directory: Directory to scan
         extensions: Set of file extensions to look for
-        
+        base_dir: Base directory for relative paths (internal use for recursion)
+
     Returns:
-        List of attachment filenames found
+        List of attachment file paths (relative to base_dir if provided, otherwise just filenames)
     """
     attachment_files = []
-    
+
+    # On first call, set base_dir to current directory
+    if base_dir is None:
+        base_dir = directory
+
     # Convert extensions to lowercase for faster comparison
     extensions_lower = {ext.lower() for ext in extensions}
-    
+
     try:
         # Use os.scandir for better performance than os.walk
         for entry in os.scandir(directory):
@@ -99,18 +104,25 @@ def scan_directory_optimized(directory: Path, extensions: Set[str]) -> List[str]
                 if '.' in name:
                     ext = name[name.rfind('.'):].lower()
                     if ext in extensions_lower:
-                        attachment_files.append(name)
+                        # Store relative path from base_dir
+                        file_path = Path(entry.path)
+                        try:
+                            relative_path = file_path.relative_to(base_dir)
+                            attachment_files.append(str(relative_path))
+                        except ValueError:
+                            # Fallback to just filename if relative_to fails
+                            attachment_files.append(name)
             elif entry.is_dir():
                 # Recursive scan for subdirectories
                 try:
-                    sub_files = scan_directory_optimized(Path(entry.path), extensions)
+                    sub_files = scan_directory_optimized(Path(entry.path), extensions, base_dir)
                     attachment_files.extend(sub_files)
                 except PermissionError:
                     logger.debug(f"Permission denied accessing {entry.path}")
                     continue
-                
+
         return attachment_files
-        
+
     except Exception as e:
         logger.error(f"Error scanning directory {directory}: {e}")
         return attachment_files

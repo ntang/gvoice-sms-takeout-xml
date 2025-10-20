@@ -45,7 +45,7 @@ class QueuedFileHandler(logging.handlers.QueueHandler):
     The listener thread processes records from the queue and writes to file.
     """
 
-    def __init__(self, filename: Path, maxsize: int = -1):
+    def __init__(self, filename: Path, maxsize: int = -1, level: int = logging.NOTSET, formatter: Optional[logging.Formatter] = None):
         # Create an unbounded queue for log records (-1 = no size limit)
         # This ensures we never drop log records under heavy load
         log_queue = queue.Queue(maxsize=maxsize)
@@ -60,9 +60,21 @@ class QueuedFileHandler(logging.handlers.QueueHandler):
             mode='a',
             encoding='utf-8'
         )
-        self.file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - [%(threadName)s] - %(message)s")
-        )
+
+        # Set formatter - use provided formatter or default
+        if formatter is None:
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - [%(threadName)s] - %(name)s - %(message)s")
+
+        # Set formatter ONLY on the internal file handler
+        # QueueHandler should NOT format - it passes raw LogRecords to the queue
+        self.file_handler.setFormatter(formatter)
+
+        # Set the level on the actual file handler (Bug #15 fix)
+        self.file_handler.setLevel(level)
+
+        # Store formatter and level for later reference
+        self._formatter = formatter
+        self._level = level
 
         # Start the listener thread
         self.listener = logging.handlers.QueueListener(
@@ -74,6 +86,16 @@ class QueuedFileHandler(logging.handlers.QueueHandler):
 
         # Register cleanup on exit (individual handler cleanup)
         atexit.register(self.cleanup)
+
+    def setFormatter(self, formatter):
+        """Set formatter on the internal file handler."""
+        if hasattr(self, 'file_handler') and self.file_handler:
+            self.file_handler.setFormatter(formatter)
+
+    def setLevel(self, level):
+        """Set level on the internal file handler."""
+        if hasattr(self, 'file_handler') and self.file_handler:
+            self.file_handler.setLevel(level)
 
     def cleanup(self):
         """Clean up the queue listener."""
@@ -93,7 +115,7 @@ def setup_thread_safe_logging(
 ) -> None:
     """
     Set up thread-safe logging configuration.
-    
+
     Args:
         log_level: Logging level (e.g., logging.INFO)
         log_file: Optional path to log file
@@ -110,10 +132,13 @@ def setup_thread_safe_logging(
             "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
         )
     
-    # Clear existing handlers
+    # Clear existing handlers and clean up any QueueListeners
     root_logger = logging.getLogger()
-    root_logger.handlers.clear()
-    
+    for handler in root_logger.handlers[:]:  # Copy list to avoid modification during iteration
+        if isinstance(handler, QueuedFileHandler):
+            handler.cleanup()
+        root_logger.removeHandler(handler)
+
     handlers = []
     
     # Add console handler if requested
@@ -126,17 +151,16 @@ def setup_thread_safe_logging(
     # Add file handler if requested
     if log_file:
         # Use queued handler for better thread safety
-        file_handler = QueuedFileHandler(log_file)
-        file_handler.setLevel(log_level)
+        # Pass level AND formatter to constructor (Bug #15 fix)
+        file_handler = QueuedFileHandler(log_file, level=log_level, formatter=formatter)
         handlers.append(file_handler)
     
-    # Configure root logger
-    logging.basicConfig(
-        level=log_level,
-        handlers=handlers,
-        force=True
-    )
-    
+    # Configure root logger - DON'T use basicConfig as it resets formatters
+    # Instead, manually configure the root logger
+    root_logger.setLevel(log_level)
+    for handler in handlers:
+        root_logger.addHandler(handler)
+
     # Set specific logger levels for noisy modules
     logging.getLogger("concurrent.futures").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)

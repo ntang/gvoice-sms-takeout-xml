@@ -63,14 +63,24 @@ python cli.py validate
 python cli.py phone-pipeline
 
 # File discovery and content extraction
-python cli.py file-pipeline
+python cli.py file-pipeline --max-files 80000
+
+# Attachment mapping (Phase 1 - Option A implementation)
+python cli.py attachment-mapping
 
 # Individual stages
 python cli.py phone-discovery
 python cli.py phone-lookup --provider manual
 python cli.py file-discovery
-python cli.py content-extraction
+python cli.py content-extraction --max-files 80000
+
+# Cache management
+python cli.py clear-cache --all          # Clear both caches
+python cli.py clear-cache --attachment   # Clear attachment cache only
+python cli.py clear-cache --pipeline     # Clear pipeline state only
 ```
+
+**See also**: `docs/CACHE_MANAGEMENT.md` for detailed cache behavior explanation
 
 ## Architecture Overview
 

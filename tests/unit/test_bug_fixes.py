@@ -427,5 +427,220 @@ class TestBug11BackupFailureHandling:
             assert "+9999999999|Test_User" in content
 
 
+class TestBug14CLISkippedStageMetadata:
+    """Test for Bug #14: CLI KeyError when accessing metadata from skipped pipeline stages."""
+
+    def test_phone_discovery_cli_handles_skipped_stage(self):
+        """Test that phone-discovery CLI command handles skipped stages without KeyError."""
+        from click.testing import CliRunner
+        from unittest.mock import Mock, patch
+        from core.pipeline.base import StageResult
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            processing_dir = Path(tmpdir) / "processing"
+            processing_dir.mkdir(parents=True)
+
+            # Create minimal HTML file
+            (processing_dir / "test.html").write_text("<html></html>")
+
+            # Import the CLI
+            from cli import cli
+
+            runner = CliRunner()
+
+            # Mock the PipelineManager to return a skipped result
+            skipped_result = StageResult(
+                success=True,
+                execution_time=0.0,
+                records_processed=0,
+                metadata={'skipped': True}  # Only 'skipped' key, no 'discovered_count'
+            )
+
+            # Patch where it's imported (inside the function)
+            with patch('core.pipeline.PipelineManager') as mock_manager_class:
+                mock_manager = Mock()
+                mock_manager_class.return_value = mock_manager
+                mock_manager.execute_pipeline.return_value = {
+                    "phone_discovery": skipped_result
+                }
+
+                # Bug: This should raise KeyError when accessing metadata['discovered_count']
+                # After fix: Should handle gracefully and display skip message
+                result = runner.invoke(cli, [
+                    '--processing-dir', str(processing_dir),
+                    'phone-discovery'
+                ])
+
+                # Before fix: Command exits with error due to KeyError
+                # After fix: Command should succeed and indicate stage was skipped
+                assert result.exit_code == 0, f"Command failed: {result.output}"
+
+                # After fix: Should not try to access missing metadata keys
+                assert "Discovery" in result.output
+
+                # Should NOT contain the error message from KeyError
+                assert "'discovered_count'" not in result.output
+
+    def test_phone_discovery_cli_handles_successful_stage(self):
+        """Test that phone-discovery CLI command handles successful stages correctly."""
+        from click.testing import CliRunner
+        from unittest.mock import Mock, patch
+        from core.pipeline.base import StageResult
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            processing_dir = Path(tmpdir) / "processing"
+            processing_dir.mkdir(parents=True)
+
+            # Create minimal HTML file
+            (processing_dir / "test.html").write_text("<html></html>")
+
+            # Import the CLI
+            from cli import cli
+
+            runner = CliRunner()
+
+            # Mock the PipelineManager to return a successful result with full metadata
+            success_result = StageResult(
+                success=True,
+                execution_time=2.5,
+                records_processed=100,
+                metadata={
+                    'discovered_count': 100,
+                    'unknown_count': 25,
+                    'known_count': 75,
+                    'files_processed': 50
+                }
+            )
+
+            # Patch where it's imported (inside the function)
+            with patch('core.pipeline.PipelineManager') as mock_manager_class:
+                mock_manager = Mock()
+                mock_manager_class.return_value = mock_manager
+                mock_manager.execute_pipeline.return_value = {
+                    "phone_discovery": success_result
+                }
+
+                result = runner.invoke(cli, [
+                    '--processing-dir', str(processing_dir),
+                    'phone-discovery'
+                ])
+
+                # Command should succeed
+                assert result.exit_code == 0, f"Command failed: {result.output}"
+
+                # Should display all metadata
+                assert "100 phone numbers" in result.output
+                assert "25 numbers" in result.output  # unknown
+                assert "75 numbers" in result.output  # known
+                assert "50" in result.output  # files processed
+
+
+class TestBug15PipelineCommandsLogging:
+    """Test for Bug #15: Pipeline commands don't initialize logging."""
+
+    def test_file_discovery_initializes_logging(self):
+        """Test that file-discovery command sets up logging properly."""
+        from click.testing import CliRunner
+        from unittest.mock import Mock, patch, call
+        from core.pipeline.base import StageResult
+        import logging
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            processing_dir = Path(tmpdir) / "processing"
+            processing_dir.mkdir(parents=True)
+
+            # Create minimal HTML file
+            (processing_dir / "test.html").write_text("<html></html>")
+
+            # Import the CLI
+            from cli import cli
+
+            runner = CliRunner()
+
+            # Mock setup_logging to verify it's called
+            with patch('cli.setup_logging') as mock_setup_logging:
+                # Mock the PipelineManager
+                with patch('core.pipeline.PipelineManager') as mock_manager_class:
+                    mock_manager = Mock()
+                    mock_manager_class.return_value = mock_manager
+                    mock_manager.execute_pipeline.return_value = {
+                        "file_discovery": StageResult(
+                            success=True,
+                            execution_time=1.0,
+                            records_processed=10,
+                            metadata={
+                                'total_files': 10,
+                                'type_counts': {'html': 10},
+                                'total_size_mb': 1.5,
+                                'largest_file_mb': 0.5
+                            }
+                        )
+                    }
+
+                    result = runner.invoke(cli, [
+                        '--processing-dir', str(processing_dir),
+                        '--log-level', 'DEBUG',
+                        'file-discovery'
+                    ])
+
+                    # Bug: setup_logging should be called but isn't
+                    # After fix: setup_logging must be called with config
+                    assert mock_setup_logging.called, \
+                        "setup_logging() was not called - logging not initialized!"
+
+                    # Verify it was called with the config object
+                    assert len(mock_setup_logging.call_args_list) >= 1, \
+                        "setup_logging() should be called at least once"
+
+    def test_phone_discovery_initializes_logging(self):
+        """Test that phone-discovery command sets up logging properly."""
+        from click.testing import CliRunner
+        from unittest.mock import Mock, patch
+        from core.pipeline.base import StageResult
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            processing_dir = Path(tmpdir) / "processing"
+            processing_dir.mkdir(parents=True)
+
+            # Create minimal HTML file
+            (processing_dir / "test.html").write_text("<html></html>")
+
+            # Import the CLI
+            from cli import cli
+
+            runner = CliRunner()
+
+            # Mock setup_logging to verify it's called
+            with patch('cli.setup_logging') as mock_setup_logging:
+                # Mock the PipelineManager
+                with patch('core.pipeline.PipelineManager') as mock_manager_class:
+                    mock_manager = Mock()
+                    mock_manager_class.return_value = mock_manager
+                    mock_manager.execute_pipeline.return_value = {
+                        "phone_discovery": StageResult(
+                            success=True,
+                            execution_time=1.0,
+                            records_processed=100,
+                            metadata={
+                                'discovered_count': 100,
+                                'unknown_count': 25,
+                                'known_count': 75,
+                                'files_processed': 50
+                            }
+                        )
+                    }
+
+                    result = runner.invoke(cli, [
+                        '--processing-dir', str(processing_dir),
+                        '--log-level', 'DEBUG',
+                        'phone-discovery'
+                    ])
+
+                    # Bug: setup_logging should be called but isn't
+                    # After fix: setup_logging must be called with config
+                    assert mock_setup_logging.called, \
+                        "setup_logging() was not called - logging not initialized!"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

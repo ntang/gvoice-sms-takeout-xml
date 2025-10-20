@@ -5,9 +5,9 @@
 
 ## ✅ Status: ALL FIXES COMPLETE
 
-**Test Results**: 555/555 tests PASS (100%)
-- 538 existing tests: ✅ PASS
-- 17 new bug tests: ✅ PASS (12 from first round + 5 from quick wins)
+**Test Results**: 569/569 tests PASS (100%)
+- 548 existing tests: ✅ PASS
+- 21 new bug tests: ✅ PASS (12 from first round + 5 from quick wins + 2 from Bug #14 + 2 from Bug #15)
 
 ---
 
@@ -307,6 +307,80 @@ setup_thread_safe_logging(
 
 ---
 
+### 🟢 Bug #14: CLI KeyError on Skipped Pipeline Stages - FIXED ✅
+
+**File**: `cli.py:355-374`
+
+**Issue**: When the `phone-discovery` command was run on a previously completed pipeline stage, the PipelineManager returned a skipped result with `metadata={'skipped': True}`. The CLI code attempted to access `metadata['discovered_count']` without checking if the stage was skipped, causing a KeyError.
+
+**Change**:
+```python
+# Before:
+click.echo(f"📊 Discovered: {metadata['discovered_count']} phone numbers")
+
+# After:
+if metadata.get('skipped'):
+    click.echo(f"✅ Discovery already completed (skipped)")
+    click.echo(f"   ⏭️  Stage was previously run - use --force to re-run")
+else:
+    click.echo(f"📊 Discovered: {metadata.get('discovered_count', 'N/A')} phone numbers")
+```
+
+**Lines Changed**: 16 (added skip detection + safe dict access with .get())
+
+**Tests**:
+- `tests/unit/test_bug_fixes.py::TestBug14CLISkippedStageMetadata::test_phone_discovery_cli_handles_skipped_stage` ✅ PASSES
+- `tests/unit/test_bug_fixes.py::TestBug14CLISkippedStageMetadata::test_phone_discovery_cli_handles_successful_stage` ✅ PASSES
+
+**Impact**:
+- CLI commands now properly handle skipped pipeline stages
+- Users see clear messaging when a stage has already been completed
+- Safe dictionary access prevents KeyError on missing metadata keys
+- Also added file existence check before copying output files
+
+**Date Fixed**: 2025-10-19
+
+---
+
+### 🟢 Bug #15: Pipeline Commands Don't Initialize Logging - FIXED ✅
+
+**Files**: `cli.py` (6 pipeline commands)
+
+**Issue**: Pipeline commands (`phone-discovery`, `phone-lookup`, `phone-pipeline`, `file-discovery`, `content-extraction`, `file-pipeline`) did not call `setup_logging()`, so when users ran these commands with `--log-level DEBUG`, no log output was produced. Only the `convert` command initialized logging.
+
+**Change**:
+```python
+# Added to each pipeline command after config initialization:
+# Set up logging (Bug #15 fix)
+setup_logging(config)
+```
+
+**Commands Fixed**:
+1. `phone-discovery` - cli.py:336
+2. `phone-lookup` - cli.py:405
+3. `phone-pipeline` - cli.py:477
+4. `file-discovery` - cli.py:554
+5. `content-extraction` - cli.py:611
+6. `file-pipeline` - cli.py:673
+
+**Lines Changed**: 6 (one `setup_logging(config)` call per command)
+
+**Tests**:
+- `tests/unit/test_bug_fixes.py::TestBug15PipelineCommandsLogging::test_file_discovery_initializes_logging` ✅ PASSES
+- `tests/unit/test_bug_fixes.py::TestBug15PipelineCommandsLogging::test_phone_discovery_initializes_logging` ✅ PASSES
+
+**Impact**:
+- `--log-level DEBUG` now works for all pipeline commands
+- Users can see detailed pipeline execution logs for debugging
+- Logging is consistently initialized across all CLI commands
+- Thread-safe file logging (from Bug #13 fix) now available in pipeline commands
+
+**Additional Fix**: Also applied Bug #14 fix to `file-discovery` command (safe metadata access for skipped stages)
+
+**Date Fixed**: 2025-10-19
+
+---
+
 ## Remaining Bugs (Deferred - See REMAINING_BUGS_ANALYSIS.md)
 
 The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS.md for detailed analysis):
@@ -326,5 +400,7 @@ The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS
 - ~~Bug #11: Backup failure handling~~ ✅ VERIFIED CORRECT
 - ~~Bug #12: StringBuilder optimization~~ ✅ ALREADY FIXED
 - ~~Bug #13: File logging disabled~~ ✅ FIXED (2025-10-09)
+- ~~Bug #14: CLI KeyError on skipped stages~~ ✅ FIXED (2025-10-19)
+- ~~Bug #15: Pipeline commands don't initialize logging~~ ✅ FIXED (2025-10-19)
 
-**Project Status**: 10 of 13 bugs addressed (7 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+**Project Status**: 12 of 15 bugs addressed (9 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
