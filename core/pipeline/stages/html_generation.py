@@ -197,10 +197,11 @@ class HtmlGenerationStage(PipelineStage):
             if not calls_dir.exists():
                 logger.info("   No Calls directory found - nothing to process")
 
-                # Still need to save state
+                # Still need to save state (preserve conversations if they exist)
                 self._save_state(state_file, {
                     'files_processed': list(processed_files_set),
-                    'stats': previous_stats
+                    'stats': previous_stats,
+                    'conversations': previous_state.get('conversations', {})  # Preserve existing
                 })
 
                 return StageResult(
@@ -323,12 +324,17 @@ class HtmlGenerationStage(PipelineStage):
 
             conversation_manager.generate_index_html(total_stats, elapsed_time)
 
-            # 10. Update state
+            # 10. Extract per-conversation stats
+            conversation_stats = self._extract_conversation_stats(conversation_manager)
+            logger.info(f"   Extracted stats for {len(conversation_stats)} conversations")
+
+            # 11. Update state
             processed_files_set.update(str(f) for f in files_to_process)
 
             self._save_state(state_file, {
                 'files_processed': list(processed_files_set),
-                'stats': total_stats
+                'stats': total_stats,
+                'conversations': conversation_stats  # NEW: Per-conversation stats
             })
 
             logger.info(f"✅ HTML generation completed in {elapsed_time:.2f}s")
@@ -395,6 +401,35 @@ class HtmlGenerationStage(PipelineStage):
         except OSError as e:
             logger.error(f"Failed to save state file: {e}")
             # Don't raise - allow processing to continue
+
+    def _extract_conversation_stats(self, conversation_manager) -> Dict[str, Dict]:
+        """
+        Extract per-conversation statistics from ConversationManager.
+
+        Args:
+            conversation_manager: ConversationManager instance with conversation_stats
+
+        Returns:
+            Dictionary mapping conversation ID to statistics
+        """
+        stats = {}
+
+        for conversation_id, conv_stats in conversation_manager.conversation_stats.items():
+            # Extract statistics from ConversationManager
+            # Note: ConversationManager uses different key names, so we normalize them
+            stats[conversation_id] = {
+                'sms_count': conv_stats.get('sms_count', 0) or conv_stats.get('num_sms', 0),
+                'call_count': conv_stats.get('calls_count', 0) or conv_stats.get('num_calls', 0),
+                'voicemail_count': conv_stats.get('voicemails_count', 0) or conv_stats.get('num_voicemails', 0),
+                'attachment_count': (
+                    conv_stats.get('attachments_count', 0) or
+                    conv_stats.get('num_img', 0) + conv_stats.get('num_vcf', 0)
+                ),
+                'latest_message_timestamp': conv_stats.get('latest_message_time'),
+                'file_path': f"{conversation_id}.html"
+            }
+
+        return stats
 
     def _convert_mapping_to_dict(self, mapping_data: Dict) -> Dict[str, str]:
         """

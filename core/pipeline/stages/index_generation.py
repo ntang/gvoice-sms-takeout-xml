@@ -186,15 +186,18 @@ class IndexGenerationStage(PipelineStage):
             cache_file = context.output_dir / "conversation_metadata.json"
             cached_metadata = self._load_metadata_cache(cache_file)
 
-            # 3. Extract metadata for all files (use cache when possible)
+            # 3. Load statistics from HTML generation stage
+            html_state_file = context.output_dir / "html_processing_state.json"
+            html_state = self._load_html_state(html_state_file)
+            stats = html_state.get('stats', {})
+            conversation_stats = html_state.get('conversations', {})
+
+            # 4. Extract metadata for all files (use cache when possible, merge with stats)
             metadata = self._build_conversation_metadata(
                 conv_files,
-                cached_metadata.get('conversations', {})
+                cached_metadata.get('conversations', {}),
+                conversation_stats  # NEW: Pass per-conversation stats
             )
-
-            # 4. Load statistics from HTML generation stage
-            html_state_file = context.output_dir / "html_processing_state.json"
-            stats = self._load_html_stats(html_state_file)
 
             # 5. Generate index.html
             self._generate_index_html(
@@ -250,37 +253,40 @@ class IndexGenerationStage(PipelineStage):
             logger.warning(f"Could not load metadata cache (will rebuild): {e}")
             return {'conversations': {}}
 
-    def _load_html_stats(self, state_file: Path) -> Dict:
-        """Load statistics from HTML processing state file."""
-        if not state_file.exists():
-            logger.warning("HTML processing state file not found - using zero stats")
-            return {
+    def _load_html_state(self, state_file: Path) -> Dict:
+        """Load complete state from HTML processing state file."""
+        default_state = {
+            'stats': {
                 'num_sms': 0,
                 'num_img': 0,
                 'num_vcf': 0,
                 'num_calls': 0,
                 'num_voicemails': 0
-            }
+            },
+            'conversations': {}
+        }
+
+        if not state_file.exists():
+            logger.warning("HTML processing state file not found - using empty state")
+            return default_state
 
         try:
             with open(state_file, 'r') as f:
                 state = json.load(f)
-                return state.get('stats', {
-                    'num_sms': 0,
-                    'num_img': 0,
-                    'num_vcf': 0,
-                    'num_calls': 0,
-                    'num_voicemails': 0
-                })
+
+                # Ensure required keys exist
+                if 'stats' not in state:
+                    logger.warning("No global stats found in state file")
+                    state['stats'] = default_state['stats']
+
+                if 'conversations' not in state:
+                    logger.warning("No per-conversation stats found in state file")
+                    state['conversations'] = {}
+
+                return state
         except (json.JSONDecodeError, OSError) as e:
-            logger.warning(f"Could not load HTML stats: {e}")
-            return {
-                'num_sms': 0,
-                'num_img': 0,
-                'num_vcf': 0,
-                'num_calls': 0,
-                'num_voicemails': 0
-            }
+            logger.warning(f"Could not load HTML state: {e}")
+            return default_state
 
     def _save_metadata_cache(self, cache_file: Path, metadata: Dict, files_hash: str):
         """Save metadata cache to JSON file (atomic write)."""
@@ -307,15 +313,22 @@ class IndexGenerationStage(PipelineStage):
             logger.error(f"Failed to save metadata cache: {e}")
             # Don't raise - allow processing to continue
 
-    def _build_conversation_metadata(self, conv_files: List[Path], cached_metadata: Dict) -> Dict:
+    def _build_conversation_metadata(
+        self,
+        conv_files: List[Path],
+        cached_metadata: Dict,
+        conversation_stats: Dict  # NEW parameter
+    ) -> Dict:
         """
         Build metadata for all conversation files.
 
-        Uses cached metadata for unchanged files, extracts new metadata for changed files.
+        Uses cached metadata for unchanged files, extracts new metadata for changed files,
+        and merges with per-conversation statistics from HTML generation.
 
         Args:
             conv_files: List of conversation HTML file paths
             cached_metadata: Previously cached metadata
+            conversation_stats: Per-conversation stats from HTML generation stage
 
         Returns:
             Dictionary mapping conversation ID to metadata
@@ -337,17 +350,30 @@ class IndexGenerationStage(PipelineStage):
                     if isinstance(cached_mtime, str):
                         # Skip comparison for string timestamps (legacy format)
                         # Always re-extract to ensure consistent format
-                        metadata[conversation_id] = self._extract_file_metadata(file_path)
+                        file_meta = self._extract_file_metadata(file_path)
                     elif abs(float(cached_mtime) - current_mtime) < 1.0:
-                        metadata[conversation_id] = cached
+                        file_meta = cached
                     else:
-                        metadata[conversation_id] = self._extract_file_metadata(file_path)
+                        file_meta = self._extract_file_metadata(file_path)
                 except (ValueError, TypeError):
                     # Invalid cached timestamp, re-extract
-                    metadata[conversation_id] = self._extract_file_metadata(file_path)
+                    file_meta = self._extract_file_metadata(file_path)
             else:
                 # Extract metadata from file
-                metadata[conversation_id] = self._extract_file_metadata(file_path)
+                file_meta = self._extract_file_metadata(file_path)
+
+            # Merge with per-conversation stats from Phase 3a
+            conv_stats = conversation_stats.get(conversation_id, {})
+            if conv_stats:
+                file_meta.update({
+                    'sms_count': conv_stats.get('sms_count', 0),
+                    'call_count': conv_stats.get('call_count', 0),
+                    'voicemail_count': conv_stats.get('voicemail_count', 0),
+                    'attachment_count': conv_stats.get('attachment_count', 0),
+                    'latest_message_timestamp': conv_stats.get('latest_message_timestamp')
+                })
+
+            metadata[conversation_id] = file_meta
 
         return metadata
 
