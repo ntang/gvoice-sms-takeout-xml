@@ -65,10 +65,17 @@ python cli.py phone-pipeline
 # File discovery and content extraction
 python cli.py file-pipeline --max-files 80000
 
-# Attachment mapping (Phase 1 - Option A implementation)
-python cli.py attachment-mapping
+# Phases 1-4: Complete pipeline for HTML generation with attachments
+python cli.py attachment-mapping         # Phase 1: Build attachment mapping
+python cli.py attachment-copying         # Phase 2: Copy attachments
+python cli.py html-generation            # Phase 3a: Generate HTML conversations
+python cli.py index-generation           # Phase 4: Generate index.html
 
-# Individual stages
+# HTML generation with filtering (Bug #17 fixed - filters now work!)
+python cli.py --filter-non-phone-numbers --no-include-call-only-conversations html-generation
+python cli.py --include-date-range 2020-01-01_2024-12-31 html-generation
+
+# Individual discovery stages
 python cli.py phone-discovery
 python cli.py phone-lookup --provider manual
 python cli.py file-discovery
@@ -79,6 +86,8 @@ python cli.py clear-cache --all          # Clear both caches
 python cli.py clear-cache --attachment   # Clear attachment cache only
 python cli.py clear-cache --pipeline     # Clear pipeline state only
 ```
+
+**Important**: CLI filtering options (like `--filter-non-phone-numbers`) must come BEFORE the command name.
 
 **See also**: `docs/CACHE_MANAGEMENT.md` for detailed cache behavior explanation
 

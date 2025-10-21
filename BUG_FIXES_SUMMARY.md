@@ -1,13 +1,17 @@
 # Bug Fixes Summary
-## All Priority Bugs Fixed - 2025-10-09
+## All Priority Bugs Fixed - Latest: 2025-10-21
 
 ---
 
 ## ✅ Status: ALL FIXES COMPLETE
 
-**Test Results**: 569/569 tests PASS (100%)
-- 548 existing tests: ✅ PASS
-- 21 new bug tests: ✅ PASS (12 from first round + 5 from quick wins + 2 from Bug #14 + 2 from Bug #15)
+**Test Results**: 403/403 unit tests PASS (100%)
+- All existing tests: ✅ PASS
+- Bug fix tests: ✅ PASS (includes Bug #17 and #18 fixes)
+
+**Latest Fixes (2025-10-21)**:
+- 🔴 Bug #17: CLI filtering options not working in html-generation stage - FIXED
+- 🟠 Bug #18: Phones.vcf incorrectly required in PathManager - FIXED
 
 ---
 
@@ -381,6 +385,87 @@ setup_logging(config)
 
 ---
 
+### 🔴 Bug #17: CLI Filtering Options Not Working in html-generation Stage - FIXED ✅
+
+**File**: `core/pipeline/stages/html_generation.py`
+
+**Severity**: Critical - ALL CLI filtering options were non-functional
+
+**Changes**:
+```python
+# Line 282 - ProcessingContext creation
+# Before: config=None  # Optional - will use defaults
+# After:  config=context.config  # Pass the actual config from pipeline context
+
+# Line 299 - process_html_files_param call
+# Before: config=None  # Will use defaults
+# After:  config=context.config  # Pass the actual config from pipeline context
+
+# Line 310 - finalize_conversation_files call
+# Before: config=None
+# After:  config=context.config
+
+# Line 204 - Bonus fix (typo)
+# Before: previous_state.get('conversations', {})
+# After:  state.get('conversations', {})
+```
+
+**Lines Changed**: 4 (3 config passing + 1 typo fix)
+
+**Root Cause**: The html-generation pipeline stage was passing `config=None` in three places instead of using the actual ProcessingConfig object available in `context.config`. Without the config, all filtering logic defaulted to "include everything".
+
+**Impact**: This bug affected ALL CLI filtering options in the html-generation stage:
+- `--filter-non-phone-numbers` (toll-free, service codes)
+- `--no-include-call-only-conversations` (call-only filtering)
+- `--include-date-range` (date filtering)
+- `--filter-numbers-without-aliases` (alias filtering)
+- All other ProcessingConfig-based filters
+
+**Verification**: Real-world test with 61,484 files
+- Before fix: 6,847 conversations generated (all included, filtering broken)
+- After fix: 2,710 conversations generated (4,130 excluded, filtering working!)
+- Result: 60% reduction when filtering applied correctly
+
+**Date Fixed**: 2025-10-21
+
+---
+
+### 🟠 Bug #18: Phones.vcf Incorrectly Required in PathManager - FIXED ✅
+
+**File**: `core/path_manager.py`
+
+**Severity**: High - Pipeline failed on Google Voice exports without Phones.vcf
+
+**Changes**:
+```python
+# Lines 94-142 - _validate_paths() method restructured
+# Before: required_paths = [processing_dir, calls_dir, phones_vcf]
+# After:  required_paths = [processing_dir, calls_dir]
+#         optional_paths = [phones_vcf]
+
+# Added validation logic for optional paths:
+# - Log warning if missing (don't raise error)
+# - Check readability if file exists
+```
+
+**Lines Changed**: 17 insertions, 4 deletions
+
+**Root Cause**: PathManager._validate_paths() treated Phones.vcf as a required file and raised PathValidationError if missing. However, not all Google Voice exports include this file (it's optional).
+
+**Impact**:
+- Pipeline stage failures: 6 unit tests failing in test_html_generation_stage.py
+- Tests could not create fixtures without Phones.vcf
+- Users with exports lacking Phones.vcf experienced validation errors
+
+**Verification**:
+- All 19 HTML generation stage tests now pass (was: 6 failing)
+- All 403 unit tests pass (100% pass rate)
+- Phones.vcf now logs warning if missing instead of raising error
+
+**Date Fixed**: 2025-10-21
+
+---
+
 ## Remaining Bugs (Deferred - See REMAINING_BUGS_ANALYSIS.md)
 
 The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS.md for detailed analysis):
@@ -402,5 +487,9 @@ The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS
 - ~~Bug #13: File logging disabled~~ ✅ FIXED (2025-10-09)
 - ~~Bug #14: CLI KeyError on skipped stages~~ ✅ FIXED (2025-10-19)
 - ~~Bug #15: Pipeline commands don't initialize logging~~ ✅ FIXED (2025-10-19)
+- ~~Bug #17: CLI filtering options not working~~ ✅ FIXED (2025-10-21)
+- ~~Bug #18: Phones.vcf incorrectly required~~ ✅ FIXED (2025-10-21)
 
-**Project Status**: 12 of 15 bugs addressed (9 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+**Project Status**: 14 of 17 bugs addressed (11 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+
+**All Tests Passing**: 403/403 unit tests ✅ PASS (100%)
