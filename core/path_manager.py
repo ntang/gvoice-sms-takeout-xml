@@ -90,13 +90,19 @@ class PathManager:
     def _validate_paths(self) -> None:
         """Validate all critical paths exist and are accessible."""
         logger.info("Validating critical paths...")
-        
+
+        # Required paths that MUST exist
         required_paths = [
             (self.processing_dir, "Processing directory"),
             (self.calls_dir, "Calls directory"),
+        ]
+
+        # Optional paths that should be logged if missing
+        optional_paths = [
             (self.phones_vcf, "Phones.vcf file"),
         ]
-        
+
+        # Validate required paths
         for path, description in required_paths:
             if not path.exists():
                 raise PathValidationError(
@@ -104,7 +110,7 @@ class PathManager:
                     path=path,
                     context="PathManager initialization"
                 )
-            
+
             if path.is_dir():
                 if not os.access(path, os.R_OK):
                     raise PathValidationError(
@@ -125,7 +131,14 @@ class PathManager:
                     path=path,
                     context="PathManager initialization"
                 )
-        
+
+        # Log warnings for missing optional paths
+        for path, description in optional_paths:
+            if not path.exists():
+                logger.warning(f"{description} not found (optional): {path}")
+            elif path.is_file() and not os.access(path, os.R_OK):
+                logger.warning(f"{description} is not readable (optional): {path}")
+
         logger.info("✅ All critical paths validated successfully")
     
     def ensure_output_directories(self) -> None:
