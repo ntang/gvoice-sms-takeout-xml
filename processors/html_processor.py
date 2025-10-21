@@ -183,20 +183,8 @@ def parse_html_file(html_file: Path) -> BeautifulSoup:
             # Return minimal soup for invalid files
             return BeautifulSoup("<html></html>", "html.parser")
         
-        # Use fastest available parser
-        parser = "html.parser"  # Default fallback
-        try:
-            import lxml
-            parser = "lxml"  # Fastest
-        except ImportError:
-            try:
-                import html5lib
-                parser = "html5lib"  # More accurate
-            except ImportError:
-                pass  # Use default
-        
-        # Parse with optimized parser
-        soup = BeautifulSoup(content, parser)
+        # Parse with html.parser (avoids parser imports in every call)
+        soup = BeautifulSoup(content, "html.parser")
         return soup
         
     except FileNotFoundError:

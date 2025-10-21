@@ -11,11 +11,10 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union, TYPE_CHECKING
+from templates.loader import format_conversation_template
 
 if TYPE_CHECKING:
     from core.processing_config import ProcessingConfig
-
-# Template imports removed - not used in this module
 
 logger = logging.getLogger(__name__)
 
@@ -984,9 +983,7 @@ class ConversationManager:
                 logger.warning(f"No valid messages found for conversation {conversation_id}")
                 self._write_error_page(file_info, conversation_id, "No valid messages found")
                 return
-            
-            from templates.loader import format_conversation_template
-            
+
             # Build message rows from sorted messages
             message_rows = []
             for timestamp, message_data in valid_messages:
