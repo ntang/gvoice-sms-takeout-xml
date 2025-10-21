@@ -201,7 +201,7 @@ class HtmlGenerationStage(PipelineStage):
                 self._save_state(state_file, {
                     'files_processed': list(processed_files_set),
                     'stats': previous_stats,
-                    'conversations': previous_state.get('conversations', {})  # Preserve existing
+                    'conversations': state.get('conversations', {})  # Preserve existing
                 })
 
                 return StageResult(
@@ -279,7 +279,7 @@ class HtmlGenerationStage(PipelineStage):
                     processing_dir=context.processing_dir,
                     output_dir=context.output_dir
                 ),
-                config=None,  # Optional - will use defaults
+                config=context.config,  # Pass the actual config from pipeline context
                 processing_dir=context.processing_dir,
                 output_dir=context.output_dir,
                 log_filename="gvoice_converter.log",
@@ -296,7 +296,7 @@ class HtmlGenerationStage(PipelineStage):
                 src_filename_map=src_filename_map,
                 conversation_manager=conversation_manager,
                 phone_lookup_manager=phone_lookup_manager,
-                config=None,  # Will use defaults
+                config=context.config,  # Pass the actual config from pipeline context
                 context=processing_context,  # Pass the context!
                 limited_files=files_to_process  # Only process new files!
             )
@@ -307,7 +307,7 @@ class HtmlGenerationStage(PipelineStage):
 
             # 8. Finalize all conversations
             logger.info("   Finalizing conversations...")
-            conversation_manager.finalize_conversation_files(config=None)
+            conversation_manager.finalize_conversation_files(config=context.config)
 
             # 9. Generate index.html
             logger.info("   Generating index...")
