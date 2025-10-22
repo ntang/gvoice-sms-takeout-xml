@@ -36,6 +36,73 @@ class ThreadSafeFileHandler(logging.FileHandler):
             super().emit(record)
 
 
+class QueuedConsoleHandler(logging.handlers.QueueHandler):
+    """
+    A queued console handler that processes log records in a separate thread.
+    This prevents race conditions when multiple threads write to stdout/stderr.
+
+    Uses an unbounded queue to ensure log records are never dropped.
+    The listener thread processes records from the queue and writes to console.
+
+    Fix for Bug #23: Console logging was not thread-safe, causing corrupted
+    output like "T..." fragments when parallel workers logged simultaneously.
+    """
+
+    def __init__(self, stream=None, maxsize: int = -1, level: int = logging.NOTSET, formatter: Optional[logging.Formatter] = None):
+        # Create an unbounded queue for log records (-1 = no size limit)
+        # This ensures we never drop log records under heavy load
+        log_queue = queue.Queue(maxsize=maxsize)
+        super().__init__(log_queue)
+
+        # Create the actual stream handler (defaults to stderr if no stream provided)
+        self.console_handler = logging.StreamHandler(stream)
+
+        # Set formatter - use provided formatter or default
+        if formatter is None:
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - [%(threadName)s] - %(name)s - %(message)s")
+
+        # Set formatter ONLY on the internal console handler
+        # QueueHandler should NOT format - it passes raw LogRecords to the queue
+        self.console_handler.setFormatter(formatter)
+
+        # Set the level on the actual console handler
+        self.console_handler.setLevel(level)
+
+        # Store formatter and level for later reference
+        self._formatter = formatter
+        self._level = level
+
+        # Start the listener thread
+        self.listener = logging.handlers.QueueListener(
+            log_queue,
+            self.console_handler,
+            respect_handler_level=True
+        )
+        self.listener.start()
+
+        # Register cleanup on exit (individual handler cleanup)
+        atexit.register(self.cleanup)
+
+    def setFormatter(self, formatter):
+        """Set formatter on the internal console handler."""
+        if hasattr(self, 'console_handler') and self.console_handler:
+            self.console_handler.setFormatter(formatter)
+
+    def setLevel(self, level):
+        """Set level on the internal console handler."""
+        if hasattr(self, 'console_handler') and self.console_handler:
+            self.console_handler.setLevel(level)
+
+    def cleanup(self):
+        """Clean up the queue listener."""
+        if hasattr(self, 'listener') and self.listener:
+            try:
+                self.listener.stop()
+                self.listener = None
+            except Exception:
+                pass  # Already stopped or errored
+
+
 class QueuedFileHandler(logging.handlers.QueueHandler):
     """
     A queued file handler that processes log records in a separate thread.
@@ -135,17 +202,17 @@ def setup_thread_safe_logging(
     # Clear existing handlers and clean up any QueueListeners
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:  # Copy list to avoid modification during iteration
-        if isinstance(handler, QueuedFileHandler):
+        if isinstance(handler, (QueuedFileHandler, QueuedConsoleHandler)):
             handler.cleanup()
         root_logger.removeHandler(handler)
 
     handlers = []
-    
+
     # Add console handler if requested
     if console_logging:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(log_level)
+        # Bug #23 fix: Use QueuedConsoleHandler for thread-safe console output
+        # This prevents corrupted output like "T..." fragments when parallel workers log simultaneously
+        console_handler = QueuedConsoleHandler(level=log_level, formatter=formatter)
         handlers.append(console_handler)
     
     # Add file handler if requested
@@ -204,10 +271,10 @@ class LoggingManager:
         self.listeners = []
         self._cleanup_registered = False
 
-    def register_handler(self, handler: QueuedFileHandler):
-        """Register a queue handler for cleanup tracking."""
+    def register_handler(self, handler):
+        """Register a queue handler for cleanup tracking (works with both file and console handlers)."""
         self.queue_handlers.append(handler)
-        if handler.listener:
+        if hasattr(handler, 'listener') and handler.listener:
             self.listeners.append(handler.listener)
 
         # Register cleanup on first handler
