@@ -75,17 +75,38 @@ All 9 tests passing.
 ## Next Steps
 
 ### To See the Fix in Action
-1. Delete the existing conversations output:
-   ```bash
-   rm -rf ../gvoice-convert/conversations/*.html
-   ```
 
-2. Re-run the SMS conversion:
-   ```bash
-   python sms.py
-   ```
+**Important:** Use the proper CLI interface with pipeline stages (not `sms.py` directly).
 
-3. Check Ed_Harbur.html - December 5th messages should now be present
+#### Method 1: Full Pipeline (Recommended)
+```bash
+# Step 1: Activate virtual environment
+cd /Users/nicholastang/gvoice-sms-takeout-xml
+source env/bin/activate
+
+# Step 2: Clear existing state for clean regeneration
+python cli.py clear-cache --all
+rm -rf ../gvoice-convert/conversations/pipeline_state
+
+# Step 3: Run pipeline stages in order
+python cli.py attachment-mapping
+python cli.py attachment-copying
+python cli.py html-generation      # <- Bug fix applies here!
+python cli.py index-generation
+```
+
+#### Method 2: Traditional Convert (Simpler)
+```bash
+# Activate virtual environment
+cd /Users/nicholastang/gvoice-sms-takeout-xml
+source env/bin/activate
+
+# Clear caches and run full conversion
+python cli.py clear-cache --all
+python cli.py --full-run convert
+```
+
+**Note:** The bug fix takes effect during the `html-generation` stage, where conversation HTML files are created.
 
 ### Verification
 Open `../gvoice-convert/conversations/Ed_Harbur.html` and verify:
