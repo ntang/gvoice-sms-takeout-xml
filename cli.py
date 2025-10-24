@@ -1231,13 +1231,15 @@ def show_config(ctx):
 def clear_cache(ctx, attachment, pipeline, clear_all):
     """Clear caches to force fresh processing.
 
-    This project uses two caches:
+    This project uses multiple caches:
 
     1. Attachment Cache (.cache/) - Speeds up attachment mapping
 
-    2. Pipeline State (pipeline_state/) - Tracks completed stages
+    2. Pipeline State (pipeline_state/) - Tracks completed pipeline stages
 
-    Use --all to clear both, or specify individual caches.
+    3. HTML Processing State (html_processing_state.json) - Tracks processed HTML files
+
+    Use --all to clear all caches, or specify individual caches.
     """
     import shutil
 
@@ -1271,6 +1273,18 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
                 click.echo(f"❌ Failed to clear pipeline state: {e}")
         else:
             click.echo(f"ℹ️  Pipeline state does not exist: {state_dir}")
+        
+        # Also clear html_processing_state.json
+        html_state_file = processing_dir / "conversations" / "html_processing_state.json"
+        if html_state_file.exists():
+            try:
+                html_state_file.unlink()
+                cleared.append("HTML processing state (html_processing_state.json)")
+                click.echo(f"✅ Cleared: {html_state_file}")
+            except Exception as e:
+                click.echo(f"❌ Failed to clear HTML processing state: {e}")
+        else:
+            click.echo(f"ℹ️  HTML processing state does not exist: {html_state_file}")
 
     # Show summary
     if not (attachment or pipeline or clear_all):
