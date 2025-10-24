@@ -39,8 +39,9 @@ class PhoneLookupManager:
         self.phone_aliases = {}  # Maps phone numbers to aliases
         self.contact_filters = {}  # Maps phone numbers to filter info
 
-        # Thread safety: Add lock for file operations
-        self._file_lock = threading.Lock()
+        # Thread safety: Add locks for file operations AND dictionary access
+        self._file_lock = threading.Lock()  # Protects file I/O
+        self._dict_lock = threading.RLock()  # Protects phone_aliases and contact_filters dictionaries
 
         self.load_aliases()
 
@@ -309,14 +310,16 @@ class PhoneLookupManager:
 
     def get_alias(self, phone_number: str, soup: Optional[BeautifulSoup] = None) -> str:
         """Get alias for a phone number, prompting user if not found and prompts are enabled."""
-        logger.debug(f"Looking up alias for phone number: '{phone_number}'")
-        logger.debug(f"Available aliases: {list(self.phone_aliases.keys())}")
+        # THREAD-SAFETY FIX: Protect dictionary reads
+        with self._dict_lock:
+            logger.debug(f"Looking up alias for phone number: '{phone_number}'")
+            logger.debug(f"Available aliases: {list(self.phone_aliases.keys())}")
 
-        if phone_number in self.phone_aliases:
-            logger.debug(
-                f"Found existing alias for {phone_number}: {self.phone_aliases[phone_number]}"
-            )
-            return self.phone_aliases[phone_number]
+            if phone_number in self.phone_aliases:
+                logger.debug(
+                    f"Found existing alias for {phone_number}: {self.phone_aliases[phone_number]}"
+                )
+                return self.phone_aliases[phone_number]
 
         if not self.enable_prompts:
             # Try to automatically extract alias from HTML if provided
@@ -324,7 +327,8 @@ class PhoneLookupManager:
                 extracted_alias = self.extract_alias_from_html(soup, phone_number)
                 if extracted_alias:
                     # Store the automatically extracted alias
-                    self.phone_aliases[phone_number] = extracted_alias
+                    with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary write
+                        self.phone_aliases[phone_number] = extracted_alias
                     self.save_aliases_batched()
                     logger.info(
                         f"Automatically extracted alias '{extracted_alias}' for {phone_number}"
@@ -368,7 +372,8 @@ class PhoneLookupManager:
                         print(f"Alias sanitized to: {sanitized_alias}")
 
                     # Store the mapping
-                    self.phone_aliases[phone_number] = sanitized_alias
+                    with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary write
+                        self.phone_aliases[phone_number] = sanitized_alias
 
                     # CRITICAL: Save immediately to disk to prevent data loss
                     # Don't use batched saving for user-specified aliases
@@ -392,12 +397,14 @@ class PhoneLookupManager:
 
     def get_all_aliases(self) -> Dict[str, str]:
         """Get all phone number to alias mappings."""
-        return self.phone_aliases.copy()
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            return self.phone_aliases.copy()
 
     def add_alias(self, phone_number: str, alias: str):
         """Manually add a phone number to alias mapping."""
         sanitized_alias = self.sanitize_alias(alias)
-        self.phone_aliases[phone_number] = sanitized_alias
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary write
+            self.phone_aliases[phone_number] = sanitized_alias
 
         # CRITICAL: Save immediately to disk to prevent data loss
         self.save_aliases()
@@ -409,33 +416,38 @@ class PhoneLookupManager:
         """Check if a phone number is filtered out."""
         if not self.skip_filtered_contacts:
             return False
-        return phone_number in self.contact_filters
-    
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            return phone_number in self.contact_filters
+
     def get_filter_info(self, phone_number: str) -> Optional[str]:
         """Get the filter information for a phone number, if any."""
-        return self.contact_filters.get(phone_number)
-    
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            return self.contact_filters.get(phone_number)
+
     def is_excluded(self, phone_number: str) -> bool:
         """Check if a phone number is excluded from processing (legacy method)."""
-        if phone_number in self.phone_aliases:
-            alias = self.phone_aliases[phone_number]
-            return alias.startswith("EXCLUDE:")
-        return False
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            if phone_number in self.phone_aliases:
+                alias = self.phone_aliases[phone_number]
+                return alias.startswith("EXCLUDE:")
+            return False
 
     def get_exclusion_reason(self, phone_number: str) -> Optional[str]:
         """Get the reason why a phone number is excluded, if any."""
-        if phone_number in self.phone_aliases:
-            alias = self.phone_aliases[phone_number]
-            if alias.startswith("EXCLUDE:"):
-                return alias[8:]  # Remove "EXCLUDE:" prefix
-        return None
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            if phone_number in self.phone_aliases:
+                alias = self.phone_aliases[phone_number]
+                if alias.startswith("EXCLUDE:"):
+                    return alias[8:]  # Remove "EXCLUDE:" prefix
+            return None
 
     def has_alias(self, phone_number: str) -> bool:
         """Check if a phone number has a non-exclusion alias."""
-        if phone_number in self.phone_aliases:
-            alias = self.phone_aliases[phone_number]
-            return not alias.startswith("EXCLUDE:")
-        return False
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary read
+            if phone_number in self.phone_aliases:
+                alias = self.phone_aliases[phone_number]
+                return not alias.startswith("EXCLUDE:")
+            return False
 
     def add_filter(self, phone_number: str, filter_type: str = "filter"):
         """Add a phone number to the filter list."""
@@ -443,19 +455,21 @@ class PhoneLookupManager:
             filter_info = "filter"
         else:
             filter_info = f"filter={filter_type}"
-        
-        self.contact_filters[phone_number] = filter_info
-        
+
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary write
+            self.contact_filters[phone_number] = filter_info
+
         # CRITICAL: Save immediately to disk to prevent data loss
         self.save_aliases()
         logger.info(
             f"Immediately saved filter '{filter_info}' for {phone_number} to {self.lookup_file}"
         )
-    
+
     def add_exclusion(self, phone_number: str, reason: str = "excluded"):
         """Add a phone number to the exclusion list (legacy method)."""
         exclusion_alias = f"EXCLUDE:{reason}"
-        self.phone_aliases[phone_number] = exclusion_alias
+        with self._dict_lock:  # THREAD-SAFETY FIX: Protect dictionary write
+            self.phone_aliases[phone_number] = exclusion_alias
 
         # CRITICAL: Save immediately to disk to prevent data loss
         self.save_aliases()

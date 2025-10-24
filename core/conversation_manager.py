@@ -361,19 +361,23 @@ class ConversationManager:
     def finalize_conversation_files(self, config: Optional["ProcessingConfig"] = None):
         """
         Finalize all conversation files by writing headers and closing tags.
-        
+
         With early filtering, this method is simplified - no need to filter here
         since filtering decisions were made during message writing.
+
+        However, commercial conversation filtering happens here (post-processing)
+        since we need the full conversation context to detect the pattern.
         """
         with self._lock:
             # Remove conversations with no messages after date filtering (if needed)
             if config and (config.exclude_older_than or config.exclude_newer_than):
                 empty_conversations = []
-                for conversation_id, file_info in self.conversation_files.items():
+                # THREAD-SAFETY FIX: Create snapshot to prevent "dictionary changed size" error
+                for conversation_id, file_info in list(self.conversation_files.items()):
                     if len(file_info["messages"]) == 0:
                         empty_conversations.append(conversation_id)
                         logger.debug(f"Removing empty conversation after date filtering: {conversation_id}")
-                
+
                 # Remove empty conversations
                 for conversation_id in empty_conversations:
                     if conversation_id in self.conversation_files:
@@ -387,13 +391,57 @@ class ConversationManager:
                                 logger.warning(f"Failed to close file for {conversation_id}: {e}")
                         # Remove from tracking
                         del self.conversation_files[conversation_id]
-                    
+
                     # Also remove from stats
                     if conversation_id in self.conversation_stats:
                         del self.conversation_stats[conversation_id]
-            
+
+            # Remove commercial conversations (post-processing filter)
+            if config and config.filter_commercial_conversations:
+                commercial_conversations = []
+                # THREAD-SAFETY FIX: Create snapshot to prevent "dictionary changed size" error
+                for conversation_id, file_info in list(self.conversation_files.items()):
+                    if self._is_commercial_conversation(conversation_id, file_info, config):
+                        commercial_conversations.append(conversation_id)
+                        logger.debug(f"Removing commercial conversation: {conversation_id}")
+
+                # Log summary before removing
+                if commercial_conversations:
+                    logger.info(
+                        f"🧹 Commercial filter: Detected {len(commercial_conversations)} "
+                        f"commercial/spam conversations (will be filtered out)"
+                    )
+
+                # Remove commercial conversations
+                for conversation_id in commercial_conversations:
+                    if conversation_id in self.conversation_files:
+                        file_info = self.conversation_files[conversation_id]
+                        # Close and delete file
+                        if file_info.get("file"):
+                            try:
+                                file_info["file"].close()
+                            except Exception as e:
+                                logger.warning(f"Failed to close file for {conversation_id}: {e}")
+
+                        # Delete the HTML file if it was created
+                        filename = self.get_conversation_filename(conversation_id)
+                        if filename.exists():
+                            try:
+                                filename.unlink()
+                                logger.debug(f"Deleted commercial conversation file: {filename}")
+                            except Exception as e:
+                                logger.warning(f"Failed to delete file {filename}: {e}")
+
+                        # Remove from tracking
+                        del self.conversation_files[conversation_id]
+
+                    # Also remove from stats
+                    if conversation_id in self.conversation_stats:
+                        del self.conversation_stats[conversation_id]
+
             # Process all remaining conversation files (call-only filtering already handled)
-            for conversation_id, file_info in self.conversation_files.items():
+            # THREAD-SAFETY FIX: Create snapshot to prevent "dictionary changed size" error
+            for conversation_id, file_info in list(self.conversation_files.items()):
                 try:
                     # Sort messages by timestamp (using tuple unpacking for better performance)
                     sorted_messages = sorted(file_info["messages"], key=lambda x: x[0])
@@ -1115,54 +1163,56 @@ class ConversationManager:
 
     def get_total_stats(self) -> Dict[str, int]:
         """Get total statistics across all conversations."""
-        total_stats = {
-            "num_sms": 0,
-            "num_img": 0,
-            "num_vcf": 0,
-            "num_calls": 0,
-            "num_voicemails": 0,
-            "num_audio": 0,
-            "num_video": 0,
-            "real_attachments": 0,
-        }
+        with self._lock:  # THREAD-SAFETY FIX: Protect dictionary iteration
+            total_stats = {
+                "num_sms": 0,
+                "num_img": 0,
+                "num_vcf": 0,
+                "num_calls": 0,
+                "num_voicemails": 0,
+                "num_audio": 0,
+                "num_video": 0,
+                "real_attachments": 0,
+            }
 
-        # Count from conversation stats (with proper key mapping)
-        for stats in self.conversation_stats.values():
-            total_stats["num_sms"] += stats.get('sms_count', 0)
-            total_stats["num_calls"] += stats.get('calls_count', 0)
-            total_stats["num_voicemails"] += stats.get('voicemails_count', 0)
-            total_stats["num_img"] += stats.get('attachments_count', 0)
-            total_stats["real_attachments"] += stats.get('attachments_count', 0)
+            # Count from conversation stats (with proper key mapping)
+            for stats in self.conversation_stats.values():
+                total_stats["num_sms"] += stats.get('sms_count', 0)
+                total_stats["num_calls"] += stats.get('calls_count', 0)
+                total_stats["num_voicemails"] += stats.get('voicemails_count', 0)
+                total_stats["num_img"] += stats.get('attachments_count', 0)
+                total_stats["real_attachments"] += stats.get('attachments_count', 0)
 
-        # Fallback: Count from actual message counts if statistics are missing
-        total_messages = 0
-        for conversation_id, file_info in self.conversation_files.items():
-            if "messages" in file_info:
-                total_messages += len(file_info["messages"])
+            # Fallback: Count from actual message counts if statistics are missing
+            total_messages = 0
+            for conversation_id, file_info in self.conversation_files.items():
+                if "messages" in file_info:
+                    total_messages += len(file_info["messages"])
 
-        # If we have message counts but no SMS stats, use fallback (should rarely happen now)
-        if total_messages > 0 and total_stats["num_sms"] == 0:
-            logger.warning(f"Statistics tracking failed - using fallback count: {total_messages} messages")
-            total_stats["num_sms"] = total_messages
+            # If we have message counts but no SMS stats, use fallback (should rarely happen now)
+            if total_messages > 0 and total_stats["num_sms"] == 0:
+                logger.warning(f"Statistics tracking failed - using fallback count: {total_messages} messages")
+                total_stats["num_sms"] = total_messages
 
-        return total_stats
+            return total_stats
 
     def _track_conversation_content_type(self, conversation_id: str, message_type: str, message: str, attachments: list = None):
         """Track what types of content exist in each conversation for call-only filtering."""
         logger.debug(f"🔍 CALL-ONLY DEBUG: Tracking content for {conversation_id}, type={message_type}, message='{message[:50]}{'...' if len(message) > 50 else ''}'")
-        
-        if conversation_id not in self.conversation_content_types:
-            self.conversation_content_types[conversation_id] = {
-                "has_sms": False,
-                "has_mms": False,
-                "has_voicemail_with_text": False,
-                "has_calls_only": True,
-                "total_messages": 0,
-                "call_count": 0
-            }
+
+        # THREAD-SAFETY FIX: Use setdefault() for atomic initialization (prevents check-then-act race)
+        content = self.conversation_content_types.setdefault(conversation_id, {
+            "has_sms": False,
+            "has_mms": False,
+            "has_voicemail_with_text": False,
+            "has_calls_only": True,
+            "total_messages": 0,
+            "call_count": 0
+        })
+
+        # Log only if this was a new initialization
+        if content["total_messages"] == 0:
             logger.debug(f"🔍 CALL-ONLY DEBUG: Initialized content tracking for {conversation_id}")
-        
-        content = self.conversation_content_types[conversation_id]
         content["total_messages"] += 1
         
         if message_type == "sms":
@@ -1241,8 +1291,59 @@ class ConversationManager:
         )
         
         logger.debug(f"🔍 CALL-ONLY DEBUG: {conversation_id} analysis: has_calls_only={content['has_calls_only']}, has_sms={content['has_sms']}, has_mms={content['has_mms']}, has_voicemail_with_text={content['has_voicemail_with_text']}, call_count={content['call_count']}, total_messages={content['total_messages']} -> is_call_only={is_call_only}")
-        
+
         return is_call_only
+
+    def _is_commercial_conversation(
+        self, conversation_id: str, file_info: Dict, config: Optional["ProcessingConfig"]
+    ) -> bool:
+        """
+        Determine if a conversation is commercial/spam using post-processing analysis.
+
+        This method is called during finalization when we have access to the full
+        conversation context, allowing accurate pattern detection.
+
+        Args:
+            conversation_id: The conversation identifier
+            file_info: Dictionary containing conversation data, including "messages" list
+            config: Processing configuration
+
+        Returns:
+            True if conversation appears to be commercial/spam, False otherwise
+        """
+        from core.commercial_filter import is_commercial_conversation
+
+        # Extract messages from file_info
+        # Message format: (timestamp, message_data)
+        # where message_data = {"text": str, "sender": str, "attachments": list, ...}
+        raw_messages = file_info.get("messages", [])
+
+        if not raw_messages:
+            return False
+
+        # Convert to format expected by commercial_filter
+        messages_for_analysis = []
+        for timestamp, msg_data in raw_messages:
+            messages_for_analysis.append({
+                "timestamp": timestamp,
+                "sender": msg_data.get("sender", ""),
+                "text": msg_data.get("text", ""),
+            })
+
+        # Determine user identifier (typically "Me")
+        # The user is identified as "Me" in sender field (see sms.py:3773)
+        my_identifier = "Me"
+
+        # Call the commercial filter
+        is_commercial = is_commercial_conversation(messages_for_analysis, my_identifier)
+
+        if is_commercial:
+            logger.info(
+                f"Commercial conversation detected: {conversation_id} "
+                f"({len(messages_for_analysis)} messages)"
+            )
+
+        return is_commercial
 
     def _should_skip_by_date_filter(self, timestamp: int, config: Optional["ProcessingConfig"]) -> bool:
         """
