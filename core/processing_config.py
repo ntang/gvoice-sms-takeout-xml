@@ -50,7 +50,8 @@ class ProcessingConfig:
     filter_non_phone_numbers: bool = True  # Default: enabled (filter toll-free and non-US numbers)
     filter_groups_with_all_filtered: bool = True  # Default: enabled (new behavior)
     include_call_only_conversations: bool = False  # Default: filter out call-only conversations
-    
+    filter_commercial_conversations: bool = False  # Default: disabled (filter STOP/unsubscribe spam)
+
     # Date Filtering (Clear naming for intuitive usage)
     exclude_older_than: Optional[datetime] = None  # Exclude messages before this date
     exclude_newer_than: Optional[datetime] = None  # Exclude messages after this date
