@@ -8167,7 +8167,7 @@ def write_call_entry(
         }
 
         # Write to conversation file (HTML output only)
-        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False)
+        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False, effective_phone_manager)
         # For HTML output, use the rich call details
         message_text = call_details["message_text"]
         attachments = []
@@ -8495,7 +8495,7 @@ def write_voicemail_entry(
         }
 
         # Write to conversation file (HTML output only)
-        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False)
+        conversation_id = effective_conversation_manager.get_conversation_id([phone_number], False, effective_phone_manager)
         # For HTML output, extract text and attachments directly
         message_text = voicemail_info.get("message", message_text)
         if not message_text or message_text.strip() == "":
