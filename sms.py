@@ -3436,12 +3436,12 @@ def write_sms_messages(
 
         # Get the primary phone number for this conversation (for individual conversations or fallback)
         phone_number, participant_raw = get_first_phone_number(
-            messages_raw, fallback_number
+            messages_raw, fallback_number, own_number
         )
 
         # Search for fallback numbers in similarly named files if needed
         if phone_number == 0:
-            phone_number = search_fallback_numbers(file, fallback_number)
+            phone_number = search_fallback_numbers(file, fallback_number, own_number)
 
         # Skip processing if we still can't get a valid phone number
         if not is_valid_phone_number(phone_number):
@@ -4324,7 +4324,7 @@ def search_fallback_numbers_cached(file: str, fallback_number: str) -> str:
 
 
 def search_fallback_numbers(
-    file: str, fallback_number: Union[str, int]
+    file: str, fallback_number: Union[str, int], own_number: Optional[str] = None
 ) -> Union[str, int]:
     """
     Search for fallback numbers in similarly named files.
@@ -4332,11 +4332,22 @@ def search_fallback_numbers(
     Args:
         file: Filename to search for fallback numbers
         fallback_number: Fallback number to search for
+        own_number: User's own phone number to skip when searching
 
     Returns:
         Union[str, int]: Found fallback number or 0
     """
     try:
+        # Normalize own_number to E164 format for comparison
+        normalized_own_number = None
+        if own_number:
+            try:
+                parsed_own = phonenumbers.parse(str(own_number), "US")
+                normalized_own_number = format_number(parsed_own)
+            except Exception as e:
+                logger.debug(f"Failed to normalize own_number in fallback search: {e}")
+                normalized_own_number = str(own_number)
+        
         # Extract base filename without extension
         base_filename = Path(file).stem
 
@@ -4370,6 +4381,10 @@ def search_fallback_numbers(
                                         phone_number = format_number(
                                             phonenumbers.parse(number_text, "US")
                                         )
+                                        # Skip own number when searching for participant
+                                        if normalized_own_number and phone_number == normalized_own_number:
+                                            logger.debug(f"Skipping own number in fallback search: {phone_number}")
+                                            continue
                                         return phone_number
                                     except phonenumbers.phonenumberutil.NumberParseException:
                                         continue
@@ -5611,6 +5626,7 @@ def get_first_phone_number_cached(
     fallback_number: Union[str, int],
     html_file: Path = None,
     cache = None,
+    own_number: Optional[str] = None,
 ) -> Tuple[Union[str, int], BeautifulSoup]:
     """
     Cached version of get_first_phone_number for performance optimization.
@@ -5620,6 +5636,7 @@ def get_first_phone_number_cached(
         fallback_number: Fallback number from filename
         html_file: Path to HTML file for caching
         cache: HTMLMetadataCache instance for caching
+        own_number: User's own phone number to skip when extracting participant number
         
     Returns:
         tuple: (phone_number, participant_raw)
@@ -5636,7 +5653,7 @@ def get_first_phone_number_cached(
                     return primary_phone, create_dummy_participant(primary_phone)
         
         # Cache miss - extract phone numbers and cache results
-        extracted_phone, participant = get_first_phone_number(messages, fallback_number)
+        extracted_phone, participant = get_first_phone_number(messages, fallback_number, own_number)
         
         # Cache the results if cache is available and we found a valid phone
         if cache and html_file and extracted_phone and extracted_phone != 0:
@@ -5653,25 +5670,44 @@ def get_first_phone_number_cached(
     except Exception as e:
         logger.error(f"Failed to extract phone number with caching: {e}")
         # Fallback to original function
-        return get_first_phone_number(messages, fallback_number)
+        return get_first_phone_number(messages, fallback_number, own_number)
 
 
 def get_first_phone_number(
-    messages: List, fallback_number: Union[str, int]
+    messages: List, fallback_number: Union[str, int], own_number: Optional[str] = None
 ) -> Tuple[Union[str, int], BeautifulSoup]:
     """
     Extract the first valid phone number from messages, with comprehensive fallback strategies.
+    
+    Prioritizes phone numbers that are NOT the user's own number to correctly identify
+    the conversation participant in files containing only outgoing messages.
 
     Args:
         messages: List of message elements
         fallback_number: Fallback number from filename
+        own_number: User's own phone number to skip when extracting participant number
 
     Returns:
         tuple: (phone_number, participant_raw)
     """
     try:
-        # Strategy 1: Look for any valid phone number in cite elements (prefer
-        # non-"Me")
+        # Normalize own_number to E164 format for comparison
+        normalized_own_number = None
+        if own_number:
+            try:
+                # Remove any formatting and parse to normalize
+                parsed_own = phonenumbers.parse(str(own_number), "US")
+                normalized_own_number = format_number(parsed_own)
+                logger.debug(f"Normalized own_number for comparison: {normalized_own_number}")
+            except Exception as e:
+                logger.debug(f"Failed to normalize own_number {own_number}: {e}")
+                # Try to use as-is if parsing fails
+                normalized_own_number = str(own_number)
+        
+        # Track all found phone numbers (excluding own_number) for better selection
+        found_numbers = []  # List of tuples: (phone_number, participant_raw)
+        
+        # Strategy 1: Look for any valid phone number in cite elements (prefer non-own)
         for message in messages:
             try:
                 cite_element = message.cite
@@ -5688,6 +5724,12 @@ def get_first_phone_number(
                             phone_number = format_number(
                                 phonenumbers.parse(number_text, "US")
                             )
+                            # Skip own number, but collect it as fallback
+                            if normalized_own_number and phone_number == normalized_own_number:
+                                logger.debug(f"Skipping own number in cite: {phone_number}")
+                                continue
+                            # Found a non-own number - return immediately
+                            logger.debug(f"Found participant number in cite: {phone_number}")
                             return phone_number, cite_element
                         except phonenumbers.phonenumberutil.NumberParseException as e:
                             logger.debug(
@@ -5713,8 +5755,12 @@ def get_first_phone_number(
                                 phone_number = format_number(
                                     phonenumbers.parse(number_text, "US")
                                 )
-                                # Create a dummy participant since we don't
-                                # have the original cite
+                                # Skip own number
+                                if normalized_own_number and phone_number == normalized_own_number:
+                                    logger.debug(f"Skipping own number in tel link: {phone_number}")
+                                    continue
+                                # Found a non-own number - return immediately
+                                logger.debug(f"Found participant number in tel link: {phone_number}")
                                 return phone_number, create_dummy_participant(
                                     phone_number
                                 )
@@ -5740,6 +5786,12 @@ def get_first_phone_number(
                         phone_number = format_number(
                             phonenumbers.parse(number_text, "US")
                         )
+                        # Skip own number
+                        if normalized_own_number and phone_number == normalized_own_number:
+                            logger.debug(f"Skipping own number in text content: {phone_number}")
+                            continue
+                        # Found a non-own number - return immediately
+                        logger.debug(f"Found participant number in text: {phone_number}")
                         return phone_number, create_dummy_participant(phone_number)
                     except phonenumbers.phonenumberutil.NumberParseException as e:
                         logger.debug(f"Failed to parse phone number {number_text}: {e}")
