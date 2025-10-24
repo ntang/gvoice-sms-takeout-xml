@@ -2445,7 +2445,15 @@ def process_html_files_param(
         "num_calls": 0,
         "num_voicemails": 0,
     }
-    own_number = None
+    
+    # Extract user's own phone number from Phones.vcf
+    from utils.vcf_parser import extract_own_number_from_vcf
+    own_number = extract_own_number_from_vcf(processing_dir / "Phones.vcf")
+    if own_number:
+        logger.info(f"📱 Extracted own number from Phones.vcf: {own_number}")
+    else:
+        logger.warning("⚠️  Could not extract own number from Phones.vcf")
+        own_number = None
     
     # Memory monitoring for file processing
     if enable_performance_monitoring:
@@ -3350,6 +3358,16 @@ def write_sms_messages(
         src_filename_map: Mapping of src elements to filenames
     """
     try:
+        # Normalize own_number at the start for consistent comparisons throughout
+        if own_number:
+            try:
+                parsed_own = phonenumbers.parse(str(own_number), "US")
+                own_number = format_number(parsed_own)
+                logger.debug(f"Normalized own_number for SMS processing: {own_number}")
+            except Exception as e:
+                logger.debug(f"Failed to normalize own_number in write_sms_messages: {e}")
+                # Keep original value if normalization fails
+        
         fallback_number = extract_fallback_number(file)
 
         # Check if file should be skipped based on filename patterns
@@ -4348,12 +4366,20 @@ def search_fallback_numbers(
                 logger.debug(f"Failed to normalize own_number in fallback search: {e}")
                 normalized_own_number = str(own_number)
         
-        # Extract base filename without extension
-        base_filename = Path(file).stem
-
-        # Search for files with similar names in the processing directory
-        search_pattern = str(PROCESSING_DIRECTORY / f"{base_filename}*.html")
+        # Extract the name part before the file type and timestamp
+        # Pattern: "Name - Type - Timestamp.html" -> extract "Name"
+        if " - " in file:
+            name_part = file.split(" - ")[0]
+        else:
+            name_part = Path(file).stem
+        
+        # Search for ALL files with similar names in the Calls directory
+        # This finds all files for the same person (e.g., all "Ed Harbur" files)
+        search_pattern = str(PROCESSING_DIRECTORY / "Calls" / f"{name_part} - *.html")
         similar_files = glob.glob(search_pattern)
+        
+        logger.debug(f"Searching for fallback numbers with pattern: {search_pattern}")
+        logger.debug(f"Found {len(similar_files)} similar files for {name_part}")
 
         for similar_file in similar_files:
             similar_path = Path(similar_file)
@@ -5725,6 +5751,7 @@ def get_first_phone_number(
                                 phonenumbers.parse(number_text, "US")
                             )
                             # Skip own number, but collect it as fallback
+                            logger.debug(f"Comparing: phone_number={phone_number}, normalized_own_number={normalized_own_number}")
                             if normalized_own_number and phone_number == normalized_own_number:
                                 logger.debug(f"Skipping own number in cite: {phone_number}")
                                 continue
