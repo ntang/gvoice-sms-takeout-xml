@@ -137,6 +137,52 @@ commit c51fd60 - Fix: Skip user's own number when extracting participant phone n
 commit f2d7d80 - docs: Add bug fix summary for missing SMS messages issue
 commit e36ce87 - docs: Update BUG_FIX_SUMMARY with correct CLI pipeline workflow
 commit 9554214 - Fix: clear-cache --all now clears html_processing_state.json
+commit f2dc45c - docs: Update BUG_FIX_SUMMARY with clear-cache fix details
+commit b33b04e - Complete fix: Extract own_number from Phones.vcf and use in fallback logic
+```
+
+## Complete Fix Implementation (Commit b33b04e)
+
+The initial fix (c51fd60) was correct but inactive because `own_number` was always `None`. The complete solution required:
+
+### Part 1: VCF Parser (TDD Implementation)
+**New File:** `utils/vcf_parser.py`
+
+Created VCF parser to extract user's Google Voice number from `Phones.vcf`:
+- Finds number marked with `X-ABLabel:Google Voice`
+- Normalizes to E164 format
+- Fallback to first valid number if no Google Voice label
+- 7 comprehensive tests (all passing ✅)
+
+### Part 2: Integration into Pipeline
+**File:** `sms.py`
+
+**Changes:**
+1. **process_html_files_param()** (line 2449-2456): Extract own_number from Phones.vcf
+2. **write_sms_messages()** (line 3361-3369): Normalize own_number at start for consistent comparisons
+3. **search_fallback_numbers()** (line 4369-4382): Fix search pattern to find all files for same person
+4. **get_first_phone_number()** (line 5736): Add comparison debug logging
+
+### Part 3: Fixed Fallback Search
+**Problem:** search_fallback_numbers() searched for exact stem (`Ed Harbur - Text - 2024-12-05T23_40_41Z*`) which only found itself
+
+**Solution:** Extract name prefix (`Ed Harbur`) and search for all files (`Ed Harbur - *`)
+
+**Result:** Now finds Ed's number (+12034173178) from other Ed Harbur files ✅
+
+### Verification
+```bash
+# Extract from Phones.vcf
+VCF extraction: ✅ +13474106066
+
+# Skip own number in messages  
+Phone skipping: ✅ Returns 0 when only own_number present
+
+# Find participant from other files
+Fallback search: ✅ Returns +12034173178 from other Ed Harbur files
+
+# Complete flow
+Ed Harbur Dec 5 file: ✅ Uses +12034173178 (not +13474106066)
 ```
 
 ## Bonus Fix: clear-cache Command
