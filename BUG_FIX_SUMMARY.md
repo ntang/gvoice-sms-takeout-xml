@@ -85,8 +85,7 @@ cd /Users/nicholastang/gvoice-sms-takeout-xml
 source env/bin/activate
 
 # Step 2: Clear existing state for clean regeneration
-python cli.py clear-cache --all
-rm -rf ../gvoice-convert/conversations/pipeline_state
+python cli.py clear-cache --all    # Now properly clears all state files!
 
 # Step 3: Run pipeline stages in order
 python cli.py attachment-mapping
@@ -130,10 +129,22 @@ Both messages should now appear in chronological order between December 4th and 
 ## Files Modified
 - `sms.py` (3 functions updated, 1 new parameter added to each)
 - `tests/unit/test_phone_extraction.py` (new test file, 9 tests)
+- `cli.py` (fixed clear-cache command to clear all state files)
 
-## Commit
+## Commits
 ```
-commit c51fd60
-Fix: Skip user's own number when extracting participant phone numbers
+commit c51fd60 - Fix: Skip user's own number when extracting participant phone numbers
+commit f2d7d80 - docs: Add bug fix summary for missing SMS messages issue
+commit e36ce87 - docs: Update BUG_FIX_SUMMARY with correct CLI pipeline workflow
+commit 9554214 - Fix: clear-cache --all now clears html_processing_state.json
 ```
+
+## Bonus Fix: clear-cache Command
+
+While implementing the phone number fix, we discovered that `python cli.py clear-cache --all` was not clearing `html_processing_state.json`, which prevented HTML files from being regenerated even after clearing caches.
+
+**Fixed in commit 9554214:**
+- `clear-cache --all` now properly clears html_processing_state.json
+- Updated help text to document all three cache types
+- Users can now truly get a clean slate for regeneration
 
