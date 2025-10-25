@@ -2507,7 +2507,7 @@ def process_html_files_param(
             f"Using batch processing for large dataset ({filtered_files} files)"
         )
         stats = process_html_files_batch(
-            all_files, src_filename_map, batch_size=batch_size_optimal, config=config, context=context
+            all_files, src_filename_map, batch_size=batch_size_optimal, config=config, context=context, own_number=own_number
         )
     else:
         # Process files individually for smaller datasets
@@ -6991,8 +6991,22 @@ def process_html_files_batch(
     batch_size: int = 100,
     config: Optional["ProcessingConfig"] = None,
     context: Optional["ProcessingContext"] = None,
+    own_number: Optional[str] = None,
 ) -> Dict[str, int]:
-    """Process HTML files in batches for better memory management."""
+    """
+    Process HTML files in batches for better memory management.
+    
+    Args:
+        html_files: List of HTML files to process
+        src_filename_map: Mapping of src elements to attachment filenames
+        batch_size: Size of batches for progress reporting
+        config: Processing configuration object
+        context: Processing context object
+        own_number: User's own phone number (extracted from Phones.vcf) to skip when identifying participants
+        
+    Returns:
+        Dictionary with processing statistics
+    """
     stats = {
         "num_sms": 0,
         "num_img": 0,
@@ -7000,14 +7014,13 @@ def process_html_files_batch(
         "num_calls": 0,
         "num_voicemails": 0,
     }
-    own_number = None
 
     total_files = len(html_files)
     logger.info(f"Processing {total_files} files in batches of {batch_size}")
 
     # Use parallel processing for large datasets
     if total_files > MEMORY_EFFICIENT_THRESHOLD:
-        return process_html_files_parallel(html_files, src_filename_map, batch_size, config, context)
+        return process_html_files_parallel(html_files, src_filename_map, batch_size, config, context, own_number)
 
     # Sequential batch processing for smaller datasets - use generator for
     # memory efficiency
@@ -7095,8 +7108,22 @@ def process_html_files_parallel(
     batch_size: int = 100,
     config: Optional["ProcessingConfig"] = None,
     context: Optional["ProcessingContext"] = None,
+    own_number: Optional[str] = None,
 ) -> Dict[str, int]:
-    """Process HTML files using parallel processing for large datasets."""
+    """
+    Process HTML files using parallel processing for large datasets.
+    
+    Args:
+        html_files: List of HTML files to process
+        src_filename_map: Mapping of src elements to attachment filenames
+        batch_size: Size of batches for progress reporting
+        config: Processing configuration object
+        context: Processing context object
+        own_number: User's own phone number (extracted from Phones.vcf) to skip when identifying participants
+        
+    Returns:
+        Dictionary with processing statistics
+    """
     total_files = len(html_files)
     logger.info(
         f"Using parallel processing for {total_files} files with {MAX_WORKERS} workers"
@@ -7131,13 +7158,12 @@ def process_html_files_parallel(
         "num_calls": 0,
         "num_voicemails": 0,
     }
-    own_number = None
     stats_lock = threading.Lock()
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit chunk processing tasks
         future_to_chunk = {
-            executor.submit(process_chunk_parallel, chunk, src_filename_map, config, context): chunk
+            executor.submit(process_chunk_parallel, chunk, src_filename_map, config, context, own_number): chunk
             for chunk in chunks
         }
 
@@ -7181,9 +7207,25 @@ def process_html_files_parallel(
 
 
 def process_chunk_parallel(
-    html_files: List[Path], src_filename_map: Dict[str, str], config: Optional["ProcessingConfig"] = None, context: Optional["ProcessingContext"] = None
+    html_files: List[Path], 
+    src_filename_map: Dict[str, str], 
+    config: Optional["ProcessingConfig"] = None, 
+    context: Optional["ProcessingContext"] = None,
+    own_number: Optional[str] = None
 ) -> Dict[str, int]:
-    """Process a chunk of HTML files for parallel processing."""
+    """
+    Process a chunk of HTML files for parallel processing.
+    
+    Args:
+        html_files: List of HTML files to process in this chunk
+        src_filename_map: Mapping of src elements to attachment filenames
+        config: Processing configuration object
+        context: Processing context object
+        own_number: User's own phone number (extracted from Phones.vcf) to skip when identifying participants
+        
+    Returns:
+        Dictionary with processing statistics
+    """
     # CRITICAL: Disable parallel processing logging to prevent race conditions
     # The issue is that multiple threads are still causing log corruption
     # Use a thread-local logger with minimal logging
@@ -7200,7 +7242,6 @@ def process_chunk_parallel(
         "num_calls": 0,
         "num_voicemails": 0,
     }
-    own_number = None
 
     # Use the global conversation manager from the context
     conversation_manager = context.conversation_manager if context else None
