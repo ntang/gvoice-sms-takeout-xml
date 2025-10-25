@@ -3456,10 +3456,13 @@ def write_sms_messages(
         phone_number, participant_raw = get_first_phone_number(
             messages_raw, fallback_number, own_number
         )
+        logger.debug(f"[{file}] get_first_phone_number() returned: {phone_number}")
 
         # Search for fallback numbers in similarly named files if needed
         if phone_number == 0:
+            logger.debug(f"[{file}] Phone number is 0, searching fallback files...")
             phone_number = search_fallback_numbers(file, fallback_number, own_number)
+            logger.debug(f"[{file}] search_fallback_numbers() returned: {phone_number}")
 
         # Skip processing if we still can't get a valid phone number
         if not is_valid_phone_number(phone_number):
@@ -3482,30 +3485,39 @@ def write_sms_messages(
 
             # Fallback 2: parse the source HTML file for any tel: numbers
             if not is_valid_phone_number(phone_number):
+                logger.debug(f"[{file}] Fallback 2: Scanning current file for tel: links...")
                 try:
                     html_path = PROCESSING_DIRECTORY / "Calls" / file
                     if html_path.exists():
                         with open(html_path, "r", encoding="utf-8") as f:
                             soup_all = BeautifulSoup(f.read(), HTML_PARSER)
+                        tel_links_found = []
                         for link in soup_all.find_all("a", href=True):
                             href = link.get("href", "")
                             if href.startswith("tel:"):
                                 m = TEL_HREF_PATTERN.search(href)
                                 candidate = m.group(1) if m else ""
                                 if candidate:
+                                    tel_links_found.append(candidate)
                                     try:
                                         formatted = format_number(
                                             phonenumbers.parse(candidate, "US")
                                         )
+                                        logger.debug(f"[{file}] Fallback 2: Found tel: link: {formatted}")
+                                        logger.debug(f"[{file}] Fallback 2: Checking skip condition: own_number={own_number}, formatted={formatted}")
                                         if not own_number or formatted != own_number:
+                                            logger.debug(f"[{file}] Fallback 2: USING number {formatted} (skip check passed)")
                                             phone_number = formatted
                                             participant_raw = create_dummy_participant(
                                                 phone_number
                                             )
                                             break
+                                        else:
+                                            logger.debug(f"[{file}] Fallback 2: SKIPPING own number {formatted}")
                                     except Exception as e:
                                         logger.debug(f"Failed to parse phone number from tel link: {e}")
                                         continue
+                        logger.debug(f"[{file}] Fallback 2: Found {len(tel_links_found)} tel: links total")
                 except Exception as e:
                     logger.debug(f"Phone extraction fallback 2 failed for {file}: {e}")
                     # Continue to next fallback strategy
@@ -3630,6 +3642,7 @@ def write_sms_messages(
             logger.error(f"No messages to process in {file}")
             return
 
+        logger.debug(f"[{file}] FINAL phone_number being used: {phone_number}")
         logger.info(f"Processing {total_messages} SMS messages from {file}")
 
         # ENHANCED: Warn about potentially large files that might take time
@@ -4378,12 +4391,14 @@ def search_fallback_numbers(
         search_pattern = str(PROCESSING_DIRECTORY / "Calls" / f"{name_part} - *.html")
         similar_files = glob.glob(search_pattern)
         
-        logger.debug(f"Searching for fallback numbers with pattern: {search_pattern}")
-        logger.debug(f"Found {len(similar_files)} similar files for {name_part}")
+        logger.debug(f"[{file}] Fallback search pattern: {search_pattern}")
+        logger.debug(f"[{file}] Found {len(similar_files)} similar files for '{name_part}'")
+        logger.debug(f"[{file}] normalized_own_number for fallback: {normalized_own_number}")
 
         for similar_file in similar_files:
             similar_path = Path(similar_file)
             if similar_path.name != file:
+                logger.debug(f"[{file}] Scanning fallback file: {similar_path.name}")
                 try:
                     with open(similar_path, "r", encoding="utf-8") as f:
                         soup = BeautifulSoup(f, HTML_PARSER)
@@ -4407,10 +4422,12 @@ def search_fallback_numbers(
                                         phone_number = format_number(
                                             phonenumbers.parse(number_text, "US")
                                         )
+                                        logger.debug(f"[{file}] Fallback found tel: link: {phone_number}")
                                         # Skip own number when searching for participant
                                         if normalized_own_number and phone_number == normalized_own_number:
-                                            logger.debug(f"Skipping own number in fallback search: {phone_number}")
+                                            logger.debug(f"[{file}] Fallback SKIPPING own number: {phone_number}")
                                             continue
+                                        logger.debug(f"[{file}] Fallback RETURNING participant number: {phone_number}")
                                         return phone_number
                                     except phonenumbers.phonenumberutil.NumberParseException:
                                         continue
@@ -4421,10 +4438,11 @@ def search_fallback_numbers(
                 except Exception:
                     continue
 
+        logger.debug(f"[{file}] Fallback search complete: No valid participant number found, returning fallback_number={fallback_number}")
         return fallback_number
 
     except Exception as e:
-        logger.error(f"Failed to search fallback numbers: {e}")
+        logger.error(f"[{file}] Failed to search fallback numbers: {e}")
         return fallback_number
 
 
