@@ -1237,13 +1237,15 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
 
     2. Attachment Cache (.cache/) - Speeds up attachment mapping
 
-    3. Pipeline State (pipeline_state/) - Tracks completed pipeline stages
+    3. HTML Metadata Cache (.gvoice_cache/) - Caches phone number extraction
 
-    4. HTML Processing State (html_processing_state.json) - Tracks processed HTML files
+    4. Pipeline State (pipeline_state/) - Tracks completed pipeline stages
+
+    5. HTML Processing State (html_processing_state.json) - Tracks processed HTML files
 
     Use --all to clear all caches (recommended for clean regeneration), or specify individual caches.
     
-    Note: Python bytecode cache is only cleared with --all to ensure fresh code execution.
+    Note: Python bytecode cache and HTML metadata cache are only cleared with --all.
     """
     import shutil
 
@@ -1297,6 +1299,18 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
                 click.echo(f"❌ Failed to clear attachment cache: {e}")
         else:
             click.echo(f"ℹ️  Attachment cache does not exist: {cache_dir}")
+        
+        # Also clear .gvoice_cache (HTML metadata cache)
+        gvoice_cache_dir = processing_dir / ".gvoice_cache"
+        if gvoice_cache_dir.exists():
+            try:
+                shutil.rmtree(gvoice_cache_dir)
+                cleared.append("HTML metadata cache (.gvoice_cache/)")
+                click.echo(f"✅ Cleared: {gvoice_cache_dir}")
+            except Exception as e:
+                click.echo(f"❌ Failed to clear HTML metadata cache: {e}")
+        else:
+            click.echo(f"ℹ️  HTML metadata cache does not exist: {gvoice_cache_dir}")
 
     # Clear pipeline state
     if pipeline or clear_all:

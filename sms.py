@@ -5657,6 +5657,10 @@ def get_first_phone_number_cached(
     """
     Cached version of get_first_phone_number for performance optimization.
     
+    IMPORTANT: When own_number is provided, bypasses cache to ensure correct filtering.
+    Cached results don't account for own_number parameter, so we must skip cache
+    to prevent returning stale results (e.g., user's number when it should be skipped).
+    
     Args:
         messages: List of message elements
         fallback_number: Fallback number from filename
@@ -5668,7 +5672,14 @@ def get_first_phone_number_cached(
         tuple: (phone_number, participant_raw)
     """
     try:
-        # Try cache first if available
+        # CRITICAL FIX: Skip cache when own_number filtering is active
+        # Cache doesn't account for own_number parameter, so cached results
+        # may include the user's number when it should be skipped
+        if own_number:
+            logger.debug(f"Bypassing cache for phone extraction (own_number filtering active)")
+            return get_first_phone_number(messages, fallback_number, own_number)
+        
+        # Try cache first if available (only when not filtering by own_number)
         if cache and html_file:
             cached_metadata = cache.get_metadata(html_file)
             if cached_metadata and "phone_numbers" in cached_metadata:
@@ -5682,7 +5693,8 @@ def get_first_phone_number_cached(
         extracted_phone, participant = get_first_phone_number(messages, fallback_number, own_number)
         
         # Cache the results if cache is available and we found a valid phone
-        if cache and html_file and extracted_phone and extracted_phone != 0:
+        # Only cache when own_number is not being used (to keep cache simple)
+        if cache and html_file and extracted_phone and extracted_phone != 0 and not own_number:
             phone_list = [str(extracted_phone)] if extracted_phone != 0 else []
             metadata_to_cache = {
                 "phone_numbers": phone_list,
