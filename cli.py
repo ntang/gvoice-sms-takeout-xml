@@ -1233,13 +1233,17 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
 
     This project uses multiple caches:
 
-    1. Attachment Cache (.cache/) - Speeds up attachment mapping
+    1. Python Bytecode Cache (*.pyc, __pycache__/) - Ensures latest code is used
 
-    2. Pipeline State (pipeline_state/) - Tracks completed pipeline stages
+    2. Attachment Cache (.cache/) - Speeds up attachment mapping
 
-    3. HTML Processing State (html_processing_state.json) - Tracks processed HTML files
+    3. Pipeline State (pipeline_state/) - Tracks completed pipeline stages
 
-    Use --all to clear all caches, or specify individual caches.
+    4. HTML Processing State (html_processing_state.json) - Tracks processed HTML files
+
+    Use --all to clear all caches (recommended for clean regeneration), or specify individual caches.
+    
+    Note: Python bytecode cache is only cleared with --all to ensure fresh code execution.
     """
     import shutil
 
@@ -1248,6 +1252,39 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
 
     cleared = []
 
+    # Clear Python bytecode cache first (when clearing all)
+    if clear_all:
+        import subprocess
+        try:
+            # Clear .pyc files and __pycache__ directories in project
+            project_root = Path(__file__).parent
+            pyc_count = 0
+            pycache_count = 0
+            
+            # Remove .pyc files
+            for pyc_file in project_root.rglob("*.pyc"):
+                try:
+                    pyc_file.unlink()
+                    pyc_count += 1
+                except Exception:
+                    pass
+            
+            # Remove __pycache__ directories
+            for pycache_dir in project_root.rglob("__pycache__"):
+                try:
+                    shutil.rmtree(pycache_dir)
+                    pycache_count += 1
+                except Exception:
+                    pass
+            
+            if pyc_count > 0 or pycache_count > 0:
+                cleared.append(f"Python bytecode cache ({pyc_count} .pyc files, {pycache_count} __pycache__ dirs)")
+                click.echo(f"✅ Cleared Python bytecode: {pyc_count} .pyc files, {pycache_count} __pycache__ directories")
+            else:
+                click.echo("ℹ️  No Python bytecode cache found")
+        except Exception as e:
+            click.echo(f"⚠️  Failed to clear Python bytecode cache: {e}")
+    
     # Clear attachment cache
     if attachment or clear_all:
         cache_dir = processing_dir / ".cache"
