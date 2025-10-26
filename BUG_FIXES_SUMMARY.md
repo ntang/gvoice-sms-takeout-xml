@@ -827,6 +827,124 @@ with ThreadPoolExecutor(max_workers=16) as executor:
 
 ---
 
+### 🔴 Bug #26: Integer Phone Number Type Error in Filtering Functions - FIXED ✅
+
+**Files**: `sms.py` (4 call sites), `core/filtering_service.py` (3 methods)
+
+**Severity**: CRITICAL - Processing crashes for ~16 files per run
+
+**Real-World Symptom**:
+```
+TypeError: object of type 'int' has no len()
+```
+Occurred 16 times per run when processing files with phone numbers where only outgoing messages were present.
+
+**Root Cause**: Phone numbers can be `Union[str, int]` throughout the codebase:
+- `get_first_phone_number()` returns `(0, ...)` when no participant found
+- `extract_fallback_number()` returns `int` (e.g., `17326389287` from filename)
+- `search_fallback_numbers()` returns `int` when fallback used
+
+But filtering functions expected `str` and called string methods:
+- `_is_service_code()` line 185: `if len(phone_number) <= 6:` → TypeError
+- `_is_non_phone_number()` line 161: `phone_number.replace()` → AttributeError
+- Affected ~16 files per run (files with phone numbers in filenames where only outgoing "Me" messages were present)
+
+**Changes**:
+
+**Part 1: Primary Fix - Call Sites** (`sms.py`):
+```python
+# Line 3727: SMS processing
+# Before: should_skip_message_by_phone_param(phone_number, ...)
+# After:  should_skip_message_by_phone_param(str(phone_number), ...)
+
+# Line 4925: MMS processing
+# Before: should_skip_message_by_phone_param(phone, ...)
+# After:  should_skip_message_by_phone_param(str(phone), ...)
+
+# Line 7535: Call processing
+# Before: should_skip_message_by_phone_param(phone_number, ...)
+# After:  should_skip_message_by_phone_param(str(phone_number), ...)
+
+# Line 7692: Voicemail processing
+# Before: should_skip_message_by_phone_param(phone_number, ...)
+# After:  should_skip_message_by_phone_param(str(phone_number), ...)
+```
+
+**Part 2: Secondary Fix - Defensive Methods** (`core/filtering_service.py`):
+```python
+# Line 69: should_skip_by_phone() - Entry point defensive conversion
+# Before: if not phone_number: return False
+# After:
+if not phone_number and phone_number != 0:
+    return False
+phone_number = str(phone_number)  # DEFENSIVE: Handle int from fallback extraction
+
+# Line 181: _is_service_code() - Defensive conversion before len()
+phone_number = str(phone_number)  # DEFENSIVE: Handle int from fallback extraction
+
+# Line 150: _is_non_phone_number() - Defensive conversion before string methods
+phone_number = str(phone_number)  # DEFENSIVE: Handle int from fallback extraction
+```
+
+**Part 3: Type Hints Updated** (`core/filtering_service.py`):
+```python
+# Added Union import
+from typing import Optional, Union
+
+# Updated method signatures to reflect reality
+def should_skip_by_phone(self, phone_number: Union[str, int], ...)
+def _is_service_code(self, phone_number: Union[str, int]) -> bool
+def _is_non_phone_number(self, phone_number: Union[str, int]) -> bool
+```
+
+**Lines Changed**:
+- `sms.py`: 4 call sites + 4 comments = 8 insertions
+- `core/filtering_service.py`: 3 defensive str() + 3 comments + 3 type hints + 1 import = 10 insertions
+- Total: 18 insertions
+
+**Impact**:
+- Defense-in-depth approach: Fixes at both call sites and method entry points
+- **Before**: 16 TypeError crashes per run, messages in affected files skipped
+- **After**: Zero errors, all messages processed correctly
+- **Affected Files**: ~16 out of 61,484 files per run (0.026%)
+- **Typical Scenario**: Files like `+17326389287 - Text - 2024-09-26T19_33_21Z.html` containing only outgoing messages (all from "Me")
+
+**Testing**:
+- **TDD Approach**: Tests written first, confirmed failing, then fixed
+- **Unit Tests**: 9 new tests in `tests/unit/test_integer_phone_filtering.py`
+  - `test_is_service_code_with_integer_short_code()` - 5-digit int (22395)
+  - `test_is_service_code_with_integer_full_number()` - 11-digit int (17326389287)
+  - `test_is_service_code_with_zero()` - Edge case (0)
+  - `test_is_non_phone_number_with_integer()` - Toll-free int (8003092350)
+  - `test_should_skip_by_phone_with_integer_fallback()` - Full integration
+  - `test_should_skip_message_by_phone_param_with_int()` - Call site test
+  - `test_filtering_with_negative_number()` - Edge case (-1)
+  - `test_filtering_with_very_large_int()` - Edge case (19999999999999)
+  - `test_should_skip_by_phone_with_zero()` - Zero-aware None check
+
+- **Integration Tests**: 3 new tests in `tests/integration/test_integer_phone_real_world.py`
+  - `test_process_file_with_integer_fallback_number()` - Real-world scenario simulation
+  - `test_filtering_service_with_integer_input()` - Multiple test cases (0, 22395, 17326389287, 8003092350)
+  - `test_write_sms_messages_with_integer_phone_number()` - High-level function test
+
+**Test Results**:
+- **Before Fix**: 8/9 unit tests FAIL, 2/3 integration tests FAIL (all with expected TypeError)
+- **After Fix**: 12/12 tests PASS (9 unit + 3 integration)
+- **Full Suite**: 737/737 tests PASS (100%) - grew from 725 to 737 tests
+- **Manual Verification**: Production run with 61,484 files - **ZERO len() errors** (was 16 before)
+
+**Verification**:
+- ✅ All new tests pass (12/12)
+- ✅ All existing tests still pass (725/725)
+- ✅ Production run: 0 errors (was 16)
+- ✅ Ed_Harbur.html regression test: File intact with 38 messages
+- ✅ Processing time: 280.75s (4.7 minutes) for 61,484 files
+- ✅ 836 conversations generated (filtering working correctly)
+
+**Date Fixed**: 2025-10-26
+
+---
+
 ## Remaining Bugs (Deferred - See REMAINING_BUGS_ANALYSIS.md)
 
 The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS.md for detailed analysis):
@@ -855,7 +973,8 @@ The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS
 - ~~Bug #21: Content type tracking check-then-act race~~ ✅ FIXED (2025-10-21)
 - ~~Bug #22: finalize() dictionary iteration safety~~ ✅ FIXED (2025-10-21)
 - ~~Bug #23: Console logging not thread-safe~~ ✅ FIXED (2025-10-21)
+- ~~Bug #26: Integer phone number type error in filtering~~ ✅ FIXED (2025-10-26)
 
-**Project Status**: 19 of 22 bugs addressed (16 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+**Project Status**: 20 of 23 bugs addressed (17 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
 
-**All Tests Passing**: 451/451 unit tests ✅ PASS (100%)
+**All Tests Passing**: 737/737 tests ✅ PASS (100%)
