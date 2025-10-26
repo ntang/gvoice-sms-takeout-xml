@@ -8,7 +8,7 @@ dependency-injection based filtering logic to replace global variable dependenci
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class FilteringService:
         
         return False
     
-    def should_skip_by_phone(self, phone_number: str, phone_lookup_manager) -> bool:
+    def should_skip_by_phone(self, phone_number: Union[str, int], phone_lookup_manager) -> bool:
         """
         Determine if a message should be skipped based on phone filtering settings.
         
@@ -77,10 +77,14 @@ class FilteringService:
         Returns:
             bool: True if message should be skipped due to phone filtering, False otherwise
         """
-        # Handle None or empty phone numbers
-        if not phone_number:
+        # Handle None or empty phone numbers (zero-aware check)
+        if not phone_number and phone_number != 0:
             return False
-        
+
+        # DEFENSIVE: Convert to string to handle integer phone numbers from fallback extraction
+        # This can happen when extract_fallback_number() returns int or get_first_phone_number() returns 0
+        phone_number = str(phone_number)
+
         # Check if config is None (backward compatibility)
         if self.config is None:
             return False
@@ -143,16 +147,19 @@ class FilteringService:
         
         return False
     
-    def _is_non_phone_number(self, phone_number: str) -> bool:
+    def _is_non_phone_number(self, phone_number: Union[str, int]) -> bool:
         """
         Check if a number is a non-phone number (like short codes).
-        
+
         Args:
-            phone_number: Phone number to check
-            
+            phone_number: Phone number to check (can be str or int from fallback)
+
         Returns:
             bool: True if the number is a non-phone number, False otherwise
         """
+        # DEFENSIVE: Convert to string to handle integer phone numbers
+        phone_number = str(phone_number)
+
         # Remove common formatting
         clean_number = phone_number.replace("-", "").replace("(", "").replace(")", "").replace(" ", "")
         
@@ -171,16 +178,19 @@ class FilteringService:
         
         return False
     
-    def _is_service_code(self, phone_number: str) -> bool:
+    def _is_service_code(self, phone_number: Union[str, int]) -> bool:
         """
         Check if a number is a service code.
-        
+
         Args:
-            phone_number: Phone number to check
-            
+            phone_number: Phone number to check (can be str or int from fallback)
+
         Returns:
             bool: True if the number is a service code, False otherwise
         """
+        # DEFENSIVE: Convert to string to handle integer phone numbers
+        phone_number = str(phone_number)
+
         # Service codes typically contain letters or are very short
         if len(phone_number) <= 6:
             return True
