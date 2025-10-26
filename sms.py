@@ -3841,7 +3841,9 @@ def write_sms_messages(
                     last_reported_progress = current_progress
 
             except Exception as e:
-                logger.error(f"Failed to process SMS message: {e}")
+                import traceback
+                logger.error(f"Failed to process SMS message in {file}: {e}")
+                logger.debug(f"Full traceback: {traceback.format_exc()}")
                 skipped_count += 1
                 continue
 
