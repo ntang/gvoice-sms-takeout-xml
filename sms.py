@@ -3724,7 +3724,8 @@ def write_sms_messages(
 
                 # PHONE FILTERING: Skip numbers without aliases if filtering is
                 # enabled
-                if config and should_skip_message_by_phone_param(phone_number, phone_lookup_manager, config):
+                # Convert to str to handle integer phone numbers from fallback extraction
+                if config and should_skip_message_by_phone_param(str(phone_number), phone_lookup_manager, config):
                     logger.debug(
                         f"Skipping message from {phone_number} - phone filtering criteria met"
                     )
@@ -4920,7 +4921,8 @@ def write_mms_messages(
                     # Check if any participant should be filtered out
                     should_skip = False
                     for phone in participants:
-                        if should_skip_message_by_phone_param(phone, phone_lookup_manager, config):
+                        # Convert to str to handle integer phone numbers from fallback extraction
+                        if should_skip_message_by_phone_param(str(phone), phone_lookup_manager, config):
                             logger.debug(
                                 f"Skipping MMS from {phone} - phone filtering criteria met"
                             )
@@ -7529,7 +7531,8 @@ def extract_call_info(
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
             # enabled
-            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(phone_number, PHONE_LOOKUP_MANAGER, config):
+            # Convert to str to handle integer phone numbers from fallback extraction
+            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(str(phone_number), PHONE_LOOKUP_MANAGER, config):
                 logger.debug(
                     f"Skipping call from {phone_number} - phone filtering criteria met"
                 )
@@ -7685,7 +7688,8 @@ def extract_voicemail_info(
 
             # PHONE FILTERING: Skip numbers without aliases if filtering is
             # enabled
-            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(phone_number, PHONE_LOOKUP_MANAGER, config):
+            # Convert to str to handle integer phone numbers from fallback extraction
+            if config and PHONE_LOOKUP_MANAGER and should_skip_message_by_phone_param(str(phone_number), PHONE_LOOKUP_MANAGER, config):
                 logger.debug(
                     f"Skipping voicemail from {phone_number} - phone filtering criteria met"
                 )
