@@ -161,6 +161,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_voicemail_only_conversation(messages)
+        if result:
+            return result
+
         # No filter matched - keep conversation
         return False, "No filter matched", 0.0
 
@@ -645,6 +649,64 @@ class ConversationFilter:
 
         return None
 
+    def _check_voicemail_only_conversation(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 16: Voicemail-only conversation (0.77 confidence)
+
+        Matches:
+        - Single voicemail message with no replies
+        - Unsolicited business contacts
+        - Financial institution cold contacts
+
+        Patterns:
+        - "🎙️ Voicemail from" (single message)
+        - "would love to set up time"
+        - "Private Client advisor", "Private Banker"
+        - Financial institution names
+        """
+        # Must be exactly 1 message
+        if len(messages) != 1:
+            return None
+
+        msg = messages[0]
+        text = msg.get("text", "").lower()
+
+        # Must be a voicemail
+        if "🎙️ voicemail from" not in text.lower():
+            return None
+
+        # Check for unsolicited business contact patterns
+        business_patterns = [
+            # Financial services cold contacts
+            r'\bprivate\s+(client|banker)\s+advisor\b',
+            r'\bwould\s+love\s+to\s+set\s+up\s+(some\s+)?time\b',
+            r'\bjust\s+wanted\s+to\s+reach\s+out\b',
+            r'\bintroduce\s+myself\b',
+
+            # Financial institutions
+            r'\bjpmorgan\s+chase\b',
+            r'\bwells\s+fargo\b',
+            r'\bbank\s+of\s+america\b',
+            r'\bcitibank\b',
+            r'\bgoldman\s+sachs\b',
+            r'\bmorgan\s+stanley\b',
+
+            # Business development
+            r'\breaching\s+out\s+to\s+(discuss|introduce)\b',
+            r'\bfollow\s+up\s+on\s+your\s+(account|inquiry)\b',
+            r'\brelationship\s+manager\b',
+            r'\baccount\s+manager\b',
+        ]
+
+        for pattern in business_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True, "Voicemail-only unsolicited business contact", 0.77
+
+        return None
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get filter statistics.
@@ -653,9 +715,9 @@ class ConversationFilter:
             Dictionary with filter stats
         """
         return {
-            "total_patterns": 15,
+            "total_patterns": 16,
             "very_safe_patterns": 5,
             "safe_patterns": 5,
-            "aggressive_patterns": 5,
+            "aggressive_patterns": 6,
             "keyword_protection_enabled": self.keyword_protection is not None
         }
