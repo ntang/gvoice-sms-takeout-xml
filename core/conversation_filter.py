@@ -217,6 +217,8 @@ class ConversationFilter:
         - "your Dasher provided"
         - "Package delivered"
         - "Caviar connecting you to your Dasher"
+        - "I left your delivery at your door"
+        - "delivered to your door"
         """
         patterns = [
             # Original patterns
@@ -227,18 +229,25 @@ class ConversationFilter:
             r'\btracking\s+(number|update)',
             r'\byour\s+(doordash|ubereats|grubhub|postmates)\s+order',
 
-            # NEW: Dropped off pattern
+            # Dropped off patterns
             r'\border\s+(was\s+)?dropped\s+off',
             r'\bdropped\s+off.*\bdasher\b',
 
-            # NEW: Broader Dasher patterns
+            # Broader Dasher patterns
             r'\byour\s+dasher\b',
             r'\bconnecting\s+you\s+to\s+your\s+dasher\b',
 
-            # NEW: Additional delivery services
+            # Additional delivery services
             r'\byour\s+caviar\s+(order|delivery)\b',
             r'\bcaviar\s+connecting\b',
             r'\binstacart\s+(shopper|delivery)\b',
+
+            # NEW: Generic delivery driver messages
+            r'\bleft\s+your\s+delivery\b',
+            r'\bleft\s+(at|outside)\s+your\s+door\b',
+            r'\bdelivered\s+to\s+your\s+door\b',
+            r'\bdelivery\s+at\s+your\s+door\b',
+            r'\bleft\s+(the\s+)?(package|order)\s+(at|outside)\b',
         ]
 
         # Also check for high message count with no replies
