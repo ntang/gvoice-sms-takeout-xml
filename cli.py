@@ -1463,9 +1463,8 @@ def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_prote
                             click.echo(f"      Messages: {len(messages)}")
                 
                 except BrokenPipeError:
-                    # Stdout pipe closed (e.g., piped to head/less and user quit)
-                    # Exit gracefully without error
-                    import sys
+                    # Stdout pipe closed early (e.g., piped to `head` or `less` and user quit)
+                    # This is normal Unix behavior, not an error - exit gracefully
                     sys.exit(0)
 
             except Exception as e:
@@ -1486,8 +1485,8 @@ def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_prote
             if stats['parse_errors'] > 0:
                 click.echo(f"   ❌ Parse errors: {stats['parse_errors']}")
         except BrokenPipeError:
-            # Stdout pipe closed - exit gracefully
-            import sys
+            # Stdout pipe closed early (e.g., piped to `head` or `less` and user quit)
+            # This is normal Unix behavior, not an error - exit gracefully
             sys.exit(0)
 
         try:
@@ -1509,7 +1508,9 @@ def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_prote
                 for reason, count in reasons.most_common(5):
                     click.echo(f"   - {reason}: {count} conversations")
         except BrokenPipeError:
-            # Stdout pipe closed - exit gracefully
+            # Stdout pipe closed early (e.g., piped to `head` or `less` and user quit)
+            # This is normal Unix behavior, not an error
+            # No need to call sys.exit(0) - function ends naturally here
             pass
 
     except Exception as e:

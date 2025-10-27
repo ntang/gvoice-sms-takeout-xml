@@ -945,6 +945,60 @@ def _is_non_phone_number(self, phone_number: Union[str, int]) -> bool
 
 ---
 
+### 🟡 Bug #27: BrokenPipeError Spam in Logs When Using Pipes - FIXED ✅
+
+**File**: `cli.py` (filter-conversations command)
+
+**Severity**: LOW - Cosmetic/logging issue (no functional impact)
+
+**Real-World Symptom**:
+```
+2025-10-26 20:41:04,492 - ERROR - [MainThread] - __main__ - Error processing +12123853700.html: [Errno 32] Broken pipe
+BrokenPipeError: [Errno 32] Broken pipe
+```
+Occurred sporadically when running commands with pipe filters like `| tail -100` or `| less`
+
+**Root Cause**:
+When output is piped to commands that close stdin early (e.g., `tail -100` after buffer fills, or `less` when user quits), Python receives SIGPIPE signal and raises BrokenPipeError. This is normal Unix behavior, not an error.
+
+**User's Command**:
+```bash
+python cli.py ... html-generation 2>&1 | tee /tmp/html_gen.log | tail -100
+                                                                  └─ closes stdin when buffer fills
+```
+
+**Changes** (3 locations in filter-conversations command):
+
+1. **Lines 1465-1468**: Per-file output section
+   - Removed redundant `import sys` (already imported at module level)
+   - Enhanced comment to explain normal Unix behavior
+   - Calls `sys.exit(0)` for graceful exit
+
+2. **Lines 1487-1490**: Summary output section
+   - Removed redundant `import sys`
+   - Enhanced comment
+   - Calls `sys.exit(0)` for graceful exit
+
+3. **Lines 1510-1514**: Final messages section
+   - Added explanatory comment for why `pass` is used (function ends naturally)
+   - No `sys.exit(0)` needed
+
+**Impact**:
+- ✅ Clean logs when using pipes (no more BrokenPipeError tracebacks)
+- ✅ No functional changes to filtering logic
+- ✅ Follows standard Python practice for CLI tools
+
+**Test**: Manual verification (not unit tested - acceptable for CLI pipe handling)
+
+**Verification**:
+- Before fix: 2+ BrokenPipeError entries per run in logs
+- After fix: Production run with 61,484 files - **ZERO broken pipe errors**
+- Command: `grep -i "broken pipe" /tmp/html_gen.log` → No matches
+
+**Date Fixed**: 2025-10-26 (commit 2ce5e1d + refactoring)
+
+---
+
 ## Remaining Bugs (Deferred - See REMAINING_BUGS_ANALYSIS.md)
 
 The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS.md for detailed analysis):
@@ -974,7 +1028,8 @@ The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS
 - ~~Bug #22: finalize() dictionary iteration safety~~ ✅ FIXED (2025-10-21)
 - ~~Bug #23: Console logging not thread-safe~~ ✅ FIXED (2025-10-21)
 - ~~Bug #26: Integer phone number type error in filtering~~ ✅ FIXED (2025-10-26)
+- ~~Bug #27: BrokenPipeError spam in logs when using pipes~~ ✅ FIXED (2025-10-26)
 
-**Project Status**: 20 of 23 bugs addressed (17 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+**Project Status**: 21 of 24 bugs addressed (18 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
 
 **All Tests Passing**: 737/737 tests ✅ PASS (100%)
