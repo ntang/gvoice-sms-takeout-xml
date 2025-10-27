@@ -6,6 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Google Voice SMS Takeout HTML Converter - Converts Google Voice Takeout export files into organized, searchable HTML conversations. The project processes 60,000+ HTML files, manages complex phone number lookups, and generates clean conversation archives with full threading support.
 
+## ⚠️ CRITICAL: Always Commit and Push
+
+**After making ANY code changes, ALWAYS commit and push immediately.**
+
+This ensures:
+- Work is backed up and visible in the repository
+- Changes are tracked with proper commit messages
+- No work is lost between sessions
+
+**Standard workflow:**
+```bash
+# 1. Make changes
+# 2. Test if applicable
+# 3. Commit with descriptive message
+git add <files>
+git commit -m "descriptive message"
+
+# 4. Push immediately
+git push
+```
+
+**Never skip this step.** The user should not have to ask whether changes were committed.
+
 ## ⚠️ IMPORTANT: Virtual Environment
 
 **ALWAYS activate the virtual environment before running any Python commands.**
