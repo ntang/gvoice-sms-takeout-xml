@@ -169,6 +169,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_commercial_customer_service(messages)
+        if result:
+            return result
+
         # No filter matched - keep conversation
         return False, "No filter matched", 0.0
 
@@ -790,6 +794,91 @@ class ConversationFilter:
 
         return None
 
+    def _check_commercial_customer_service(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 18: Commercial customer service (0.76 confidence)
+
+        Matches:
+        - Customer service interactions with commercial companies
+        - Restaurant order inquiries, delivery service support
+        - Even if user engages substantively
+        - Transactional business conversations
+
+        Examples:
+        - "Thank you for calling [restaurant]! Please text us..."
+        - Restaurant/delivery service order tracking
+        - "We apologize for the inconvenience"
+        """
+        # Combine all messages
+        all_text = " ".join([m.get("text", "").lower() for m in messages])
+
+        # Customer service auto-reply patterns
+        customer_service_patterns = [
+            r'thank you for calling .+[!.].*(?:please text|for (?:quicker|faster) assistance)',
+            r'for (?:quicker|faster) assistance,?\s+please (?:text|call)',
+            r'(?:text|call) us and we\'?ll get back to you',
+        ]
+
+        # Check for auto-reply patterns
+        for pattern in customer_service_patterns:
+            if re.search(pattern, all_text, re.IGNORECASE):
+                # Confirm it's commercial by checking for order/delivery/service language
+                if re.search(r'\b(order|delivery|delivered|pickup|grubhub|doordash|ubereats)', all_text, re.IGNORECASE):
+                    return True, "Commercial customer service interaction", 0.76
+
+        # Restaurant/food service order patterns
+        restaurant_patterns = [
+            # Order status inquiries
+            r'(?:where is|what happened to|status of).*(?:my|the) (?:order|food|salad|meal)',
+            r'ordered (?:it )?through (?:grubhub|doordash|ubereats|postmates)',
+
+            # Restaurant responses about orders
+            r'(?:your order|the order) (?:was|is) (?:ready|prepared|delivered)',
+            r'(?:we apologize|sorry) for (?:the|any) (?:inconvenience|delay)',
+            r'delivered at \d+:\d+',
+
+            # Food delivery tracking
+            r'what(?:\'?s| is) the name on (?:your|the) order',
+            r'(?:ready for|waiting for) pickup',
+        ]
+
+        # Need at least 2 restaurant/delivery indicators
+        restaurant_matches = 0
+        for pattern in restaurant_patterns:
+            if re.search(pattern, all_text, re.IGNORECASE):
+                restaurant_matches += 1
+
+        if restaurant_matches >= 2:
+            return True, "Commercial customer service interaction", 0.76
+
+        # Delivery service support patterns (broader)
+        delivery_service_names = [
+            r'\bgrubhub\b',
+            r'\bdoordash\b',
+            r'\bubereats\b',
+            r'\bpostmates\b',
+            r'\binstacart\b',
+        ]
+
+        has_delivery_service = False
+        for service in delivery_service_names:
+            if re.search(service, all_text, re.IGNORECASE):
+                has_delivery_service = True
+                break
+
+        # If mentions delivery service + order/tracking language + apology/support language
+        if has_delivery_service:
+            has_order_language = re.search(r'\b(order|delivery|tracking|status|where is|delayed)', all_text, re.IGNORECASE)
+            has_support_language = re.search(r'\b(apologize|sorry|investigate|inconvenience|support)', all_text, re.IGNORECASE)
+
+            if has_order_language and has_support_language:
+                return True, "Commercial customer service interaction", 0.76
+
+        return None
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get filter statistics.
@@ -798,9 +887,9 @@ class ConversationFilter:
             Dictionary with filter stats
         """
         return {
-            "total_patterns": 17,
+            "total_patterns": 18,
             "very_safe_patterns": 5,
             "safe_patterns": 5,
-            "aggressive_patterns": 7,
+            "aggressive_patterns": 8,
             "keyword_protection_enabled": self.keyword_protection is not None
         }
