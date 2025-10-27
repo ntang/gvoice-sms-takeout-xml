@@ -333,16 +333,43 @@ class ConversationFilter:
         - "HUGE 700% MATCH to stand with Kamala"
         - "Do you ENDORSE Kamala Harris?"
         - "Donate to support..."
+        - "Stop to Quit" / "Stop to End"
+        - "donate $5 or $10"
+        - "Senate Majority"
+        - "pass [politician]'s bill"
         """
         patterns = [
+            # Original donate patterns
             r'\b(donate|contribute|chip in)\s+(to|now)\b',
+            # NEW: Donate with dollar amounts (e.g., "donate $5", "donate $10 TODAY")
+            r'\b(donate|contribute|chip in)\s+\$\d+',
+            # NEW: Broader donation patterns
+            r'\b(donate|contribute)\b.*\$(to|now|today)\b',
+
+            # Matching patterns
             r'\b\d+%\s+match(ing)?\b',
+
+            # Endorsement patterns
             r'\bendorse\s+\w+\s+(harris|trump|biden)\b',
             r'\bvote\s+for\s+\w+\b',
+
+            # Campaign patterns
             r'\bcampaign\s+(contribution|donation)\b',
             r'\bpolitical\s+(survey|poll)\b',
             r'\bdem(ocratic)?\s+congress\b',
-            r'\bstop\s+to\s+end\b'  # Common in political SMS
+
+            # NEW: Senate/congressional patterns
+            r'\bsenate\s+majority\b',
+            r'\b(pass|support|sign)\s+\w+\'?s\s+(bill|act)\b',
+            r'\bjon\s+tester\b',  # Known political figures
+
+            # Stop patterns (common in political SMS)
+            r'\bstop\s+to\s+(end|quit)\b',
+            r'\bstop\s+2\s+(end|quit)\b',
+
+            # NEW: Political action patterns
+            r'\bruin\s+(trump|biden|harris)\b',
+            r'\bstand\s+with\s+(kamala|trump|biden)\b',
         ]
 
         for msg in messages:
@@ -481,9 +508,9 @@ class ConversationFilter:
 
         Matches:
         - All messages from sender, no user replies
-        - 3+ messages
+        - 2+ messages (lowered from 3+ to catch more spam)
         """
-        if len(messages) < 3:
+        if len(messages) < 2:
             return None
 
         user_messages = [m for m in messages if m.get("sender") == "Me"]
