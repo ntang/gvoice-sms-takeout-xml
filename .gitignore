@@ -66,6 +66,7 @@ exports/
 
 # Phone lookup and configuration files (may contain sensitive data)
 phone_lookup.txt
+phone_lookup_proposals.txt
 sms-converter-config.txt
 protected_keywords.json
 
