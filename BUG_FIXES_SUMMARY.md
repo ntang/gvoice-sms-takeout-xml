@@ -999,6 +999,205 @@ python cli.py ... html-generation 2>&1 | tee /tmp/html_gen.log | tail -100
 
 ---
 
+### 🔴 Bug #30: T9 Conversion of Hash Strings Creates Malformed Phone Numbers - FIXED ✅
+
+**Files**: `sms.py` (4 locations + 1 function + 1 type signature), `tests/unit/test_bug_30_t9_conversion.py` (new), `tests/unit/test_phone_extraction.py`, `tests/unit/test_parallel_own_number.py`, `tests/unit/test_conversation_filter.py`
+
+**Severity**: CRITICAL - Data integrity violation, malformed phone numbers generated
+
+**Real-World Symptom**:
+```
+Conversation file: +1408932852924.html (13 digits - invalid!)
+Source file: Aniella Tang - Text - 2021-04-10T00_40_26Z.html
+```
+The system generated a malformed 13-digit US phone number from a hash string via T9/vanity number conversion.
+
+**Root Cause Chain**:
+1. Google Voice export has empty tel: links: `<a href="tel:">`
+2. Phone extraction fails (no valid phone in HTML)
+3. `extract_fallback_number_cached()` Strategy 4 returns hash: `"UN_HrTvGduCP140vxEc8laxag"`
+4. Hash passed to `phonenumbers.parse(hash_string, "US")`
+5. **THE SMOKING GUN**: phonenumbers library performs T9/vanity conversion:
+   - U=8, N=6, H=4, r=7, T=8, v=8, G=4, d=3, u=8, C=2, P=7...
+   - Result: `"864788438271408932852924"` (24 digits!)
+6. Pattern extraction finds: `"408932852924"` (12 digits)
+7. Country code added: `"+1408932852924"` (13 digits - malformed!)
+
+**Why T9 Conversion Happened**:
+The phonenumbers library includes a feature for parsing vanity numbers (like 1-800-FLOWERS). When given a string with letters, it automatically converts them to digits using the T9 keypad mapping. Hash strings like "UN_HrTvGduCP140vxEc8laxag" triggered this feature unintentionally.
+
+**The Fix - Three-Layer Defense**:
+
+**Layer 1: Use hash strings directly as conversation IDs** (`sms.py:5933-5951`):
+```python
+# LAYER 1 - Bug #30 Fix: Use hash strings DIRECTLY as conversation IDs
+# Hash strings start with "UN_" and are valid conversation IDs
+# DO NOT pass them to phonenumbers.parse() - it triggers T9 conversion!
+if fallback_number.startswith("UN_"):
+    logger.info(
+        f"Using hash-based conversation ID: {fallback_number}. "
+        f"This is a name-based file without phone numbers"
+    )
+    # Return hash string directly - it's a valid conversation ID
+    dummy_participant = BeautifulSoup(
+        f'<cite class="sender vcard">'
+        f'<a class="tel" href="conversation:{fallback_number}">'
+        f'<abbr class="fn" title="">Unknown (Name-based)</abbr>'
+        f'</a></cite>',
+        HTML_PARSER
+    )
+    return fallback_number, dummy_participant
+```
+
+**Layer 2: Pre-parse validation with regex** (`sms.py:5953-5960`):
+```python
+# LAYER 2 - Validate phone number format before parsing
+# Reject strings that don't look like phone numbers (Bug #30 defense)
+if not re.match(r'^\+?\d{10,15}$', fallback_number):
+    logger.warning(
+        f"Fallback string doesn't match phone format: {fallback_number}. "
+        f"Triggering search_fallback_numbers()."
+    )
+    return 0, BeautifulSoup("", HTML_PARSER)
+```
+
+**Layer 3: Post-parse US digit count validation** (`sms.py:5965-5975`):
+```python
+# LAYER 3 - Validate digit count for US numbers AFTER parsing
+if parsed.country_code == 1:
+    national_digits = str(parsed.national_number)
+    # US numbers: exactly 10 digits (plus country code = 11 total)
+    if len(national_digits) != 10:
+        logger.warning(
+            f"Rejecting malformed US phone number: +1{national_digits} "
+            f"({len(national_digits)} national digits, expected 10). "
+            f"Source fallback_number: {fallback_number}"
+        )
+        return 0, BeautifulSoup("", HTML_PARSER)
+```
+
+**Additional Changes**:
+
+**New validation function** (`sms.py:310-343`):
+```python
+def is_valid_us_phone_number(phone_number: Union[str, int]) -> bool:
+    """
+    Validate US phone numbers are exactly 11 digits (+1 followed by 10 digits).
+
+    Rejects:
+    - Numbers with wrong digit count (too many/few)
+    - Non-US country codes
+    - Hash strings (UN_... format)
+    - Service codes (5-6 digits)
+    """
+    if not phone_number or phone_number == 0:
+        return False
+
+    # Reject hash strings immediately (Bug #30: T9 conversion prevention)
+    if isinstance(phone_number, str) and phone_number.startswith("UN_"):
+        return False
+
+    # Convert to string and remove formatting
+    clean = str(phone_number).replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+
+    # Must be all digits
+    if not clean.isdigit():
+        return False
+
+    # US numbers: exactly 11 digits starting with 1
+    if len(clean) != 11:
+        return False
+
+    if not clean.startswith("1"):
+        return False
+
+    return True
+```
+
+**Type signature fix** (`sms.py:3929`):
+```python
+# Before: def extract_fallback_number_cached(filename: str) -> int:
+# After:
+def extract_fallback_number_cached(filename: str) -> Union[str, int]:
+    """
+    Bug #30 Fix: Function now honestly declares it can return str or int.
+    - Returns int for numeric phone numbers and service codes
+    - Returns str for hash-based IDs (format: "UN_...") from name-based files
+    - Returns 0 if no fallback found
+    """
+```
+
+**Integer fallback handling** (`sms.py:5980-6000`):
+```python
+# Handle integer fallback numbers (from Strategy 1, 2, or 5)
+elif isinstance(fallback_number, int):
+    try:
+        # Convert to string and parse
+        parsed = phonenumbers.parse(str(fallback_number), "US")
+
+        # Validate US numbers
+        if parsed.country_code == 1:
+            national_digits = str(parsed.national_number)
+            if len(national_digits) != 10:
+                logger.debug(
+                    f"Integer fallback {fallback_number} is not a valid US phone number "
+                    f"({len(national_digits)} digits, expected 10)"
+                )
+                return 0, BeautifulSoup("", HTML_PARSER)
+
+        phone_number = format_number(parsed)
+        return phone_number, create_dummy_participant(phone_number)
+    except Exception as parse_error:
+        logger.debug(f"Failed to parse integer fallback {fallback_number}: {parse_error}")
+        return 0, BeautifulSoup("", HTML_PARSER)
+```
+
+**Lines Changed**:
+- `sms.py`: 110 insertions (34-line validation function + 76 lines of three-layer defense + type signature)
+- `tests/unit/test_bug_30_t9_conversion.py`: 232 lines (new file with 5 comprehensive tests)
+- `tests/unit/test_parallel_own_number.py`: Updated 1 test to reflect new hash-based ID behavior
+- `tests/unit/test_conversation_filter.py`: Fixed pattern count assertions (1 line)
+- Total: ~350 insertions
+
+**Impact**:
+- **Before**: Malformed 13-digit phone numbers generated from hash strings
+- **After**: Hash strings used directly as valid conversation IDs (format: `UN_...`)
+- **Affected Files**: Name-based files without phone numbers (e.g., "Susan Nowak Tang - Text - ...")
+- **Behavior Change**:
+  - Old: Hash → T9 conversion → malformed number → search_fallback_numbers()
+  - New: Hash → used directly as conversation ID (no parsing, no T9 conversion)
+
+**Testing**:
+- **TDD Approach**: 5 tests written first, all failed, then implemented fixes
+- **Unit Tests**: 5 new tests in `tests/unit/test_bug_30_t9_conversion.py`
+  - `test_hash_strings_not_parsed_as_phone_numbers()` - Verify hash strings used directly
+  - `test_is_valid_us_phone_number()` - Validate US phone number function
+  - `test_extract_fallback_returns_union_type()` - Verify Union[str, int] return type
+  - `test_empty_tel_links_use_fallback()` - Verify empty tel: links trigger fallback
+  - `test_malformed_numbers_rejected_in_validation()` - Integration test of three-layer defense
+
+- **Updated Tests**: 2 existing tests updated to reflect new behavior
+  - `test_parallel_worker_uses_fallback_search_when_only_own_number_found()` - Now verifies hash-based IDs are used instead of triggering search
+  - `test_get_stats_method()` - Fixed pattern count assertions
+
+**Test Results**:
+- **Before Fix**: 5/5 Bug #30 tests FAIL (as expected with TDD)
+- **After Fix**: 5/5 Bug #30 tests PASS ✅
+- **Regression Tests**: 808/813 → 811/813 tests passing (fixed 3 regressions)
+- **Final Suite**: 811/813 tests PASS (99.75%) - 2 unrelated timestamp extraction test failures
+
+**Verification**:
+- ✅ All Bug #30 tests pass (5/5)
+- ✅ No malformed phone numbers generated from hash strings
+- ✅ Hash-based conversation IDs work correctly (format: `UN_...`)
+- ✅ Type system honesty (Union[str, int] declared correctly)
+- ✅ Three-layer defense prevents future T9 conversion issues
+- ✅ Name-based files handled correctly (e.g., "Susan Nowak Tang - Text - ...")
+
+**Date Fixed**: 2025-10-27
+
+---
+
 ## Remaining Bugs (Deferred - See REMAINING_BUGS_ANALYSIS.md)
 
 The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS.md for detailed analysis):
@@ -1029,7 +1228,8 @@ The following bugs were identified but are deferred (see REMAINING_BUGS_ANALYSIS
 - ~~Bug #23: Console logging not thread-safe~~ ✅ FIXED (2025-10-21)
 - ~~Bug #26: Integer phone number type error in filtering~~ ✅ FIXED (2025-10-26)
 - ~~Bug #27: BrokenPipeError spam in logs when using pipes~~ ✅ FIXED (2025-10-26)
+- ~~Bug #30: T9 conversion of hash strings creates malformed phone numbers~~ ✅ FIXED (2025-10-27)
 
-**Project Status**: 21 of 24 bugs addressed (18 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
+**Project Status**: 22 of 25 bugs addressed (19 fixed + 2 already fixed + 1 verified correct). Remaining 3 bugs are technical debt or accepted design decisions.
 
-**All Tests Passing**: 737/737 tests ✅ PASS (100%)
+**All Tests Passing**: 811/813 tests ✅ PASS (99.75%) - 2 unrelated timestamp extraction test failures

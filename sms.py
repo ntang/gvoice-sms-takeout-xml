@@ -307,6 +307,56 @@ VIDEO_TAG_PATTERN = re.compile(r"<video")
 # Legacy functions removed - migration complete
 
 
+def is_valid_us_phone_number(phone_number: Union[str, int]) -> bool:
+    """
+    Validate US phone numbers are exactly 11 digits (+1 followed by 10 digits).
+
+    Rejects:
+    - Numbers with wrong digit count (too many/few)
+    - Non-US country codes
+    - Hash strings (UN_... format)
+    - Service codes (5-6 digits)
+
+    Args:
+        phone_number: Phone number to validate
+
+    Returns:
+        bool: True if valid US phone number (exactly 11 digits)
+
+    Examples:
+        >>> is_valid_us_phone_number("+13478736042")  # 11 digits
+        True
+        >>> is_valid_us_phone_number("+1408932852924")  # 13 digits - T9 corruption
+        False
+        >>> is_valid_us_phone_number("UN_HashValue")  # Hash string
+        False
+        >>> is_valid_us_phone_number(22891)  # Service code
+        False
+    """
+    if not phone_number or phone_number == 0:
+        return False
+
+    # Reject hash strings immediately (Bug #30: T9 conversion prevention)
+    if isinstance(phone_number, str) and phone_number.startswith("UN_"):
+        return False
+
+    # Convert to string and remove formatting
+    clean = str(phone_number).replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+
+    # Must be all digits
+    if not clean.isdigit():
+        return False
+
+    # US numbers: exactly 11 digits starting with 1
+    if len(clean) != 11:
+        return False
+
+    if not clean.startswith("1"):
+        return False
+
+    return True
+
+
 class ConversionError(Exception):
     """Custom exception for conversion errors."""
 
@@ -3876,15 +3926,30 @@ def write_sms_messages(
 
 
 @lru_cache(maxsize=25000)
-def extract_fallback_number_cached(filename: str) -> int:
+def extract_fallback_number_cached(filename: str) -> Union[str, int]:
     """
     Cached fallback number extraction for performance optimization.
+
+    Bug #30 Fix: Function now honestly declares it can return str or int.
+    - Returns int for numeric phone numbers and service codes
+    - Returns str for hash-based IDs (format: "UN_...") from name-based files
+    - Returns 0 if no fallback found
 
     Args:
         filename: Filename to extract number from
 
     Returns:
-        Union[str, int]: Extracted number or 0 if not found
+        Union[str, int]:
+            - int: Numeric phone number, service code, or 0 (not found)
+            - str: Hash-based ID (format: "UN_...") for name-based files
+
+    Examples:
+        >>> extract_fallback_number_cached("+13478736042 - Text - 2024-01-01.html")
+        13478736042  # int
+        >>> extract_fallback_number_cached("Susan Nowak Tang - Text - 2024-01-01.html")
+        "UN_abc123..."  # str (hash)
+        >>> extract_fallback_number_cached("22891 - Text - 2024-01-01.html")
+        22891  # int (service code)
     """
     import re
 
@@ -5865,10 +5930,74 @@ def get_first_phone_number(
         if fallback_number and fallback_number != 0:
             try:
                 if isinstance(fallback_number, str):
-                    phone_number = format_number(
-                        phonenumbers.parse(fallback_number, "US")
-                    )
+                    # LAYER 1 - Bug #30 Fix: Use hash strings DIRECTLY as conversation IDs
+                    # Hash strings start with "UN_" and are valid conversation IDs
+                    # DO NOT pass them to phonenumbers.parse() - it triggers T9 conversion!
+                    # Example: "UN_HrTvGduCP140vxEc8laxag" → T9 converts to "+1408932852924" (malformed)
+                    if fallback_number.startswith("UN_"):
+                        logger.info(
+                            f"Using hash-based conversation ID: {fallback_number}. "
+                            f"This is a name-based file without phone numbers (e.g., 'Susan Nowak Tang - Text - ...')"
+                        )
+                        # Return hash string directly - it's a valid conversation ID
+                        # Create dummy participant with name-based indicator
+                        dummy_participant = BeautifulSoup(
+                            f'<cite class="sender vcard">'
+                            f'<a class="tel" href="conversation:{fallback_number}">'
+                            f'<abbr class="fn" title="">Unknown (Name-based)</abbr>'
+                            f'</a></cite>',
+                            HTML_PARSER
+                        )
+                        return fallback_number, dummy_participant
+
+                    # LAYER 2 - Validate phone number format before parsing
+                    # Reject strings that don't look like phone numbers (Bug #30 defense)
+                    if not re.match(r'^\+?\d{10,15}$', fallback_number):
+                        logger.warning(
+                            f"Fallback string doesn't match phone format: {fallback_number}. "
+                            f"Triggering search_fallback_numbers()."
+                        )
+                        return 0, BeautifulSoup("", HTML_PARSER)
+
+                    # Parse as phone number
+                    parsed = phonenumbers.parse(fallback_number, "US")
+
+                    # LAYER 3 - Validate digit count for US numbers AFTER parsing
+                    if parsed.country_code == 1:
+                        national_digits = str(parsed.national_number)
+                        # US numbers: exactly 10 digits (plus country code = 11 total)
+                        if len(national_digits) != 10:
+                            logger.warning(
+                                f"Rejecting malformed US phone number: +1{national_digits} "
+                                f"({len(national_digits)} national digits, expected 10). "
+                                f"Source fallback_number: {fallback_number}"
+                            )
+                            return 0, BeautifulSoup("", HTML_PARSER)
+
+                    phone_number = format_number(parsed)
                     return phone_number, create_dummy_participant(phone_number)
+
+                # Handle integer fallback numbers (from Strategy 1, 2, or 5)
+                elif isinstance(fallback_number, int):
+                    try:
+                        # Convert to string and parse
+                        parsed = phonenumbers.parse(str(fallback_number), "US")
+
+                        # Validate US numbers
+                        if parsed.country_code == 1:
+                            national_digits = str(parsed.national_number)
+                            if len(national_digits) != 10:
+                                logger.debug(
+                                    f"Integer fallback {fallback_number} is not a valid US phone number "
+                                    f"({len(national_digits)} digits, expected 10)"
+                                )
+                                return 0, BeautifulSoup("", HTML_PARSER)
+
+                        phone_number = format_number(parsed)
+                        return phone_number, create_dummy_participant(phone_number)
+                    except Exception as parse_error:
+                        logger.debug(f"Failed to parse integer fallback {fallback_number}: {parse_error}")
+                        return 0, BeautifulSoup("", HTML_PARSER)
             except Exception as e:
                 logger.debug(f"Failed to use fallback number {fallback_number}: {e}")
 

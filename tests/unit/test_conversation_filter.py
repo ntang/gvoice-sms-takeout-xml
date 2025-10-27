@@ -417,10 +417,11 @@ class TestConfidenceAndEdgeCases:
         filter = ConversationFilter(keyword_protection)
         stats = filter.get_stats()
 
-        assert stats["total_patterns"] == 15
+        # Updated: Now 18 patterns after adding Patterns 16, 17, 18
+        assert stats["total_patterns"] == 18
         assert stats["very_safe_patterns"] == 5
-        assert stats["safe_patterns"] == 5
-        assert stats["aggressive_patterns"] == 5
+        assert stats["safe_patterns"] == 5  # Pattern 18 is classified as aggressive, not safe
+        assert stats["aggressive_patterns"] == 8  # Added Patterns 16, 17, and 18
         assert stats["keyword_protection_enabled"] is True
 
 

@@ -109,11 +109,17 @@ class TestParallelOwnNumber(unittest.TestCase):
                         "With own_number, should return 0 when only user's messages present")
 
     def test_parallel_worker_uses_fallback_search_when_only_own_number_found(self):
-        """Test that when only own_number is found, fallback search is triggered."""
+        """Test that hash-based conversation IDs are used when only own_number is found.
+
+        Bug #30 Fix: With the T9 conversion fix, hash strings from name-based files
+        (like "Ed Harbur - Text - ...") are now used directly as conversation IDs
+        instead of triggering search_fallback_numbers(). This test verifies the new
+        correct behavior.
+        """
         from sms import write_sms_messages
         from core.conversation_manager import ConversationManager
         from core.phone_lookup import PhoneLookupManager
-        
+
         # Create HTML with only outgoing messages
         html_content = """
         <div class="message">
@@ -122,38 +128,36 @@ class TestParallelOwnNumber(unittest.TestCase):
             </cite>: Test
         </div>
         """
-        
+
         soup = BeautifulSoup(html_content, 'html.parser')
         messages = soup.find_all(class_="message")
-        
+
         # Mock managers
         mock_conv_mgr = Mock(spec=ConversationManager)
         mock_phone_mgr = Mock(spec=PhoneLookupManager)
         mock_phone_mgr.is_filtered.return_value = False
         mock_phone_mgr.get_alias.return_value = None
-        
-        with patch('sms.search_fallback_numbers') as mock_fallback:
-            # search_fallback_numbers should find Ed's number from other files
-            mock_fallback.return_value = self.test_participant_number
-            
-            # Call write_sms_messages WITH own_number
-            write_sms_messages(
-                file="Ed Harbur - Text - 2024-12-05T23_40_41Z.html",
-                messages_raw=messages,
-                own_number=self.test_own_number,
-                src_filename_map={},
-                conversation_manager=mock_conv_mgr,
-                phone_lookup_manager=mock_phone_mgr,
-            )
-            
-            # Verify search_fallback_numbers was called (because primary extraction returned 0)
-            self.assertTrue(mock_fallback.called,
-                          "search_fallback_numbers should be called when only own_number found")
-            
-            # Verify own_number was passed to fallback search
-            call_args = mock_fallback.call_args
-            self.assertEqual(call_args.args[2], self.test_own_number,
-                           "own_number should be passed to search_fallback_numbers")
+
+        # Bug #30 Fix: Hash strings are now used directly, so search_fallback_numbers
+        # is NOT called for name-based files like "Ed Harbur - Text - ..."
+        # Instead, the system uses the hash as a valid conversation ID.
+
+        # Call write_sms_messages WITH own_number
+        write_sms_messages(
+            file="Ed Harbur - Text - 2024-12-05T23_40_41Z.html",
+            messages_raw=messages,
+            own_number=self.test_own_number,
+            src_filename_map={},
+            conversation_manager=mock_conv_mgr,
+            phone_lookup_manager=mock_phone_mgr,
+        )
+
+        # Verify conversation was written (with hash-based ID)
+        # The filename "Ed Harbur - Text - ..." generates a hash like "UN_..."
+        # which is now used directly as a valid conversation ID
+        self.assertTrue(mock_conv_mgr.write_message_with_content.called or
+                       mock_conv_mgr.add_message.called,
+                       "Conversation should be written with hash-based ID")
 
 
 class TestParallelProcessingIntegration(unittest.TestCase):
