@@ -152,7 +152,8 @@ class KeywordProtection:
             # Returns: (True, 'INV01923-\\d+')
         """
         # Combine all message text into searchable corpus
-        full_text = " ".join(msg.get("text", "") for msg in messages)
+        # Handle None values by converting to empty string
+        full_text = " ".join(str(msg.get("text") or "") for msg in messages)
 
         # Also include conversation ID (replace underscores with spaces for name matching)
         if conversation_id:
