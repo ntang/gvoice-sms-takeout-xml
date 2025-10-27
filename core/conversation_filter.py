@@ -165,6 +165,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_casual_delivery_acknowledgment(messages)
+        if result:
+            return result
+
         # No filter matched - keep conversation
         return False, "No filter matched", 0.0
 
@@ -717,6 +721,75 @@ class ConversationFilter:
 
         return None
 
+    def _check_casual_delivery_acknowledgment(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 17: Casual delivery acknowledgment (0.78 confidence)
+
+        Matches:
+        - 3-7 messages total
+        - 1-2 user replies that are brief acknowledgments only
+        - Contains delivery-related keywords
+        - User replies are just "thanks", "thank you", "ok", etc.
+
+        Examples:
+        - "Food delivery lobby" / "Thanks!"
+        - "delivery is here in the lobby" / "Thank you"
+        """
+        total_messages = len(messages)
+
+        # Must be 3-7 messages
+        if total_messages < 3 or total_messages > 7:
+            return None
+
+        # Get user messages
+        user_messages = [m for m in messages if m.get("sender") == "Me"]
+
+        # Must have 1-2 user replies
+        if len(user_messages) < 1 or len(user_messages) > 2:
+            return None
+
+        # Check if all user messages are brief acknowledgments
+        acknowledgment_patterns = [
+            r'^(thanks?|thank you|ty|thx|ok|okay|got it|great|perfect|cool|awesome|👍)[\s!.]*$',
+            r'^(yes|yep|yeah|yup|sure|alright|all right)[\s!.]*$',
+        ]
+
+        for user_msg in user_messages:
+            text = user_msg.get("text", "").strip().lower()
+            is_acknowledgment = False
+            for pattern in acknowledgment_patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    is_acknowledgment = True
+                    break
+
+            # If any user message is NOT a brief acknowledgment, bail
+            if not is_acknowledgment:
+                return None
+
+        # Check for delivery keywords in non-user messages
+        delivery_keywords = [
+            r'\bdelivery\b',
+            r'\blobby\b',
+            r'\bdoorman\b',
+            r'\bdoor\b',
+            r'\bleft\s+(at|outside|in)\b',
+            r'\bdrop(ped)?\s+off\b',
+            r'\bhere\s+with\s+(your|the)\b',
+            r'\bfood\b',
+        ]
+
+        sender_messages = [m for m in messages if m.get("sender") != "Me"]
+        all_sender_text = " ".join([m.get("text", "").lower() for m in sender_messages])
+
+        for keyword in delivery_keywords:
+            if re.search(keyword, all_sender_text, re.IGNORECASE):
+                return True, "Casual delivery acknowledgment (brief replies only)", 0.78
+
+        return None
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get filter statistics.
@@ -725,9 +798,9 @@ class ConversationFilter:
             Dictionary with filter stats
         """
         return {
-            "total_patterns": 16,
+            "total_patterns": 17,
             "very_safe_patterns": 5,
             "safe_patterns": 5,
-            "aggressive_patterns": 6,
+            "aggressive_patterns": 7,
             "keyword_protection_enabled": self.keyword_protection is not None
         }
