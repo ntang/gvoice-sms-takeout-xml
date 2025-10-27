@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Google Voice SMS Takeout HTML Converter - Converts Google Voice Takeout export files into organized, searchable HTML conversations. The project processes 60,000+ HTML files, manages complex phone number lookups, and generates clean conversation archives with full threading support.
 
+## ⚠️ IMPORTANT: Virtual Environment
+
+**ALWAYS activate the virtual environment before running any Python commands.**
+
+```bash
+# Activate venv FIRST (every time you run Python commands)
+source env/bin/activate  # macOS/Linux
+env\Scripts\activate.bat  # Windows
+
+# Then run your Python commands
+python -m pytest tests/ -v
+python cli.py --help
+```
+
+**Why**: This project uses dependencies (click, pytest, beautifulsoup4, etc.) that are only available in the virtual environment. Running Python commands without activating venv will result in `ModuleNotFoundError`.
+
+**Common mistake**: Running `python3 cli.py` directly without `source env/bin/activate` first.
+
 ## Common Commands
 
 ### Testing
