@@ -208,16 +208,33 @@ class ConversationFilter:
 
         Matches:
         - "Your order has been picked up"
+        - "Your order was dropped off"
         - "Dasher is on the way"
+        - "your Dasher provided"
         - "Package delivered"
+        - "Caviar connecting you to your Dasher"
         """
         patterns = [
+            # Original patterns
             r'\border\s+(has been|was)\s+(picked up|delivered)',
             r'\bdasher\s+is\s+(on the way|nearby|arriving)',
             r'\bdelivery\s+update',
             r'\bpackage\s+(delivered|out for delivery)',
             r'\btracking\s+(number|update)',
-            r'\byour\s+(doordash|ubereats|grubhub|postmates)\s+order'
+            r'\byour\s+(doordash|ubereats|grubhub|postmates)\s+order',
+
+            # NEW: Dropped off pattern
+            r'\border\s+(was\s+)?dropped\s+off',
+            r'\bdropped\s+off.*\bdasher\b',
+
+            # NEW: Broader Dasher patterns
+            r'\byour\s+dasher\b',
+            r'\bconnecting\s+you\s+to\s+your\s+dasher\b',
+
+            # NEW: Additional delivery services
+            r'\byour\s+caviar\s+(order|delivery)\b',
+            r'\bcaviar\s+connecting\b',
+            r'\binstacart\s+(shopper|delivery)\b',
         ]
 
         # Also check for high message count with no replies
