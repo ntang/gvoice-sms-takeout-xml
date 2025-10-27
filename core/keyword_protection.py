@@ -126,7 +126,8 @@ class KeywordProtection:
 
     def is_protected(
         self,
-        messages: List[Dict[str, Any]]
+        messages: List[Dict[str, Any]],
+        conversation_id: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """
         Check if conversation is protected by keyword match.
@@ -134,6 +135,8 @@ class KeywordProtection:
         Args:
             messages: List of message dicts with 'text' field
                      Expected format: [{'text': 'message content', ...}, ...]
+            conversation_id: Optional conversation ID (filename) to also check
+                           (e.g., "Ed_Harbur_Phil_CSHC" or "+12025948401")
 
         Returns:
             Tuple of (is_protected, matched_keyword):
@@ -150,6 +153,12 @@ class KeywordProtection:
         """
         # Combine all message text into searchable corpus
         full_text = " ".join(msg.get("text", "") for msg in messages)
+
+        # Also include conversation ID (replace underscores with spaces for name matching)
+        if conversation_id:
+            # Convert "Ed_Harbur_Phil_CSHC" -> "Ed Harbur Phil CSHC"
+            conversation_name = conversation_id.replace("_", " ")
+            full_text = f"{full_text} {conversation_name}"
 
         if not full_text.strip():
             return False, None
@@ -214,7 +223,7 @@ class KeywordProtection:
             "keywords_file": str(self.keywords_file)
         }
 
-    def test_keyword(self, test_text: str) -> Tuple[bool, Optional[str]]:
+    def test_keyword(self, test_text: str, conversation_id: Optional[str] = None) -> Tuple[bool, Optional[str]]:
         """
         Test if a single text string would be protected.
 
@@ -222,6 +231,7 @@ class KeywordProtection:
 
         Args:
             test_text: Text to test
+            conversation_id: Optional conversation ID to also check
 
         Returns:
             Tuple of (is_protected, matched_keyword)
@@ -229,6 +239,9 @@ class KeywordProtection:
         Example:
             is_protected, keyword = protection.test_keyword("Call Mike Daddio")
             # Returns: (True, "Mike Daddio")
+
+            is_protected, keyword = protection.test_keyword("Ok", "Ed_Harbur")
+            # Returns: (True, "Ed Harbur") - matches conversation ID
         """
         test_message = [{"text": test_text}]
-        return self.is_protected(test_message)
+        return self.is_protected(test_message, conversation_id=conversation_id)

@@ -87,7 +87,10 @@ class ConversationFilter:
         """
         # STEP 1: Protected-First - Check keyword protection FIRST
         if self.keyword_protection:
-            is_protected, matched_keyword = self.keyword_protection.is_protected(messages)
+            is_protected, matched_keyword = self.keyword_protection.is_protected(
+                messages,
+                conversation_id=sender_phone  # Pass conversation ID for filename matching
+            )
             if is_protected:
                 logger.debug(
                     f"Conversation {sender_phone} protected by keyword: {matched_keyword}"
