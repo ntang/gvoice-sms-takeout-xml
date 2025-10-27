@@ -1,0 +1,104 @@
+{
+  "description": "Example protected keywords configuration - Copy to protected_keywords.json and customize",
+  "last_updated": "2025-10-26",
+  "case_sensitive": false,
+  "match_partial": true,
+
+  "keywords": {
+    "important_people": [
+      "John Doe",
+      "Jane Smith",
+      "Dr. Anderson",
+      "CEO Martinez"
+    ],
+
+    "companies_clients": [
+      "Acme Corporation",
+      "Smith & Associates",
+      "ABC Contracting",
+      "XYZ Consulting"
+    ],
+
+    "projects": [
+      "Project Alpha",
+      "Beta Initiative",
+      "Renovation 2024",
+      "Q4 Campaign"
+    ],
+
+    "financial_terms": [
+      "$50,000",
+      "$100,000",
+      "Series A",
+      "acquisition",
+      "investment"
+    ],
+
+    "contract_terms": [
+      "signed agreement",
+      "contract amendment",
+      "payment terms",
+      "milestone delivery",
+      "change order"
+    ],
+
+    "locations": [
+      "Headquarters",
+      "Building 3",
+      "Conference Room A",
+      "123 Main Street",
+      "Downtown Office"
+    ],
+
+    "dates_events": [
+      "November 15, 2024",
+      "Q4 2024",
+      "Annual Meeting",
+      "Launch Event"
+    ],
+
+    "legal_terms": [
+      "settlement",
+      "litigation",
+      "arbitration",
+      "confidential",
+      "NDA"
+    ],
+
+    "technical_identifiers": [
+      "server-prod-01",
+      "database-main",
+      "API-v2"
+    ],
+
+    "important_phrases": [
+      "urgent matter",
+      "time sensitive",
+      "requires approval",
+      "board decision"
+    ]
+  },
+
+  "regex_patterns": [
+    "INV\\d{4,}",
+    "PO-\\d{4,}",
+    "CO\\d+",
+    "\\$\\d{4,}",
+    "PROJ-[A-Z0-9]+"
+  ],
+
+  "notes": {
+    "usage": "Any conversation matching ANY keyword in any category is protected from archiving",
+    "editing": "Add new keywords to appropriate category, or create new categories as needed",
+    "regex": "Regex patterns require escaping backslashes (\\d for digits, \\$ for dollar sign)",
+    "case_sensitivity": "Set to false - matches 'john doe', 'JOHN DOE', 'John Doe'",
+    "partial_matching": "Set to true - 'Acme Corporation Inc' matches 'Acme Corporation'",
+    "categories": "Category names are user-defined and can be customized for any use case",
+    "filename_matching": "Keywords also match conversation IDs (filenames), with underscores converted to spaces",
+    "examples": [
+      "Conversation file 'John_Doe_Jane_Smith.html' matches 'John Doe' keyword",
+      "Message 'Invoice INV01923-456 attached' matches INV\\d{4,} pattern",
+      "Conversation with 'Call CEO Martinez' matches 'CEO Martinez' keyword"
+    ]
+  }
+}
