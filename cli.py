@@ -1407,59 +1407,66 @@ def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_prote
                 )
 
                 # Handle based on result
-                if "Protected" in reason:
-                    # Protected by keyword
-                    stats['protected'] += 1
-                    protected_conversations.append({
-                        'file': html_file.name,
-                        'conversation_id': conversation_id,
-                        'reason': reason,
-                        'confidence': confidence,
-                        'messages': len(messages)
-                    })
+                try:
+                    if "Protected" in reason:
+                        # Protected by keyword
+                        stats['protected'] += 1
+                        protected_conversations.append({
+                            'file': html_file.name,
+                            'conversation_id': conversation_id,
+                            'reason': reason,
+                            'confidence': confidence,
+                            'messages': len(messages)
+                        })
 
-                    if show_protected:
-                        click.echo(f"   🔒 PROTECTED: {html_file.name}")
+                        if show_protected:
+                            click.echo(f"   🔒 PROTECTED: {html_file.name}")
+                            click.echo(f"      Reason: {reason}")
+                            click.echo(f"      Messages: {len(messages)}")
+
+                    elif should_archive and confidence >= min_confidence:
+                        # Archive this conversation
+                        stats['archived'] += 1
+                        archived_conversations.append({
+                            'file': html_file.name,
+                            'conversation_id': conversation_id,
+                            'reason': reason,
+                            'confidence': confidence,
+                            'messages': len(messages)
+                        })
+
+                        click.echo(f"   📦 ARCHIVE: {html_file.name}")
                         click.echo(f"      Reason: {reason}")
+                        click.echo(f"      Confidence: {confidence:.2f}")
                         click.echo(f"      Messages: {len(messages)}")
 
-                elif should_archive and confidence >= min_confidence:
-                    # Archive this conversation
-                    stats['archived'] += 1
-                    archived_conversations.append({
-                        'file': html_file.name,
-                        'conversation_id': conversation_id,
-                        'reason': reason,
-                        'confidence': confidence,
-                        'messages': len(messages)
-                    })
+                        # Actually rename file if not dry-run
+                        if not dry_run:
+                            archived_name = html_file.with_suffix('.archived.html')
+                            html_file.rename(archived_name)
+                            click.echo(f"      ✅ Renamed to: {archived_name.name}")
 
-                    click.echo(f"   📦 ARCHIVE: {html_file.name}")
-                    click.echo(f"      Reason: {reason}")
-                    click.echo(f"      Confidence: {confidence:.2f}")
-                    click.echo(f"      Messages: {len(messages)}")
+                    else:
+                        # Keep this conversation
+                        stats['kept'] += 1
+                        kept_conversations.append({
+                            'file': html_file.name,
+                            'conversation_id': conversation_id,
+                            'reason': reason if reason != "No filter matched" else "No filter matched",
+                            'confidence': confidence,
+                            'messages': len(messages)
+                        })
 
-                    # Actually rename file if not dry-run
-                    if not dry_run:
-                        archived_name = html_file.with_suffix('.archived.html')
-                        html_file.rename(archived_name)
-                        click.echo(f"      ✅ Renamed to: {archived_name.name}")
-
-                else:
-                    # Keep this conversation
-                    stats['kept'] += 1
-                    kept_conversations.append({
-                        'file': html_file.name,
-                        'conversation_id': conversation_id,
-                        'reason': reason if reason != "No filter matched" else "No filter matched",
-                        'confidence': confidence,
-                        'messages': len(messages)
-                    })
-
-                    if show_kept:
-                        click.echo(f"   ✅ KEEP: {html_file.name}")
-                        click.echo(f"      Reason: {reason}")
-                        click.echo(f"      Messages: {len(messages)}")
+                        if show_kept:
+                            click.echo(f"   ✅ KEEP: {html_file.name}")
+                            click.echo(f"      Reason: {reason}")
+                            click.echo(f"      Messages: {len(messages)}")
+                
+                except BrokenPipeError:
+                    # Stdout pipe closed (e.g., piped to head/less and user quit)
+                    # Exit gracefully without error
+                    import sys
+                    sys.exit(0)
 
             except Exception as e:
                 stats['parse_errors'] += 1
@@ -1467,34 +1474,43 @@ def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_prote
                 click.echo(f"   ❌ ERROR: {html_file.name}: {e}")
 
         # Show summary
-        click.echo("")
-        click.echo("=" * 60)
-        click.echo("📊 Filtering Summary")
-        click.echo("=" * 60)
-        click.echo(f"   Total conversations: {stats['total']}")
-        click.echo(f"   🔒 Protected by keywords: {stats['protected']} ({stats['protected']/stats['total']*100:.1f}%)")
-        click.echo(f"   📦 Archived: {stats['archived']} ({stats['archived']/stats['total']*100:.1f}%)")
-        click.echo(f"   ✅ Kept: {stats['kept']} ({stats['kept']/stats['total']*100:.1f}%)")
-        if stats['parse_errors'] > 0:
-            click.echo(f"   ❌ Parse errors: {stats['parse_errors']}")
+        try:
+            click.echo("")
+            click.echo("=" * 60)
+            click.echo("📊 Filtering Summary")
+            click.echo("=" * 60)
+            click.echo(f"   Total conversations: {stats['total']}")
+            click.echo(f"   🔒 Protected by keywords: {stats['protected']} ({stats['protected']/stats['total']*100:.1f}%)")
+            click.echo(f"   📦 Archived: {stats['archived']} ({stats['archived']/stats['total']*100:.1f}%)")
+            click.echo(f"   ✅ Kept: {stats['kept']} ({stats['kept']/stats['total']*100:.1f}%)")
+            if stats['parse_errors'] > 0:
+                click.echo(f"   ❌ Parse errors: {stats['parse_errors']}")
+        except BrokenPipeError:
+            # Stdout pipe closed - exit gracefully
+            import sys
+            sys.exit(0)
 
-        if dry_run:
-            click.echo("")
-            click.echo("💡 This was a DRY RUN - no files were modified")
-            click.echo("   Run with --no-dry-run to actually archive conversations")
-        else:
-            click.echo("")
-            click.echo("✅ Conversations have been archived (renamed to .archived.html)")
-            click.echo("   To restore, rename .archived.html files back to .html")
+        try:
+            if dry_run:
+                click.echo("")
+                click.echo("💡 This was a DRY RUN - no files were modified")
+                click.echo("   Run with --no-dry-run to actually archive conversations")
+            else:
+                click.echo("")
+                click.echo("✅ Conversations have been archived (renamed to .archived.html)")
+                click.echo("   To restore, rename .archived.html files back to .html")
 
-        # Show top archive reasons
-        if archived_conversations:
-            click.echo("")
-            click.echo("📋 Top Archive Reasons:")
-            from collections import Counter
-            reasons = Counter(c['reason'] for c in archived_conversations)
-            for reason, count in reasons.most_common(5):
-                click.echo(f"   - {reason}: {count} conversations")
+            # Show top archive reasons
+            if archived_conversations:
+                click.echo("")
+                click.echo("📋 Top Archive Reasons:")
+                from collections import Counter
+                reasons = Counter(c['reason'] for c in archived_conversations)
+                for reason, count in reasons.most_common(5):
+                    click.echo(f"   - {reason}: {count} conversations")
+        except BrokenPipeError:
+            # Stdout pipe closed - exit gracefully
+            pass
 
     except Exception as e:
         click.echo(f"❌ Conversation filtering failed: {e}")
