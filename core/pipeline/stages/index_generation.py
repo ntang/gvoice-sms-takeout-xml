@@ -118,9 +118,12 @@ class IndexGenerationStage(PipelineStage):
             logger.debug(f"Cannot skip: error reading cache: {e}")
             return False
 
-        # 3. Get current conversation files
+        # 3. Get current conversation files (exclude index.html and .archived.html files)
         current_files = list(context.output_dir.glob("*.html"))
-        current_files = [f for f in current_files if f.name != "index.html"]
+        current_files = [
+            f for f in current_files
+            if f.name != "index.html" and not f.name.endswith(".archived.html")
+        ]
 
         if not current_files:
             logger.debug("Can skip: no conversation files")
@@ -159,9 +162,12 @@ class IndexGenerationStage(PipelineStage):
         logger.info("🔍 Starting index generation...")
 
         try:
-            # 1. Get conversation files
+            # 1. Get conversation files (exclude index.html and .archived.html files)
             conv_files = list(context.output_dir.glob("*.html"))
-            conv_files = [f for f in conv_files if f.name != "index.html"]
+            conv_files = [
+                f for f in conv_files
+                if f.name != "index.html" and not f.name.endswith(".archived.html")
+            ]
             conv_files.sort(key=lambda x: x.name)
 
             logger.info(f"   Found {len(conv_files)} conversation files")

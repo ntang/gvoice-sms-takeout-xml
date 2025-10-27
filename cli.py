@@ -1224,6 +1224,287 @@ def show_config(ctx):
 
 
 @cli.command()
+@click.option(
+    '--dry-run/--no-dry-run',
+    default=True,
+    help='Dry run mode - show what would be archived without making changes (default: enabled)'
+)
+@click.option(
+    '--keywords-file',
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
+    help='Path to protected keywords JSON file (default: protected_keywords.json)'
+)
+@click.option(
+    '--min-confidence',
+    type=float,
+    default=0.75,
+    help='Minimum confidence score for filtering (0.0-1.0, default: 0.75)'
+)
+@click.option(
+    '--show-protected/--no-show-protected',
+    default=False,
+    help='Show conversations protected by keywords (default: disabled)'
+)
+@click.option(
+    '--show-kept/--no-show-kept',
+    default=False,
+    help='Show conversations kept (not archived) (default: disabled)'
+)
+@click.pass_context
+def filter_conversations(ctx, dry_run, keywords_file, min_confidence, show_protected, show_kept):
+    """Filter spam/commercial conversations from generated HTML files.
+
+    This post-processor reviews completed conversation HTML files and identifies
+    spam, commercial, political, and automated conversations for archiving.
+
+    Protected-First Architecture:
+    - Conversations matching keywords in protected_keywords.json are NEVER archived
+    - This allows aggressive filtering with safety guarantees
+
+    Default behavior:
+    - Runs in dry-run mode (preview only, no changes)
+    - Uses protected_keywords.json for keyword protection
+    - Filters conversations with confidence >= 0.75
+
+    To actually archive conversations:
+    - Run with --no-dry-run flag
+
+    Example:
+        # Preview what would be archived
+        python cli.py filter-conversations
+
+        # Actually archive conversations
+        python cli.py filter-conversations --no-dry-run
+
+        # Use custom keywords file
+        python cli.py filter-conversations --keywords-file my_keywords.json
+
+        # Show all conversations (archived, protected, kept)
+        python cli.py filter-conversations --show-protected --show-kept
+    """
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+        logger = logging.getLogger(__name__)
+
+        # Determine conversations directory
+        conversations_dir = config.processing_dir / "conversations"
+        if not conversations_dir.exists():
+            click.echo(f"❌ Conversations directory not found: {conversations_dir}")
+            click.echo("   Run 'python cli.py html-generation' first to generate conversations")
+            ctx.exit(1)
+
+        # Determine keywords file path
+        if keywords_file:
+            keywords_path = keywords_file
+        else:
+            # Check both project root and processing dir
+            project_keywords = Path("protected_keywords.json")
+            processing_keywords = conversations_dir / "protected_keywords.json"
+
+            if project_keywords.exists():
+                keywords_path = project_keywords
+            elif processing_keywords.exists():
+                keywords_path = processing_keywords
+            else:
+                click.echo("⚠️  No protected_keywords.json found - keyword protection disabled")
+                click.echo("   Create protected_keywords.json to enable keyword protection")
+                keywords_path = None
+
+        # Initialize components
+        from core.html_conversation_parser import HTMLConversationParser
+        from core.keyword_protection import KeywordProtection
+        from core.conversation_filter import ConversationFilter
+        from core.phone_lookup import PhoneLookupManager
+
+        click.echo("🔍 Starting conversation filtering...")
+        click.echo(f"   {'[DRY RUN]' if dry_run else '[LIVE MODE]'}")
+        click.echo(f"   Conversations dir: {conversations_dir}")
+        click.echo(f"   Min confidence: {min_confidence}")
+
+        # Load keyword protection
+        keyword_protection = None
+        if keywords_path and keywords_path.exists():
+            try:
+                keyword_protection = KeywordProtection(keywords_path)
+                stats = keyword_protection.get_stats()
+                click.echo(f"   ✅ Keyword protection enabled:")
+                click.echo(f"      - Keywords: {stats['total_keywords']}")
+                click.echo(f"      - Patterns: {stats['total_patterns']}")
+                click.echo(f"      - Categories: {stats['categories']}")
+            except Exception as e:
+                click.echo(f"   ⚠️  Failed to load keyword protection: {e}")
+                keyword_protection = None
+        else:
+            click.echo(f"   ⚠️  Keyword protection disabled (no keywords file)")
+
+        # Initialize filter
+        conv_filter = ConversationFilter(keyword_protection)
+
+        # Initialize parser
+        parser = HTMLConversationParser()
+
+        # Load phone lookup for alias checking
+        phone_lookup_manager = None
+        phone_lookup_file = config.processing_dir / "phone_lookup.txt"
+        if phone_lookup_file.exists():
+            try:
+                phone_lookup_manager = PhoneLookupManager(phone_lookup_file)
+                click.echo(f"   ✅ Phone lookup loaded: {len(phone_lookup_manager.get_all_aliases())} aliases")
+            except Exception as e:
+                click.echo(f"   ⚠️  Failed to load phone lookup: {e}")
+
+        # Find all conversation HTML files (exclude .archived and index.html)
+        html_files = sorted([
+            f for f in conversations_dir.glob("*.html")
+            if f.name != "index.html" and not f.name.endswith(".archived.html")
+        ])
+
+        if not html_files:
+            click.echo(f"❌ No conversation files found in {conversations_dir}")
+            ctx.exit(1)
+
+        click.echo(f"\n📊 Found {len(html_files)} conversation files to process")
+        click.echo("")
+
+        # Process conversations
+        stats = {
+            'total': len(html_files),
+            'archived': 0,
+            'protected': 0,
+            'kept': 0,
+            'parse_errors': 0
+        }
+
+        archived_conversations = []
+        protected_conversations = []
+        kept_conversations = []
+
+        for html_file in html_files:
+            try:
+                # Parse conversation
+                conv_data = parser.parse_conversation_file(html_file)
+                if not conv_data:
+                    stats['parse_errors'] += 1
+                    logger.warning(f"Failed to parse: {html_file.name}")
+                    continue
+
+                conversation_id = conv_data['conversation_id']
+                messages = conv_data['messages']
+
+                # Check if phone has alias
+                has_alias = False
+                if phone_lookup_manager:
+                    has_alias = phone_lookup_manager.has_alias(conversation_id)
+
+                # Evaluate for archiving
+                should_archive, reason, confidence = conv_filter.should_archive_conversation(
+                    messages=messages,
+                    sender_phone=conversation_id,
+                    has_alias=has_alias
+                )
+
+                # Handle based on result
+                if "Protected" in reason:
+                    # Protected by keyword
+                    stats['protected'] += 1
+                    protected_conversations.append({
+                        'file': html_file.name,
+                        'conversation_id': conversation_id,
+                        'reason': reason,
+                        'confidence': confidence,
+                        'messages': len(messages)
+                    })
+
+                    if show_protected:
+                        click.echo(f"   🔒 PROTECTED: {html_file.name}")
+                        click.echo(f"      Reason: {reason}")
+                        click.echo(f"      Messages: {len(messages)}")
+
+                elif should_archive and confidence >= min_confidence:
+                    # Archive this conversation
+                    stats['archived'] += 1
+                    archived_conversations.append({
+                        'file': html_file.name,
+                        'conversation_id': conversation_id,
+                        'reason': reason,
+                        'confidence': confidence,
+                        'messages': len(messages)
+                    })
+
+                    click.echo(f"   📦 ARCHIVE: {html_file.name}")
+                    click.echo(f"      Reason: {reason}")
+                    click.echo(f"      Confidence: {confidence:.2f}")
+                    click.echo(f"      Messages: {len(messages)}")
+
+                    # Actually rename file if not dry-run
+                    if not dry_run:
+                        archived_name = html_file.with_suffix('.archived.html')
+                        html_file.rename(archived_name)
+                        click.echo(f"      ✅ Renamed to: {archived_name.name}")
+
+                else:
+                    # Keep this conversation
+                    stats['kept'] += 1
+                    kept_conversations.append({
+                        'file': html_file.name,
+                        'conversation_id': conversation_id,
+                        'reason': reason if reason != "No filter matched" else "No filter matched",
+                        'confidence': confidence,
+                        'messages': len(messages)
+                    })
+
+                    if show_kept:
+                        click.echo(f"   ✅ KEEP: {html_file.name}")
+                        click.echo(f"      Reason: {reason}")
+                        click.echo(f"      Messages: {len(messages)}")
+
+            except Exception as e:
+                stats['parse_errors'] += 1
+                logger.error(f"Error processing {html_file.name}: {e}", exc_info=True)
+                click.echo(f"   ❌ ERROR: {html_file.name}: {e}")
+
+        # Show summary
+        click.echo("")
+        click.echo("=" * 60)
+        click.echo("📊 Filtering Summary")
+        click.echo("=" * 60)
+        click.echo(f"   Total conversations: {stats['total']}")
+        click.echo(f"   🔒 Protected by keywords: {stats['protected']} ({stats['protected']/stats['total']*100:.1f}%)")
+        click.echo(f"   📦 Archived: {stats['archived']} ({stats['archived']/stats['total']*100:.1f}%)")
+        click.echo(f"   ✅ Kept: {stats['kept']} ({stats['kept']/stats['total']*100:.1f}%)")
+        if stats['parse_errors'] > 0:
+            click.echo(f"   ❌ Parse errors: {stats['parse_errors']}")
+
+        if dry_run:
+            click.echo("")
+            click.echo("💡 This was a DRY RUN - no files were modified")
+            click.echo("   Run with --no-dry-run to actually archive conversations")
+        else:
+            click.echo("")
+            click.echo("✅ Conversations have been archived (renamed to .archived.html)")
+            click.echo("   To restore, rename .archived.html files back to .html")
+
+        # Show top archive reasons
+        if archived_conversations:
+            click.echo("")
+            click.echo("📋 Top Archive Reasons:")
+            from collections import Counter
+            reasons = Counter(c['reason'] for c in archived_conversations)
+            for reason, count in reasons.most_common(5):
+                click.echo(f"   - {reason}: {count} conversations")
+
+    except Exception as e:
+        click.echo(f"❌ Conversation filtering failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
+
+
+@cli.command()
 @click.option('--attachment', is_flag=True, help='Clear attachment cache (.cache/)')
 @click.option('--pipeline', is_flag=True, help='Clear pipeline state (pipeline_state/)')
 @click.option('--all', 'clear_all', is_flag=True, help='Clear both caches')

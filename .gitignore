@@ -67,6 +67,7 @@ exports/
 # Phone lookup and configuration files (may contain sensitive data)
 phone_lookup.txt
 sms-converter-config.txt
+protected_keywords.json
 
 # Test artifacts
 test_output/

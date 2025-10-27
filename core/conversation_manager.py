@@ -480,10 +480,10 @@ class ConversationManager:
             
             template_content = template_path.read_text()
             
-            # Get conversation files
+            # Get conversation files (exclude index.html and .archived.html files)
             conversation_files = []
             for file_path in self.output_dir.glob("*.html"):
-                if file_path.name != "index.html":
+                if file_path.name != "index.html" and not file_path.name.endswith(".archived.html"):
                     conversation_files.append(file_path)
             conversation_files.sort(key=lambda x: x.name)
             
@@ -575,10 +575,10 @@ class ConversationManager:
     def _generate_index_html_manual(self, stats: Dict[str, int], elapsed_time: float):
         """Generate index.html manually (fallback method)."""
         try:
-            # Get all conversation files in the output directory
+            # Get all conversation files in the output directory (exclude index.html and .archived.html files)
             conversation_files = []
             for file_path in self.output_dir.glob("*.html"):
-                if file_path.name != "index.html":  # Exclude index.html itself
+                if file_path.name != "index.html" and not file_path.name.endswith(".archived.html"):
                     conversation_files.append(file_path)
 
             # Sort files by name for consistent ordering
