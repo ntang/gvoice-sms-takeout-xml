@@ -228,6 +228,7 @@ class ConversationFilter:
             r'\bpackage\s+(delivered|out for delivery)',
             r'\btracking\s+(number|update)',
             r'\byour\s+(doordash|ubereats|grubhub|postmates)\s+order',
+            r'\byour\s+(doordash|ubereats|grubhub|postmates)\s+driver\b',
 
             # Dropped off patterns
             r'\border\s+(was\s+)?dropped\s+off',
