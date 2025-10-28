@@ -474,19 +474,319 @@ After restoring files, regenerate the index to include them:
 python cli.py index-generation
 ```
 
-## Integration with Pipeline
+## Creating Distribution Tarballs
 
-The conversation filtering system integrates with the existing pipeline:
+### Overview
+
+After filtering conversations, you can create a clean, self-contained tarball for external sharing (e.g., sending to lawyers, archiving for long-term storage, sharing with collaborators).
+
+The `create-distribution-tarball` command creates a compressed archive containing:
+
+- ✅ All conversations referenced in `index.html`
+- ✅ All attachments referenced by those conversations
+- ❌ **Excludes** `.archived.html` files (filtered spam/commercial conversations)
+- ❌ **Excludes** orphaned attachments (not referenced by any conversation)
+
+### Use Case
+
+**Scenario**: You've processed 60,000+ Google Voice messages, filtered out spam, and need to send a clean archive to your lawyer.
+
+**Problem**: Your `conversations/` directory contains:
+- 873 conversation HTML files (148 legitimate, 725 archived spam)
+- 1,200 attachments (some orphaned, some referenced by archived conversations)
+- Archived `.archived.html` files mixed in with legitimate conversations
+
+**Solution**: `create-distribution-tarball` packages **only** the legitimate conversations and their attachments into a single, clean `.tar.gz` file.
+
+### Basic Usage
+
+```bash
+# Step 1: Filter spam conversations
+python cli.py filter-conversations --no-dry-run
+
+# Step 2: Regenerate index (excludes archived conversations)
+python cli.py --filter-non-phone-numbers --no-include-call-only-conversations html-generation
+python cli.py index-generation
+
+# Step 3: Create distribution tarball
+python cli.py create-distribution-tarball
+```
+
+This creates `distribution.tar.gz` in your processing directory.
+
+### Command Options
+
+```bash
+python cli.py [GLOBAL_OPTIONS] create-distribution-tarball [OPTIONS]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output PATH` | `distribution.tar.gz` | Output tarball filename |
+| `--verify` / `--no-verify` | `--verify` | Verify tarball contents after creation |
+
+### Examples
+
+**Basic usage (default output):**
+```bash
+python cli.py create-distribution-tarball
+# Creates: distribution.tar.gz
+```
+
+**Custom output filename:**
+```bash
+python cli.py create-distribution-tarball --output lawyers_archive_2024.tar.gz
+# Creates: lawyers_archive_2024.tar.gz
+```
+
+**With custom processing directory:**
+```bash
+python cli.py --processing-dir ~/my-data create-distribution-tarball
+```
+
+**Skip verification (faster for large archives):**
+```bash
+python cli.py create-distribution-tarball --no-verify
+```
+
+**Combine options:**
+```bash
+python cli.py --processing-dir ~/gvoice-data create-distribution-tarball \
+  --output legal_archive_q4_2024.tar.gz \
+  --verify
+```
+
+### Output Example
 
 ```
-Phase 1: attachment-mapping      → Build attachment catalog
-Phase 2: attachment-copying       → Copy attachments to output
-Phase 3: html-generation          → Generate conversation HTML files
-Phase 4: index-generation         → Generate index.html
+📋 Step 1: Extracting conversations from index.html...
+   ✅ Found 148 conversations
 
-[NEW] Post-Process: filter-conversations → Archive spam/commercial conversations
-                                        → Protected-first architecture
-                                        → Archived files excluded from index
+📎 Step 2: Extracting attachments from conversations...
+   ✅ Found 237 unique attachments
+
+📦 Step 3: Creating tarball: legal_archive.tar.gz...
+   ✅ Created: /Users/you/gvoice-convert/legal_archive.tar.gz
+   📊 Size: 45.23 MB
+
+🔍 Step 4: Verifying tarball contents...
+   ✅ index.html present
+   ✅ No .archived.html files (clean)
+   ✅ 148 conversations
+   ✅ 237 attachments
+   ✅ 386 total files
+
+============================================================
+✅ SUCCESS: Distribution tarball created
+============================================================
+Output: /Users/you/gvoice-convert/legal_archive.tar.gz
+Size: 45.23 MB
+Conversations: 148
+Attachments: 237
+
+💡 Tip: Extract with: tar -xzf legal_archive.tar.gz
+```
+
+### Tarball Structure
+
+The tarball maintains the original directory structure:
+
+```
+legal_archive.tar.gz
+└── conversations/
+    ├── index.html
+    ├── Alice.html
+    ├── Bob.html
+    ├── Mike_Daddio.html
+    └── attachments/
+        ├── photo1.jpg
+        ├── photo2.jpg
+        └── document.pdf
+```
+
+**What's NOT included:**
+- `+12025948401.archived.html` (spam conversation)
+- `orphaned_attachment.jpg` (not referenced by any conversation)
+- `.gvoice_cache/` (metadata cache)
+- `pipeline_state/` (processing state)
+
+### Extracting the Tarball
+
+**macOS/Linux:**
+```bash
+tar -xzf distribution.tar.gz
+```
+
+**Windows:**
+```powershell
+# Using tar (Windows 10+)
+tar -xzf distribution.tar.gz
+
+# Using 7-Zip
+7z x distribution.tar.gz
+```
+
+**Extract to specific directory:**
+```bash
+tar -xzf distribution.tar.gz -C /path/to/destination
+```
+
+### Verification
+
+The `--verify` flag (enabled by default) performs these checks:
+
+1. ✅ `index.html` is present
+2. ✅ No `.archived.html` files in tarball
+3. ✅ Conversation count matches expectations
+4. ✅ Attachment count matches expectations
+5. ✅ Total file count
+
+**Example verification output:**
+```
+🔍 Step 4: Verifying tarball contents...
+   ✅ index.html present
+   ✅ No .archived.html files (clean)
+   ✅ 148 conversations
+   ✅ 237 attachments
+   ✅ 386 total files
+```
+
+If verification finds issues, warnings are displayed:
+
+```
+   ⚠️  WARNING: index.html not in tarball
+   ⚠️  WARNING: 3 .archived.html files found in tarball
+```
+
+### Complete Workflow
+
+Here's the recommended end-to-end workflow for creating a clean distribution:
+
+```bash
+# 1. Process raw Google Voice Takeout export
+python cli.py attachment-mapping
+python cli.py attachment-copying
+python cli.py --filter-non-phone-numbers --no-include-call-only-conversations html-generation
+python cli.py index-generation
+
+# 2. Review conversations and filter spam
+python cli.py filter-conversations                    # Dry-run preview
+python cli.py filter-conversations --no-dry-run       # Apply filtering
+
+# 3. Regenerate index to exclude archived conversations
+python cli.py index-generation
+
+# 4. Create clean distribution tarball
+python cli.py create-distribution-tarball --output lawyers_archive.tar.gz
+
+# 5. Verify the tarball was created correctly
+ls -lh lawyers_archive.tar.gz
+```
+
+### Troubleshooting
+
+**Error: "Conversations directory not found"**
+
+```
+❌ Conversations directory not found: /path/to/conversations
+   Run 'python cli.py html-generation' first to generate conversations
+```
+
+**Solution**: Generate conversations first using the pipeline:
+```bash
+python cli.py html-generation
+python cli.py index-generation
+```
+
+---
+
+**Error: "index.html not found"**
+
+```
+❌ index.html not found: /path/to/conversations/index.html
+   Run 'python cli.py index-generation' first
+```
+
+**Solution**: Generate index.html:
+```bash
+python cli.py index-generation
+```
+
+---
+
+**Warning: ".archived.html files found in tarball"**
+
+```
+⚠️  WARNING: 3 .archived.html files found in tarball
+```
+
+**Solution**: Regenerate index.html after filtering to exclude archived conversations:
+```bash
+python cli.py index-generation
+python cli.py create-distribution-tarball
+```
+
+---
+
+**Tarball contains orphaned attachments**
+
+This is expected behavior. The command only includes attachments **referenced by conversations in index.html**. Orphaned attachments are automatically excluded.
+
+To verify attachment count:
+```bash
+tar -tzf distribution.tar.gz | grep attachments/ | wc -l
+```
+
+### Best Practices
+
+**1. Always filter before creating tarball:**
+```bash
+# ✅ Good workflow
+python cli.py filter-conversations --no-dry-run
+python cli.py index-generation
+python cli.py create-distribution-tarball
+
+# ❌ Skip filtering = tarball includes spam
+python cli.py create-distribution-tarball
+```
+
+**2. Use descriptive filenames:**
+```bash
+# ✅ Good: Descriptive, dated
+python cli.py create-distribution-tarball --output legal_archive_2024_q4.tar.gz
+
+# ❌ Ambiguous
+python cli.py create-distribution-tarball --output archive.tar.gz
+```
+
+**3. Verify large tarballs:**
+```bash
+# For large archives (>1GB), verification adds ~5-10 seconds
+python cli.py create-distribution-tarball --verify
+```
+
+**4. Keep original conversations directory:**
+
+The tarball creation is **non-destructive** - original files remain unchanged. Keep your `conversations/` directory as the source of truth.
+
+## Integration with Pipeline
+
+The conversation filtering and distribution system integrates with the existing pipeline:
+
+```
+Phase 1: attachment-mapping           → Build attachment catalog
+Phase 2: attachment-copying           → Copy attachments to output
+Phase 3: html-generation              → Generate conversation HTML files
+Phase 4: index-generation             → Generate index.html
+
+[NEW] Post-Process 1: filter-conversations        → Archive spam/commercial conversations
+                                                  → Protected-first architecture
+                                                  → Archived files excluded from index
+
+[NEW] Post-Process 2: create-distribution-tarball → Package clean conversations
+                                                  → Include only index-referenced files
+                                                  → Exclude archived conversations
+                                                  → Ready for external sharing
 ```
 
 **Recommended workflow:**
@@ -506,6 +806,9 @@ python cli.py filter-conversations --no-dry-run
 
 # 5. Regenerate index (excludes archived files)
 python cli.py index-generation
+
+# 6. Create distribution tarball
+python cli.py create-distribution-tarball --output clean_archive.tar.gz
 ```
 
 ## Troubleshooting

@@ -8,11 +8,13 @@ architecture for processing Google Voice Takeout exports.
 
 import logging
 import sys
+import tarfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import click
 import dateutil.parser
+from bs4 import BeautifulSoup
 
 # Import our new configuration system
 from core.processing_config import ProcessingConfig, ConfigurationBuilder
@@ -327,6 +329,133 @@ def cli(ctx, **kwargs):
     except Exception as e:
         click.echo(f"Configuration error: {e}", err=True)
         raise click.Abort()
+
+
+# =============================================================================
+# Helper Functions for create-distribution-tarball Command
+# =============================================================================
+
+def _extract_conversations_from_index(index_path: Path) -> List[str]:
+    """Extract list of conversation filenames from index.html.
+
+    Args:
+        index_path: Path to index.html file
+
+    Returns:
+        List of conversation filenames referenced in index.html
+        (excludes .archived.html files)
+    """
+    if not index_path.exists():
+        return []
+
+    try:
+        html_content = index_path.read_text(encoding='utf-8')
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Find all links in the conversation table
+        conversations = []
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            # Only include .html files, exclude .archived.html
+            if href.endswith('.html') and not href.endswith('.archived.html'):
+                conversations.append(href)
+
+        return conversations
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Error parsing index.html: {e}")
+        return []
+
+
+def _extract_attachments_from_conversation(conversation_file: Path) -> List[str]:
+    """Extract list of attachment paths from a conversation HTML file.
+
+    Args:
+        conversation_file: Path to conversation HTML file
+
+    Returns:
+        List of unique attachment paths referenced in the conversation
+    """
+    if not conversation_file.exists():
+        return []
+
+    try:
+        html_content = conversation_file.read_text(encoding='utf-8')
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Find all attachment links
+        attachments = set()
+        for link in soup.find_all('a', class_='attachment', href=True):
+            href = link['href']
+            attachments.add(href)
+
+        return sorted(list(attachments))
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            f"Error parsing {conversation_file.name}: {e}"
+        )
+        return []
+
+
+def _create_distribution_tarball(
+    conversations_dir: Path,
+    output_path: Path,
+    conversations: List[str],
+    attachments: List[str]
+) -> bool:
+    """Create a tarball containing conversations and their attachments.
+
+    Args:
+        conversations_dir: Path to conversations directory
+        output_path: Path where tarball should be created
+        conversations: List of conversation filenames to include
+        attachments: List of attachment paths to include
+
+    Returns:
+        True if successful, False otherwise
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        with tarfile.open(output_path, 'w:gz') as tar:
+            # Always include index.html
+            index_path = conversations_dir / "index.html"
+            if index_path.exists():
+                tar.add(
+                    index_path,
+                    arcname="conversations/index.html"
+                )
+                logger.info(f"✅ Added index.html")
+            else:
+                logger.warning("⚠️  index.html not found, skipping")
+
+            # Add conversation files
+            for conv_file in conversations:
+                conv_path = conversations_dir / conv_file
+                if conv_path.exists():
+                    tar.add(
+                        conv_path,
+                        arcname=f"conversations/{conv_file}"
+                    )
+                else:
+                    logger.warning(f"⚠️  Conversation not found: {conv_file}")
+
+            # Add attachment files
+            for att_path in attachments:
+                full_att_path = conversations_dir / att_path
+                if full_att_path.exists():
+                    tar.add(
+                        full_att_path,
+                        arcname=f"conversations/{att_path}"
+                    )
+                else:
+                    logger.warning(f"⚠️  Attachment not found: {att_path}")
+
+        logger.info(f"✅ Tarball created: {output_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Error creating tarball: {e}")
+        return False
 
 
 @cli.command()
@@ -1645,6 +1774,164 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
         click.echo("\nNext run will rebuild from scratch.")
     else:
         click.echo("\nℹ️  No caches found to clear.")
+
+
+@cli.command()
+@click.option(
+    '--output',
+    type=click.Path(path_type=Path),
+    default='distribution.tar.gz',
+    help='Output tarball filename (default: distribution.tar.gz)'
+)
+@click.option(
+    '--verify/--no-verify',
+    default=True,
+    help='Verify tarball contents after creation (default: enabled)'
+)
+@click.pass_context
+def create_distribution_tarball(ctx, output, verify):
+    """Create a clean distribution tarball of conversations for external sharing.
+
+    This command creates a tarball containing only conversations referenced in
+    index.html and their associated attachments. Archived conversations
+    (.archived.html) and orphaned attachments are excluded.
+
+    Use case: Create a clean, self-contained archive to send to lawyers, share
+    with others, or archive for long-term storage.
+
+    Workflow:
+        1. Run filter-conversations to archive spam/commercial conversations
+        2. Run html-generation to regenerate index.html (excludes archived)
+        3. Run create-distribution-tarball to package clean conversations
+
+    Example:
+        # Filter spam conversations
+        python cli.py filter-conversations --no-dry-run
+
+        # Regenerate index (excludes archived conversations)
+        python cli.py --filter-non-phone-numbers --no-include-call-only-conversations html-generation
+
+        # Create distribution tarball
+        python cli.py create-distribution-tarball --output lawyers_archive.tar.gz
+    """
+    try:
+        config = ctx.obj['config']
+
+        # Set up logging
+        setup_logging(config)
+        logger = logging.getLogger(__name__)
+
+        # Determine conversations directory
+        conversations_dir = config.processing_dir / "conversations"
+        if not conversations_dir.exists():
+            click.echo(f"❌ Conversations directory not found: {conversations_dir}")
+            click.echo("   Run 'python cli.py html-generation' first to generate conversations")
+            ctx.exit(1)
+
+        # Check if index.html exists
+        index_path = conversations_dir / "index.html"
+        if not index_path.exists():
+            click.echo(f"❌ index.html not found: {index_path}")
+            click.echo("   Run 'python cli.py index-generation' first")
+            ctx.exit(1)
+
+        # Determine output path
+        if isinstance(output, str):
+            output_path = Path(output)
+        else:
+            output_path = output
+
+        # Make output path absolute if relative
+        if not output_path.is_absolute():
+            output_path = config.processing_dir / output_path
+
+        logger.info("=" * 60)
+        logger.info("📦 Creating Distribution Tarball")
+        logger.info("=" * 60)
+
+        # Step 1: Extract conversations from index.html
+        click.echo("\n📋 Step 1: Extracting conversations from index.html...")
+        conversations = _extract_conversations_from_index(index_path)
+        logger.info(f"Found {len(conversations)} conversations in index.html")
+        click.echo(f"   ✅ Found {len(conversations)} conversations")
+
+        # Step 2: Extract attachments from conversations
+        click.echo("\n📎 Step 2: Extracting attachments from conversations...")
+        all_attachments = set()
+        for conv_file in conversations:
+            conv_path = conversations_dir / conv_file
+            attachments = _extract_attachments_from_conversation(conv_path)
+            all_attachments.update(attachments)
+
+        logger.info(f"Found {len(all_attachments)} unique attachments")
+        click.echo(f"   ✅ Found {len(all_attachments)} unique attachments")
+
+        # Step 3: Create tarball
+        click.echo(f"\n📦 Step 3: Creating tarball: {output_path.name}...")
+        success = _create_distribution_tarball(
+            conversations_dir,
+            output_path,
+            conversations,
+            sorted(list(all_attachments))
+        )
+
+        if not success:
+            click.echo("❌ Failed to create tarball")
+            ctx.exit(1)
+
+        # Get tarball size
+        tarball_size_mb = output_path.stat().st_size / (1024 * 1024)
+
+        click.echo(f"   ✅ Created: {output_path}")
+        click.echo(f"   📊 Size: {tarball_size_mb:.2f} MB")
+
+        # Step 4: Verify tarball contents (optional)
+        if verify:
+            click.echo("\n🔍 Step 4: Verifying tarball contents...")
+            with tarfile.open(output_path, 'r:gz') as tar:
+                members = tar.getnames()
+
+                # Verify index.html
+                if "conversations/index.html" not in members:
+                    click.echo("   ⚠️  WARNING: index.html not in tarball")
+                else:
+                    click.echo("   ✅ index.html present")
+
+                # Verify no .archived.html files
+                archived_count = sum(1 for m in members if '.archived.html' in m)
+                if archived_count > 0:
+                    click.echo(f"   ⚠️  WARNING: {archived_count} .archived.html files found in tarball")
+                else:
+                    click.echo("   ✅ No .archived.html files (clean)")
+
+                # Show summary
+                conversation_count = sum(1 for m in members if m.endswith('.html') and not m.endswith('index.html'))
+                attachment_count = sum(1 for m in members if 'attachments/' in m)
+
+                click.echo(f"   ✅ {conversation_count} conversations")
+                click.echo(f"   ✅ {attachment_count} attachments")
+                click.echo(f"   ✅ {len(members)} total files")
+
+        # Success summary
+        logger.info("=" * 60)
+        logger.info("✅ Distribution Tarball Created Successfully")
+        logger.info("=" * 60)
+
+        click.echo("\n" + "=" * 60)
+        click.echo("✅ SUCCESS: Distribution tarball created")
+        click.echo("=" * 60)
+        click.echo(f"Output: {output_path}")
+        click.echo(f"Size: {tarball_size_mb:.2f} MB")
+        click.echo(f"Conversations: {len(conversations)}")
+        click.echo(f"Attachments: {len(all_attachments)}")
+        click.echo("\n💡 Tip: Extract with: tar -xzf " + output_path.name)
+
+    except Exception as e:
+        click.echo(f"❌ Tarball creation failed: {e}")
+        if ctx.obj.get('debug'):
+            import traceback
+            traceback.print_exc()
+        ctx.exit(1)
 
 
 if __name__ == '__main__':
