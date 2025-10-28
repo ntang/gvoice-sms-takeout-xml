@@ -537,23 +537,43 @@ class ConversationManager:
             raise
     
     def _build_conversation_rows(self, conversation_files: List[Path]) -> str:
-        """Build HTML table rows for conversation files."""
+        """Build HTML table rows for conversation files with AI summaries."""
         if not conversation_files:
-            return "<tr><td colspan='8'><em>No conversation files found</em></td></tr>"
-        
+            return "<tr><td colspan='9'><em>No conversation files found</em></td></tr>"
+
+        # Load AI summaries from JSON if available
+        summaries = {}
+        summaries_path = self.output_dir / 'summaries.json'
+        if summaries_path.exists():
+            try:
+                import json
+                with open(summaries_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    summaries = data.get('summaries', {})
+                logger.info(f"📝 Loaded {len(summaries)} AI summaries from {summaries_path.name}")
+            except Exception as e:
+                logger.warning(f"Could not load summaries.json: {e}")
+        else:
+            logger.info("No summaries.json found - AI summaries column will show 'No AI summary available'")
+
         rows = []
         for file_path in conversation_files:
             try:
                 # Get file stats
                 file_size = file_path.stat().st_size
                 file_size_str = f"{file_size / 1024:.1f} KB" if file_size > 0 else "0 KB"
-                
+
                 # Get conversation stats if available
                 conversation_id = file_path.stem
                 conv_stats = self._get_conversation_stats_accurate(conversation_id)
                 # Debug info removed for cleaner output
-                
-                # Build row
+
+                # Get AI summary (full text, no truncation)
+                summary_text = "No AI summary available"
+                if conversation_id in summaries:
+                    summary_text = summaries[conversation_id]['summary']
+
+                # Build row with 9 columns (added AI summary column)
                 row = f"""
                 <tr>
                     <td><a href='{file_path.name}' class='file-link'>{conversation_id}</a></td>
@@ -564,12 +584,13 @@ class ConversationManager:
                     <td>{conv_stats.get('voicemails_count', 0)}</td>
                     <td>{conv_stats.get('attachments_count', 0)}</td>
                     <td class='metadata'>{conv_stats.get('latest_message_time', 'No messages')}</td>
+                    <td class='summary-cell'>{summary_text}</td>
                 </tr>"""
                 rows.append(row)
             except Exception as e:
                 logger.warning(f"Failed to build row for {file_path.name}: {e}")
                 continue
-        
+
         return "\n".join(rows)
     
     def _generate_index_html_manual(self, stats: Dict[str, int], elapsed_time: float):

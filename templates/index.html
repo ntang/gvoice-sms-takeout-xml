@@ -22,7 +22,22 @@
         .file-link:hover {{ text-decoration: underline; }}
         .file-stats {{ font-size: 0.9em; color: #6c757d; }}
         .metadata {{ color: #6c757d; font-size: 0.9em; }}
+        .summary-cell {{
+            max-width: 500px;
+            word-wrap: break-word;
+            white-space: normal;
+            font-size: 0.9em;
+            color: #495057;
+            line-height: 1.5;
+            padding: 12px;
+            vertical-align: top;
+        }}
         .processing-info {{ background-color: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb; }}
+        @media (max-width: 1200px) {{
+            .summary-cell {{
+                max-width: 300px;
+            }}
+        }}
         @media (max-width: 768px) {{
             body {{ margin: 10px; }}
             table {{ font-size: 0.8em; }}
@@ -30,6 +45,10 @@
             .stats-grid {{ grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }}
             .stat-card {{ padding: 10px; }}
             .stat-number {{ font-size: 1.5em; }}
+            .summary-cell {{
+                max-width: 200px;
+                font-size: 0.8em;
+            }}
         }}
     </style>
 </head>
@@ -83,6 +102,7 @@
                     <th>Voicemails</th>
                     <th>Attachments</th>
                     <th>Latest Message</th>
+                    <th>AI Summaries</th>
                 </tr>
             </thead>
             <tbody>

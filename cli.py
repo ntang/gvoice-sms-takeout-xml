@@ -2004,5 +2004,157 @@ def create_distribution_tarball(ctx, output, verify, verify_extraction):
         ctx.exit(1)
 
 
+@cli.command()
+@click.option(
+    '--conversations-dir',
+    type=click.Path(path_type=Path),
+    default='/Users/nicholastang/gvoice-convert/conversations',
+    help='Directory containing conversation HTML files'
+)
+@click.option(
+    '--output-file',
+    type=str,
+    default='summaries.json',
+    help='Output JSON filename (saved in conversations dir)'
+)
+@click.option(
+    '--overwrite/--no-overwrite',
+    default=False,
+    help='Overwrite existing summaries vs merge (default: merge new with existing)'
+)
+@click.option(
+    '--timeout',
+    type=int,
+    default=60,
+    help='Timeout per conversation in seconds (default: 60)'
+)
+def generate_summaries(conversations_dir, output_file, overwrite, timeout):
+    """Generate AI summaries for all non-archived conversations using Gemini CLI.
+
+    This command processes conversation HTML files and generates detailed AI summaries
+    using Google's Gemini CLI tool. Summaries are saved to summaries.json and can be
+    displayed in the index by running 'index-generation' afterwards.
+
+    Process:
+        1. Finds all .html files (excluding .archived.html and index.html)
+        2. Extracts messages from each conversation
+        3. Calls Gemini CLI to generate detailed summaries
+        4. Saves results to summaries.json with metadata
+        5. Displays stats and any failures
+
+    After running, use 'python cli.py index-generation' to regenerate
+    the index.html with AI summaries displayed.
+
+    Examples:
+        # Generate summaries for all conversations
+        python cli.py generate-summaries
+
+        # Add summaries only for new conversations (merge mode)
+        python cli.py generate-summaries --no-overwrite
+
+        # Regenerate all summaries from scratch
+        python cli.py generate-summaries --overwrite
+
+        # Use custom timeout for long conversations
+        python cli.py generate-summaries --timeout 120
+
+    Requirements:
+        - Gemini CLI must be installed: https://ai.google.dev/gemini-api/docs/cli
+        - Gemini API access configured
+    """
+    from core.summary_generator import SummaryGenerator
+
+    conversations_dir = Path(conversations_dir)
+
+    click.echo("🤖 AI Summary Generation using Gemini CLI")
+    click.echo("=" * 60)
+
+    # Find all non-archived HTML files
+    html_files = [
+        f for f in conversations_dir.glob('*.html')
+        if not f.name.endswith('.archived.html') and f.name != 'index.html'
+    ]
+
+    if not html_files:
+        click.echo(f"⚠️  No conversation files found in {conversations_dir}")
+        click.echo(f"   Make sure conversations have been generated first.")
+        sys.exit(1)
+
+    click.echo(f"🔍 Found {len(html_files)} conversations to process")
+
+    # Initialize generator (verifies gemini is available)
+    try:
+        click.echo(f"🔧 Initializing Gemini CLI (timeout: {timeout}s)...")
+        generator = SummaryGenerator(timeout=timeout)
+    except Exception as e:
+        click.echo(f"\n❌ ERROR: {e}", err=True)
+        click.echo(f"\n💡 Make sure Gemini CLI is installed and configured:")
+        click.echo(f"   https://ai.google.dev/gemini-api/docs/cli")
+        sys.exit(1)
+
+    # Load existing summaries if not overwriting
+    output_path = conversations_dir / output_file
+    existing = {} if overwrite else generator.load_summaries(output_path)
+
+    if existing and not overwrite:
+        click.echo(f"📝 Found {len(existing)} existing summaries (will merge)")
+    elif overwrite and output_path.exists():
+        click.echo(f"🔄 Overwrite mode: regenerating all summaries")
+
+    # Process with progress bar
+    summaries = existing.copy()
+    failed = []
+    skipped = 0
+
+    click.echo(f"\n⏳ Generating summaries...")
+    with click.progressbar(
+        html_files,
+        label='Processing',
+        show_eta=True,
+        show_percent=True
+    ) as bar:
+        for html_file in bar:
+            conv_id = html_file.stem
+
+            # Skip if already exists and not overwriting
+            if conv_id in existing and not overwrite:
+                skipped += 1
+                continue
+
+            result = generator.generate_summary(html_file)
+            if result:
+                summaries[conv_id] = result
+            else:
+                failed.append(conv_id)
+
+    # Save results
+    click.echo(f"\n💾 Saving summaries to {output_path.name}...")
+    generator.save_summaries(summaries, output_path)
+
+    # Report stats
+    new_summaries = len(summaries) - len(existing)
+    click.echo("\n" + "=" * 60)
+    click.echo("📊 Summary Generation Results")
+    click.echo("=" * 60)
+    click.echo(f"✅ Successfully generated: {new_summaries} new summaries")
+    click.echo(f"📝 Total summaries: {len(summaries)}")
+
+    if skipped > 0:
+        click.echo(f"⏭️  Skipped: {skipped} (already exist, use --overwrite to regenerate)")
+
+    if failed:
+        click.echo(f"\n⚠️  Failed: {len(failed)} conversations")
+        if len(failed) <= 5:
+            click.echo(f"   Failed IDs: {', '.join(failed)}")
+        else:
+            click.echo(f"   Failed IDs: {', '.join(failed[:5])}... and {len(failed) - 5} more")
+        click.echo(f"   Check logs for details")
+
+    click.echo(f"\n📁 Summaries saved to: {output_path}")
+    click.echo(f"\n💡 Next step:")
+    click.echo(f"   python cli.py index-generation")
+    click.echo(f"   (This will regenerate index.html with AI summaries displayed)")
+
+
 if __name__ == '__main__':
     cli()
