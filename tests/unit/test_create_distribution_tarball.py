@@ -466,5 +466,54 @@ class TestFullTarballWorkflow:
             assert archived_count == 0
 
 
+class TestAttachmentExtractionRealFormat:
+    """Test attachment extraction with REAL conversation HTML format."""
+    
+    def test_extract_attachments_with_real_html_format(self, tmp_path):
+        """
+        RED: Test attachment extraction with actual production HTML format.
+        
+        Current bug: Looking for <a class="attachment"> but real format is
+        <span class="attachment"><a href="...">.
+        
+        This test will FAIL with current implementation.
+        """
+        conv_file = tmp_path / "test_conversation.html"
+        
+        # REAL format from production files
+        conv_file.write_text("""
+            <!DOCTYPE html>
+            <html><body>
+                <table>
+                    <tr>
+                        <td class="attachments">
+                            <span class="attachment">📎 <a href='attachments/Calls/photo1.jpg' target='_blank'>📷 Image</a></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="attachments">
+                            <span class="attachment">📎 <a href='attachments/Calls/photo2.jpg' target='_blank'>📷 Image</a></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="attachments">
+                            <span class="attachment">📎 <a href='attachments/Calls/video.mp4' target='_blank'>🎥 Video</a></span>
+                        </td>
+                    </tr>
+                </table>
+            </body></html>
+        """)
+        
+        from cli import _extract_attachments_from_conversation
+        
+        attachments = _extract_attachments_from_conversation(conv_file)
+        
+        # Should find all 3 attachments
+        assert len(attachments) == 3, f"Expected 3 attachments, found {len(attachments)}"
+        assert 'attachments/Calls/photo1.jpg' in attachments
+        assert 'attachments/Calls/photo2.jpg' in attachments
+        assert 'attachments/Calls/video.mp4' in attachments
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

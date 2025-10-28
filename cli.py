@@ -383,10 +383,26 @@ def _extract_attachments_from_conversation(conversation_file: Path) -> List[str]
         soup = BeautifulSoup(html_content, 'html.parser')
 
         # Find all attachment links
+        # Real format: <span class="attachment"><a href="attachments/...">...</a></span>
         attachments = set()
+
+        # Method 1: Find <a> inside <span class="attachment"> (production format)
+        for link in soup.select('span.attachment a[href]'):
+            href = link.get('href')
+            if href:
+                attachments.add(href)
+
+        # Method 2: Also check for direct <a class="attachment"> (backward compatibility)
         for link in soup.find_all('a', class_='attachment', href=True):
-            href = link['href']
-            attachments.add(href)
+            href = link.get('href')
+            if href:
+                attachments.add(href)
+
+        # Method 3: Fallback - any <a> with href starting with 'attachments/'
+        for link in soup.find_all('a', href=True):
+            href = link.get('href')
+            if href and href.startswith('attachments/'):
+                attachments.add(href)
 
         return sorted(list(attachments))
     except Exception as e:
@@ -1788,8 +1804,13 @@ def clear_cache(ctx, attachment, pipeline, clear_all):
     default=True,
     help='Verify tarball contents after creation (default: enabled)'
 )
+@click.option(
+    '--verify-extraction/--no-verify-extraction',
+    default=False,
+    help='Extract tarball to temp directory and show structure (paranoia check before distribution)'
+)
 @click.pass_context
-def create_distribution_tarball(ctx, output, verify):
+def create_distribution_tarball(ctx, output, verify, verify_extraction):
     """Create a clean distribution tarball of conversations for external sharing.
 
     This command creates a tarball containing only conversations referenced in
@@ -1911,6 +1932,55 @@ def create_distribution_tarball(ctx, output, verify):
                 click.echo(f"   ✅ {conversation_count} conversations")
                 click.echo(f"   ✅ {attachment_count} attachments")
                 click.echo(f"   ✅ {len(members)} total files")
+
+        # Step 5: Extract and show structure (paranoia check)
+        if verify_extraction:
+            click.echo("\n🔍 PARANOIA CHECK: Extracting tarball to temp directory...")
+            
+            import tempfile
+            import shutil
+            import os
+            
+            temp_dir = Path(tempfile.mkdtemp(prefix='tarball_verify_'))
+            try:
+                # Extract tarball
+                with tarfile.open(output_path, 'r:gz') as tar:
+                    tar.extractall(temp_dir)
+                
+                click.echo(f"   ✅ Extracted to: {temp_dir}")
+                click.echo("")
+                click.echo("📂 Directory structure:")
+                
+                # Show structure
+                for root, dirs, files in os.walk(temp_dir):
+                    level = root.replace(str(temp_dir), '').count(os.sep)
+                    indent = ' ' * 2 * level
+                    folder_name = os.path.basename(root) or 'root'
+                    click.echo(f"{indent}{folder_name}/")
+                    
+                    # Show first 10 files in this directory
+                    subindent = ' ' * 2 * (level + 1)
+                    for i, file in enumerate(sorted(files)[:10]):
+                        click.echo(f"{subindent}{file}")
+                    if len(files) > 10:
+                        click.echo(f"{subindent}... and {len(files) - 10} more files")
+                
+                click.echo("")
+                click.echo("📊 Extracted Contents:")
+                click.echo(f"   Conversations: {len(conversations)}")
+                click.echo(f"   Attachments: {len(all_attachments)}")
+                click.echo("")
+                click.echo("💡 Review the structure above before sending to lawyers")
+                click.echo(f"💡 To inspect manually: cd {temp_dir}")
+                click.echo("💡 Temp directory will be auto-deleted on reboot")
+                
+            except Exception as e:
+                click.echo(f"⚠️  Extraction verification failed: {e}")
+                # Clean up temp directory on error
+                try:
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
 
         # Success summary
         logger.info("=" * 60)
