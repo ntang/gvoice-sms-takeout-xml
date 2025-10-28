@@ -157,6 +157,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_hotel_hospitality_services(messages)
+        if result:
+            return result
+
         result = self._check_short_lived_conversation(messages)
         if result:
             return result
@@ -769,6 +773,59 @@ class ConversationFilter:
         user_messages = [m for m in messages if m.get("sender") == "Me"]
         if len(user_messages) == 0:
             return True, "One-way broadcast (no user replies)", 0.82
+
+        return None
+
+    def _check_hotel_hospitality_services(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 18: Hotel/Hospitality services (0.80 confidence)
+
+        Matches transient hotel/hospitality service conversations:
+        - "Welcome to [hotel name]"
+        - "How is your stay" / "How is everything with your room"
+        - "late check out" / "checkout is at"
+        - "respond with a 1-5" (stay ratings)
+        - Check-in instructions
+        - Loyalty program mentions
+
+        These are typically one-time service interactions that don't need
+        long-term retention.
+        """
+        patterns = [
+            # Welcome messages
+            r'\bwelcome\s+to\s+(the\s+)?\w+\s+(hotel|resort|inn)\b',
+            r'\bthank\s+you\s+for\s+being\s+a\s+valued\s+\w+\s+member\b',  # "valued Hilton Honors member"
+
+            # Stay quality check-ins
+            r'\bhow\s+is\s+(your\s+)?(stay|room)\b',
+            r'\bhow\s+is\s+everything\s+with\s+your\s+room\b',
+            r'\bjust\s+checking\s+in.*how\s+is\s+your\s+stay\b',
+
+            # Rating requests
+            r'\brespond\s+with\s+a\s+1-[0-9]\b',           # "respond with a 1-5"
+            r'\bfeel\s+free\s+to\s+respond.*\d-\d\b',      # "feel free to respond with 1-5"
+            r'\brate\s+your\s+stay\b',
+
+            # Check-out related
+            r'\blate\s+check\s?out\b',
+            r'\bcheck\s?out\s+is\s+(at|before)\b',
+            r'\bcheck\s?out\s+time\b',
+            r'\bcheck\s?in\s+time\b',
+
+            # Check-in instructions
+            r'\bupon\s+check\s?in\b',
+            r'\bnotify\s+at\s+(the\s+)?front\s+desk\b',
+            r'\bplease\s+check\s+in\s+at\s+(the\s+)?front\s+desk\b',
+        ]
+
+        for msg in messages:
+            text = msg.get("text", "").lower()
+            for pattern in patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    return True, "Hotel/hospitality service interaction", 0.80
 
         return None
 

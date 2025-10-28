@@ -531,6 +531,43 @@ class TestAggressivePatterns:
         assert "one-way" in reason.lower() or "broadcast" in reason.lower()
         assert confidence == 0.82
 
+    def test_hotel_hospitality_services(self, keyword_protection):
+        """Pattern 18: Hotel/hospitality services (Bug fix for +18572997550)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Freepoint Hotel Cambridge conversation with substantive user engagement
+        messages = [
+            {
+                "text": "Welcome to the Freepoint Hotel Cambridge, Nicholas Tang. Thank you for being a valued Hilton Honors Gold member. How is everything with your room? -Saba",
+                "sender": "+18572997550",
+                "timestamp": 1000
+            },
+            {"text": "We're still on the road - right now ETA is 6 pm", "sender": "Me", "timestamp": 1001},
+            {"text": "Thanks for let us know, see you soon. -Saba", "sender": "+18572997550", "timestamp": 1002},
+            {"text": "Actually could we get some extra pillows put in the room?", "sender": "Me", "timestamp": 1003},
+            {"text": "Yes, please notify at front desk upon check in. -Nick", "sender": "+18572997550", "timestamp": 1004},
+            {
+                "text": "Just checking in--how is your stay going so far? Feel free to respond with a 1-5 (5 being excellent). Thank you and have a great day! - -Nick",
+                "sender": "+18572997550",
+                "timestamp": 1005
+            },
+            {"text": "2 - There is a smell of mold in the room", "sender": "Me", "timestamp": 1006},
+            {"text": "Nothing about that, but can we get late checkout tomorrow?", "sender": "Me", "timestamp": 1007},
+            {
+                "text": "Hello, unfortunately as much as we would like to we are unable to accommodate a late check out tomorrow. -Nick",
+                "sender": "+18572997550",
+                "timestamp": 1008
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+18572997550", has_alias=False
+        )
+
+        assert should_archive is True, "Hotel/hospitality services should be archived"
+        assert "hotel" in reason.lower() or "hospitality" in reason.lower(), f"Expected 'hotel' or 'hospitality' in reason, got: {reason}"
+        assert confidence == 0.80
+
     def test_short_lived_conversation(self, keyword_protection):
         """Pattern 12: Short-lived conversation (0.80 confidence)."""
         filter = ConversationFilter(keyword_protection)
