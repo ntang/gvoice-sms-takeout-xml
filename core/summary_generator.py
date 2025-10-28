@@ -31,17 +31,20 @@ class SummaryGenerator:
         model: Gemini model to use (default: "gemini-pro")
     """
 
-    def __init__(self, timeout: int = 60):
+    def __init__(self, timeout: int = 60, model: str = 'gemini-2.5-pro'):
         """
         Initialize the summary generator.
 
         Args:
             timeout: Timeout per conversation in seconds (default: 60)
+            model: Gemini model to use (default: 'gemini-2.5-pro')
 
         Raises:
             RuntimeError: If Gemini CLI is not installed or not working
         """
         self.timeout = timeout
+        self.model = model
+        self.last_stderr = ''  # Track last error for quota detection
         self.verify_gemini_available()
 
     def verify_gemini_available(self) -> None:
@@ -71,6 +74,27 @@ class SummaryGenerator:
             raise RuntimeError("Failed to verify gemini installation (timeout)")
         except Exception as e:
             raise RuntimeError(f"Failed to verify gemini installation: {e}")
+
+    def is_quota_error(self, stderr: str) -> bool:
+        """
+        Check if stderr indicates a 429 quota exceeded error.
+
+        Args:
+            stderr: Error output from Gemini CLI
+
+        Returns:
+            True if this is a quota error (429), False otherwise
+        """
+        return '429' in stderr
+
+    def last_error_was_quota(self) -> bool:
+        """
+        Check if the last error was a quota error.
+
+        Returns:
+            True if last error was a 429 quota error
+        """
+        return self.is_quota_error(self.last_stderr)
 
     def get_timeout_for_conversation(self, message_count: int) -> int:
         """
@@ -238,7 +262,7 @@ Focus on facts and substance. Be specific and informative."""
 
         return prompt
 
-    def generate_summary(self, html_path: Path) -> Optional[Dict]:
+    def generate_summary(self, html_path: Path, model: str = None) -> Optional[Dict]:
         """
         Generate AI summary for a conversation using Gemini CLI.
 
@@ -251,12 +275,17 @@ Focus on facts and substance. Be specific and informative."""
 
         Args:
             html_path: Path to conversation HTML file
+            model: Optional model override (default: use instance model)
 
         Returns:
             Dict with keys: summary, generated_at, message_count, date_range, model
             Returns None if generation fails (errors are logged)
         """
         try:
+            # Use instance model if not specified
+            if model is None:
+                model = self.model
+
             # Extract messages
             messages = self.extract_messages_from_html(html_path)
             if not messages:
@@ -269,13 +298,12 @@ Focus on facts and substance. Be specific and informative."""
             # Build prompt
             prompt = self.build_gemini_prompt(messages, html_path.stem)
 
-            # Call Gemini CLI
-            # Format: gemini -o text "prompt"
-            # Note: Not specifying model - let Gemini use default (gemini-2.5-pro)
-            cmd = ['gemini', '-o', 'text', prompt]
+            # Call Gemini CLI with model selection
+            # Format: gemini -m <model> -o text "prompt"
+            cmd = ['gemini', '-m', model, '-o', 'text', prompt]
 
-            logger.debug(f"Calling Gemini for {html_path.name}...")
-            logger.debug(f"Command: {' '.join(cmd[:4])} [prompt_length={len(prompt)}]")
+            logger.debug(f"Calling Gemini ({model}) for {html_path.name}...")
+            logger.debug(f"Command: gemini -m {model} -o text [prompt_length={len(prompt)}]")
             logger.debug(f"Message count: {len(messages)}, adaptive timeout: {adaptive_timeout}s")
 
             result = subprocess.run(
@@ -287,6 +315,7 @@ Focus on facts and substance. Be specific and informative."""
 
             # Check return code
             if result.returncode != 0:
+                self.last_stderr = result.stderr  # Store for quota detection
                 logger.error(
                     f"Gemini failed for {html_path.name} "
                     f"(exit code {result.returncode})"
@@ -299,10 +328,11 @@ Focus on facts and substance. Be specific and informative."""
             summary = result.stdout.strip()
             logger.debug(f"Gemini stdout length: {len(result.stdout)}, stderr length: {len(result.stderr)}")
             if not summary:
+                self.last_stderr = result.stderr  # Store for quota detection
                 logger.warning(f"Empty stdout from Gemini for {html_path.name}")
                 logger.warning(f"  stderr: {result.stderr[:200]}")
                 logger.warning(f"  stdout: '{result.stdout[:200]}'")
-                logger.warning(f"  Command was: {cmd[:4]} [prompt={prompt[:100]}...]")
+                logger.warning(f"  Command was: gemini -m {model} -o text [prompt={prompt[:100]}...]")
 
             # Validate output
             if not summary or len(summary) < 20:
@@ -317,13 +347,13 @@ Focus on facts and substance. Be specific and informative."""
                 return None
 
             # Success!
-            logger.info(f"✅ Generated summary for {html_path.name}")
+            logger.info(f"✅ Generated summary for {html_path.name} using {model}")
             return {
                 'summary': summary,
                 'generated_at': datetime.now().isoformat(),
                 'message_count': len(messages),
                 'date_range': self._calculate_date_range(messages),
-                'model': 'gemini-2.5-pro'  # Track which model generated this summary
+                'model': model  # Track which model generated this summary
             }
 
         except subprocess.TimeoutExpired as e:

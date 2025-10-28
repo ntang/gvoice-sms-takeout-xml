@@ -2106,6 +2106,12 @@ def generate_summaries(conversations_dir, output_file, overwrite, timeout):
     failed = []
     skipped = 0
 
+    # Quota detection and model tracking
+    current_model = 'gemini-2.5-pro'  # Start with Pro
+    quota_exceeded = False
+    pro_count = 0
+    flash_count = 0
+
     click.echo(f"\n⏳ Generating summaries...")
     with click.progressbar(
         html_files,
@@ -2121,9 +2127,27 @@ def generate_summaries(conversations_dir, output_file, overwrite, timeout):
                 skipped += 1
                 continue
 
-            result = generator.generate_summary(html_file)
+            # Generate with current model
+            result = generator.generate_summary(html_file, model=current_model)
+
+            # Check if failure was due to quota error
+            if result is None:
+                if not quota_exceeded and generator.last_error_was_quota():
+                    click.echo(f"\n⚠️  Quota exceeded for {current_model}")
+                    click.echo(f"🔄 Switching to gemini-2.5-flash for all remaining conversations...")
+                    current_model = 'gemini-2.5-flash'
+                    quota_exceeded = True
+
+                    # Retry this conversation with Flash
+                    result = generator.generate_summary(html_file, model=current_model)
+
+            # Track results
             if result:
                 summaries[conv_id] = result
+                if result['model'] == 'gemini-2.5-flash':
+                    flash_count += 1
+                else:
+                    pro_count += 1
             else:
                 failed.append(conv_id)
 
@@ -2139,8 +2163,18 @@ def generate_summaries(conversations_dir, output_file, overwrite, timeout):
     click.echo(f"✅ Successfully generated: {new_summaries} new summaries")
     click.echo(f"📝 Total summaries: {len(summaries)}")
 
+    # Model usage stats
+    if pro_count > 0 or flash_count > 0:
+        click.echo(f"\n🤖 Model Usage:")
+        if pro_count > 0:
+            click.echo(f"   gemini-2.5-pro: {pro_count} summaries")
+        if flash_count > 0:
+            click.echo(f"   gemini-2.5-flash: {flash_count} summaries")
+        if quota_exceeded:
+            click.echo(f"   ⚠️  Quota limit hit - switched to Flash mid-run")
+
     if skipped > 0:
-        click.echo(f"⏭️  Skipped: {skipped} (already exist, use --overwrite to regenerate)")
+        click.echo(f"\n⏭️  Skipped: {skipped} (already exist, use --overwrite to regenerate)")
 
     if failed:
         click.echo(f"\n⚠️  Failed: {len(failed)} conversations")

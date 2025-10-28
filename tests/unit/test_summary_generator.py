@@ -494,3 +494,64 @@ class TestSummaryGenerator:
         # Verify counts
         assert data['model_usage']['gemini-2.5-pro'] == 2, "Should count 2 Pro summaries"
         assert data['model_usage']['gemini-2.0-flash-exp'] == 1, "Should count 1 Flash summary"
+
+    def test_quota_error_detection(self):
+        """Test 16: Detect 429 quota errors in stderr."""
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator()
+
+        # Test quota error detection with real error format
+        quota_stderr = '''Loaded cached credentials.
+[{
+  "error": {
+    "code": 429,
+    "message": "Quota exceeded for quota metric 'Gemini 2.5 Pro Requests' and limit 'Gemini 2.5"
+  }
+}]'''
+        assert generator.is_quota_error(quota_stderr) == True, "Should detect 429 quota error"
+
+        # Test non-quota 429 error
+        other_429 = '{"error": {"code": 429, "message": "Too many requests"}}'
+        assert generator.is_quota_error(other_429) == True, "Should detect any 429 error"
+
+        # Test non-quota error
+        other_stderr = '{"error": {"code": 500, "message": "Internal server error"}}'
+        assert generator.is_quota_error(other_stderr) == False, "Should not detect non-429 errors"
+
+        # Test empty stderr
+        assert generator.is_quota_error('') == False, "Should not detect error in empty string"
+
+    @patch('subprocess.run')
+    def test_model_selection(self, mock_run):
+        """Test 17: Verify correct model is passed to Gemini CLI."""
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "This is a comprehensive test summary with sufficient detail."
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator(model='gemini-2.5-flash')
+
+        # Create test file
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+            f.write("""<table><tbody>
+                <tr><td>2024-01-01 10:00</td><td>Alice</td><td>Hello there friend</td><td></td></tr>
+            </tbody></table>""")
+            test_file = Path(f.name)
+
+        try:
+            result = generator.generate_summary(test_file, model='gemini-2.5-flash')
+
+            # Verify command included -m flag with Flash model
+            call_args = mock_run.call_args[0][0]
+            assert '-m' in call_args, "Should include -m flag"
+            flash_index = call_args.index('-m')
+            assert call_args[flash_index + 1] == 'gemini-2.5-flash', "Should specify Flash model"
+
+            # Verify result tracks Flash model
+            assert result is not None, "Should return result"
+            assert result['model'] == 'gemini-2.5-flash', "Should track Flash model in result"
+        finally:
+            test_file.unlink()
