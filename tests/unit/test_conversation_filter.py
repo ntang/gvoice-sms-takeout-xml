@@ -427,6 +427,37 @@ class TestSafePatterns:
         assert "real estate" in reason.lower(), f"Expected 'real estate' in reason, got: {reason}"
         assert confidence == 0.85
 
+    def test_real_estate_user_initiated_inquiry(self, keyword_protection):
+        """Pattern 10b: User-initiated real estate inquiry (Bug fix for +17187755287)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # User asking about apartment availability, brief response
+        messages = [
+            {
+                "text": "Hi just checking to see if 340 w 86th 9a is still available",
+                "sender": "Me",
+                "timestamp": 1000
+            },
+            {
+                "text": "No there's a pending application",
+                "sender": "+17187755287",
+                "timestamp": 1001
+            },
+            {
+                "text": "Ok thanks for the response",
+                "sender": "Me",
+                "timestamp": 1002
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+17187755287", has_alias=False
+        )
+
+        assert should_archive is True, "User-initiated real estate inquiry should be archived"
+        assert "real estate" in reason.lower(), f"Expected 'real estate' in reason, got: {reason}"
+        assert confidence == 0.85
+
 
 class TestAggressivePatterns:
     """Test aggressive filtering patterns (confidence 0.75-0.84)."""

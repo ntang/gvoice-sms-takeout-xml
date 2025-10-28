@@ -663,6 +663,8 @@ class ConversationFilter:
         - MLS, Compass, Zillow, Redfin, etc.
         - Open house notifications
         - Showing invitations
+        - User-initiated apartment/property inquiries
+        - "Pending application" responses
         """
         patterns = [
             # Real estate platforms
@@ -684,6 +686,14 @@ class ConversationFilter:
             r'\bprice\s+(reduction|drop)\b',
             r'\bvirtual\s+tour\b',
             r'\breal\s+estate\s+agent\b',
+
+            # User-initiated real estate inquiries
+            r'\bpending\s+application\b',
+            r'\bis\s+.+\s+still\s+available\b',
+            r'\bstill\s+available\b',
+            r'\bavailable\s+to\s+(rent|lease|view)\b',
+            r'\bunit\s+available\b',
+            r'\bapartment\s+available\b',
         ]
 
         for msg in messages:
