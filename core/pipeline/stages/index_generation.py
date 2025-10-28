@@ -198,6 +198,35 @@ class IndexGenerationStage(PipelineStage):
             stats = html_state.get('stats', {})
             conversation_stats = html_state.get('conversations', {})
 
+            # 3a. Calculate stats for DISPLAYED conversations only (excludes .archived.html)
+            displayed_stats = {
+                'num_sms': 0,
+                'num_calls': 0,
+                'num_voicemails': 0,
+                'num_img': 0,
+                'num_vcf': 0
+            }
+
+            for conv_file in conv_files:
+                conv_id = conv_file.stem
+                if conv_id in conversation_stats:
+                    conv_stat = conversation_stats[conv_id]
+                    displayed_stats['num_sms'] += conv_stat.get('sms_count', 0)
+                    displayed_stats['num_calls'] += conv_stat.get('call_count', 0)
+                    displayed_stats['num_voicemails'] += conv_stat.get('voicemail_count', 0)
+                    displayed_stats['num_img'] += conv_stat.get('attachment_count', 0)
+                    # Note: num_vcf tracking would need separate field in conversation_stats
+
+            # Log the difference for verification
+            global_sms = stats.get('num_sms', 0)
+            displayed_sms = displayed_stats['num_sms']
+            archived_sms = global_sms - displayed_sms
+            logger.info(f"📊 Stats calculation:")
+            logger.info(f"   Displayed conversations: {len(conv_files)}")
+            logger.info(f"   Displayed SMS: {displayed_sms:,}")
+            logger.info(f"   Global SMS (includes archived): {global_sms:,}")
+            logger.info(f"   Archived SMS: {archived_sms:,}")
+
             # 4. Extract metadata for all files (use cache when possible, merge with stats)
             metadata = self._build_conversation_metadata(
                 conv_files,
@@ -205,12 +234,12 @@ class IndexGenerationStage(PipelineStage):
                 conversation_stats  # NEW: Pass per-conversation stats
             )
 
-            # 5. Generate index.html
+            # 5. Generate index.html (use displayed_stats instead of global stats)
             self._generate_index_html(
                 context.output_dir,
                 conv_files,
                 metadata,
-                stats
+                displayed_stats  # Changed from stats to displayed_stats
             )
 
             # 6. Save metadata cache
