@@ -141,6 +141,47 @@ class TestVerySafePatterns:
         assert "appointment" in reason.lower(), f"Expected 'appointment' in reason, got: {reason}"
         assert confidence == 0.95
 
+    def test_delivery_notifications_subscription_services(self, keyword_protection):
+        """Pattern 2: Subscription delivery services like Ollie (Bug fix for +16463498598)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Real Ollie dog food subscription messages that were previously missed
+        messages = [
+            {
+                "text": "Ollie: Hazel's box is on the way! 🚚 \nOrder #: 2070968\n"
+                       "Track your order: https://myollie.com/account/tracking/",
+                "sender": "+16463498598",
+                "timestamp": 1000
+            },
+            {
+                "text": "Ollie: Hazel's box has arrived! \n\nOrder #: 2070968\n"
+                       "Delivered On: Feb 24, 2024 04:22 PM\n\n"
+                       "Rate your delivery experience: https://olliepets.typeform.com/to/K7OysUJf",
+                "sender": "+16463498598",
+                "timestamp": 1001
+            },
+            {
+                "text": "Ollie: Hazel's box ships soon\n\n"
+                       "Need to make a change?\nUpdate your plan on your account",
+                "sender": "+16463498598",
+                "timestamp": 1002
+            },
+            {
+                "text": "Ollie: Hazel's box is packed and ready to go! 🚚 \n"
+                       "Order #: 3124518\nTrack your order: https://myollie.com/...",
+                "sender": "+16463498598",
+                "timestamp": 1003
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+16463498598", has_alias=False
+        )
+
+        assert should_archive is True, "Subscription delivery services like Ollie should be archived"
+        assert "delivery" in reason.lower(), f"Expected 'delivery' in reason, got: {reason}"
+        assert confidence == 0.97
+
     def test_banking_alerts(self, keyword_protection):
         """Pattern 5: Banking alerts (0.95 confidence)."""
         filter = ConversationFilter(keyword_protection)

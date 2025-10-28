@@ -227,6 +227,9 @@ class ConversationFilter:
         - "Caviar connecting you to your Dasher"
         - "I left your delivery at your door"
         - "delivered to your door"
+        - "Ollie: Hazel's box is on the way! 🚚" (subscription services)
+        - "box has arrived" / "box ships soon"
+        - "Track your order:" / "Order #:"
         """
         patterns = [
             # Original patterns
@@ -257,14 +260,25 @@ class ConversationFilter:
             r'\bdelivered\s+to\s+your\s+door\b',
             r'\bdelivery\s+at\s+your\s+door\b',
             r'\bleft\s+(the\s+)?(package|order)\s+(at|outside)\b',
+
+            # NEW: Subscription delivery services (Ollie, BarkBox, etc.)
+            r'\bbox\s+is\s+on\s+the\s+way\b',                    # "box is on the way! 🚚"
+            r'\bbox\s+has\s+arrived\b',                          # "box has arrived!"
+            r'\bbox\s+ships\s+soon\b',                           # "box ships soon"
+            r'\bbox\s+is\s+packed\s+and\s+ready\b',             # "box is packed and ready to go!"
+            r'\btrack\s+your\s+order:',                          # "Track your order: https://..."
+            r'\border\s+#:',                                     # "Order #: 2070968"
+            r'\bdelivered\s+on:\s+\w+\s+\d',                    # "Delivered On: Feb 24, 2024"
+            r'\brate\s+your\s+delivery\s+experience\b',         # "Rate your delivery experience:"
         ]
 
         # Also check for high message count with no replies
         user_messages = [m for m in messages if m.get("sender") == "Me"]
         total_messages = len(messages)
 
-        # 50+ messages with 0 replies = automated delivery spam
-        if total_messages >= 50 and len(user_messages) == 0:
+        # 30+ messages with 0 replies = automated delivery spam
+        # Lowered from 50 to catch subscription services with duplicate messages
+        if total_messages >= 30 and len(user_messages) == 0:
             return True, "High volume automated delivery notifications", 0.97
 
         for msg in messages:
