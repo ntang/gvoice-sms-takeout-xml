@@ -341,6 +341,10 @@ class ConversationFilter:
         - "You have an appointment on Wed, April 26"
         - "To Confirm: Reply Y"
         - "upcoming appointment at One Medical"
+        - "reminder that Hazel's appointment is coming up" (Bond Vet)
+        - "respond with 'Confirm' to confirm your visit" (Bond Vet)
+        - "confirmed for an appointment at Bond Vet"
+        - "How likely are you to recommend" (post-appointment surveys)
         """
         patterns = [
             # Original patterns
@@ -358,6 +362,21 @@ class ConversationFilter:
             r'\bto\s+reschedule.*reply\b',                       # "To Reschedule: Reply..."
             r'\bappointment\s+today\s+at\b',                     # "appointment today at 8:00 AM"
             r'\breply\s+late\b',                                 # "Running late? Reply LATE"
+
+            # NEW: Bond Vet and flexible appointment systems
+            r'\breminder\s+that.*appointment\b',                 # "reminder that...appointment" (flexible)
+            r'\brespond\s+with\s+["\']?(confirm|yes|no)["\']?\b', # "respond with 'Confirm'"
+            r'\breply\s+with\s+["\']?(confirm|yes|no)["\']?\b',   # "reply with 'Confirm'"
+            r'\bconfirmed\s+for\s+an?\s+appointment\b',          # "confirmed for an appointment"
+            r'\bappointment.*is\s+coming\s+up\b',                # "appointment is coming up"
+            r'\bmanage\s+your\s+(visit|appointment)\b',          # "manage your visit here"
+            r'\breschedule\s+or\s+cancel\s+your\s+(visit|appointment)\b', # "reschedule or cancel your visit"
+
+            # NEW: Post-appointment surveys (also automated appointment-related)
+            r'\bhow\s+likely\s+are\s+you\s+to\s+recommend\b',   # "How likely are you to recommend"
+            r'\brate\s+your\s+(experience|visit)\b',             # "rate your experience"
+            r'\bfeedback\s+about\s+your\s+(experience|visit)\b', # "feedback about your experience"
+            r'\bthank\s+you\s+for\s+bringing\s+your\s+pet\b',   # "thank you for bringing your pet"
         ]
 
         for msg in messages:

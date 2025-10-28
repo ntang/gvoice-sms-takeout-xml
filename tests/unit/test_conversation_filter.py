@@ -141,6 +141,53 @@ class TestVerySafePatterns:
         assert "appointment" in reason.lower(), f"Expected 'appointment' in reason, got: {reason}"
         assert confidence == 0.95
 
+    def test_appointment_reminders_bond_vet_style(self, keyword_protection):
+        """Pattern 4: Bond Vet style appointment reminders (Bug fix for +16469801675)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Real Bond Vet messages that were previously missed
+        messages = [
+            {
+                "text": "Bond Vet: Hi Nicholas, this is a reminder that Hazel's appointment at "
+                       "Bond Vet - Hell's Kitchen is coming up on Monday, April 29 at 11:00AM\n\n"
+                       "Please respond with 'Confirm' to confirm your visit.",
+                "sender": "+16469801675",
+                "timestamp": 1000
+            },
+            {
+                "text": "Confirm",
+                "sender": "Me",
+                "timestamp": 1001
+            },
+            {
+                "text": "Bond Vet: Hi Nicholas, Hazel is confirmed for an appointment at "
+                       "Bond Vet - Hell's Kitchen on Monday, April 29 at 11:00 AM.\n\n"
+                       "Need to make a change? Manage your visit here: https://bondvet.com/reschedule",
+                "sender": "+16469801675",
+                "timestamp": 1002
+            },
+            {
+                "text": "Bond Vet: Thank you for bringing your pet to Bond Vet. "
+                       "How likely are you to recommend Bond Vet to a fellow pet parent? "
+                       "Please reply with a number from 0 to 10.",
+                "sender": "+16469801675",
+                "timestamp": 1003
+            },
+            {
+                "text": "8",
+                "sender": "Me",
+                "timestamp": 1004
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+16469801675", has_alias=False
+        )
+
+        assert should_archive is True, "Bond Vet appointment reminders should be archived"
+        assert "appointment" in reason.lower(), f"Expected 'appointment' in reason, got: {reason}"
+        assert confidence == 0.95
+
     def test_delivery_notifications_subscription_services(self, keyword_protection):
         """Pattern 2: Subscription delivery services like Ollie (Bug fix for +16463498598)."""
         filter = ConversationFilter(keyword_protection)
