@@ -136,6 +136,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_automated_booking_systems(messages)
+        if result:
+            return result
+
         result = self._check_template_messages(messages)
         if result:
             return result
@@ -537,6 +541,49 @@ class ConversationFilter:
 
         return None
 
+    def _check_automated_booking_systems(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 9b: Automated booking/scheduling chatbots (0.87 confidence)
+
+        Matches:
+        - "book, reschedule, or cancel appointments"
+        - "24/7 text-only number"
+        - "Which location or provider are you interested in?"
+        - "Kindly call their direct line"
+        - Automated appointment scheduling systems that redirect to phone support
+        """
+        patterns = [
+            # Booking system indicators
+            r'\bbook,?\s+reschedule,?\s+(or|and)\s+cancel\b',      # "book, reschedule, or cancel"
+            r'\b24/7\s+text(-only)?\s+number\b',                    # "24/7 text-only number"
+            r'\btext-only\s+booking\b',                             # "text-only booking"
+
+            # Automated questions
+            r'\bwhich\s+location\s+or\s+provider\b',                # "Which location or provider"
+            r'\bprovide\s+your\s+zip\s+code\s+or\s+neighborhood\b', # "provide your zip code"
+            r'\bare\s+you\s+looking\s+for\s+a\s+virtual\b',         # "are you looking for a virtual appointment"
+
+            # Redirect to phone patterns
+            r'\bkindly\s+call\s+(their|our)\s+direct\s+line\b',    # "Kindly call their direct line"
+            r'\bcall\s+(their|our)\s+(dedicated|direct)\s+line\b',  # "call our dedicated line"
+            r'\bbest\s+handled\s+by\s+our\s+(dedicated\s+)?support\s+staff\b', # "best handled by our support staff"
+
+            # Appointment system language
+            r'\bappointments?\s+through\s+this\s+(text|number)\b',  # "appointments through this text"
+            r'\bthank\s+you\s+for\s+calling.*sorry\s+about\s+the\s+wait\b', # "Thank you for calling...sorry about the wait"
+        ]
+
+        for msg in messages:
+            text = msg.get("text", "").lower()
+            for pattern in patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    return True, "Automated booking/scheduling chatbot", 0.87
+
+        return None
+
     def _check_template_messages(
         self,
         messages: List[Dict[str, Any]]
@@ -547,6 +594,10 @@ class ConversationFilter:
         Matches:
         - Multiple identical messages
         - All messages from same sender (no user replies)
+
+        Progressive thresholds:
+        - Short conversations (< 10 messages): 25% duplicates triggers filter
+        - Regular conversations (>= 10 messages): 50% duplicates triggers filter
         """
         if len(messages) < 3:
             return None
@@ -554,10 +605,21 @@ class ConversationFilter:
         # Check for exact duplicates
         message_texts = [m.get("text", "") for m in messages]
         unique_texts = set(message_texts)
+        total_messages = len(message_texts)
+        unique_count = len(unique_texts)
 
-        # If >50% messages are identical, likely template
-        if len(unique_texts) < len(message_texts) * 0.5:
-            return True, "Template/duplicate message pattern", 0.85
+        # Progressive threshold based on conversation length
+        if total_messages < 10:
+            # Short conversations: 25% duplicates triggers filter
+            # Example: 4 unique / 6 total = 33.3% duplicates → triggers
+            threshold = 0.75  # If unique < total * 0.75, then duplicates > 25%
+        else:
+            # Regular conversations: 50% duplicates triggers filter
+            threshold = 0.5
+
+        if unique_count < total_messages * threshold:
+            duplicate_pct = ((total_messages - unique_count) / total_messages) * 100
+            return True, f"Template/duplicate message pattern ({duplicate_pct:.0f}% duplicates)", 0.85
 
         return None
 

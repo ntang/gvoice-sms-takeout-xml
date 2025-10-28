@@ -264,6 +264,46 @@ class TestSafePatterns:
         assert "survey" in reason.lower() or "poll" in reason.lower()
         assert confidence == 0.87
 
+    def test_automated_booking_chatbot(self, keyword_protection):
+        """Pattern 9b: Automated booking/scheduling chatbots (Bug fix for +16468256493)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Real Dermatology Specialists automated booking system messages
+        messages = [
+            {
+                "text": "Thank you for calling The Dermatology Specialists! We're sorry about the wait. "
+                       "You can book, reschedule, or cancel appointments through this 24/7 text-only number.",
+                "sender": "+16468256493",
+                "timestamp": 1000
+            },
+            {
+                "text": "Which location or provider are you interested in? If you're unsure, please provide "
+                       "your zip code or neighborhood, and we'll suggest options for you. Additionally, let "
+                       "us know if you're looking for a virtual appointment.",
+                "sender": "+16468256493",
+                "timestamp": 1001
+            },
+            {
+                "text": "We had a follow up appointment for today but the doctor said to get an ultrasound...",
+                "sender": "Me",
+                "timestamp": 1002
+            },
+            {
+                "text": "Your request would be best handled by our dedicated support staff. "
+                       "Kindly call their direct line at (917) 473-3497.",
+                "sender": "+16468256493",
+                "timestamp": 1003
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+16468256493", has_alias=False
+        )
+
+        assert should_archive is True, "Automated booking chatbots should be archived"
+        assert "booking" in reason.lower() or "chatbot" in reason.lower(), f"Expected 'booking' or 'chatbot' in reason, got: {reason}"
+        assert confidence == 0.87
+
     def test_template_messages(self, keyword_protection):
         """Pattern 10: Template/duplicate messages (0.85 confidence)."""
         filter = ConversationFilter(keyword_protection)
@@ -283,6 +323,30 @@ class TestSafePatterns:
 
         assert should_archive is True
         assert "template" in reason.lower() or "duplicate" in reason.lower()
+        assert confidence == 0.85
+
+    def test_template_messages_progressive_threshold(self, keyword_protection):
+        """Pattern 10: Template messages with progressive threshold (short conversations)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Short conversation (6 messages < 10): 4 unique, 2 duplicates = 33.3% duplicates
+        # Progressive threshold: < 10 messages needs only 25% duplicates to trigger
+        messages = [
+            {"text": "Message 1", "sender": "+16468256493", "timestamp": 1000},
+            {"text": "Message 2", "sender": "+16468256493", "timestamp": 1001},
+            {"text": "User reply", "sender": "Me", "timestamp": 1002},
+            {"text": "Message 3", "sender": "+16468256493", "timestamp": 1003},
+            {"text": "Message 1", "sender": "+16468256493", "timestamp": 1004},  # Duplicate
+            {"text": "Message 2", "sender": "+16468256493", "timestamp": 1005},  # Duplicate
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+16468256493", has_alias=False
+        )
+
+        assert should_archive is True, "Short conversations with 33.3% duplicates should be archived (25% threshold)"
+        assert "template" in reason.lower() or "duplicate" in reason.lower(), f"Expected 'template' or 'duplicate' in reason, got: {reason}"
+        assert "33%" in reason, f"Expected duplicate percentage in reason, got: {reason}"
         assert confidence == 0.85
 
 
