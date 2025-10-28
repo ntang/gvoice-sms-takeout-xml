@@ -438,8 +438,8 @@ class IndexGenerationStage(PipelineStage):
 
         template_content = template_path.read_text()
 
-        # Build conversation rows
-        conversation_rows = self._build_conversation_rows(conv_files, metadata)
+        # Build conversation rows (pass output_dir for summaries.json)
+        conversation_rows = self._build_conversation_rows(conv_files, metadata, output_dir)
 
         # Use statistics from HTML generation stage
         total_sms = stats.get('num_sms', 0)
@@ -472,19 +472,32 @@ class IndexGenerationStage(PipelineStage):
 
         logger.info(f"Generated index.html with {len(conv_files)} conversations")
 
-    def _build_conversation_rows(self, conv_files: List[Path], metadata: Dict) -> str:
+    def _build_conversation_rows(self, conv_files: List[Path], metadata: Dict, output_dir: Path) -> str:
         """
         Build HTML table rows for conversation files.
 
         Args:
             conv_files: List of conversation file paths
             metadata: Conversation metadata
+            output_dir: Output directory (for loading summaries.json)
 
         Returns:
             HTML string with table rows
         """
         if not conv_files:
-            return "<tr><td colspan='8'><em>No conversation files found</em></td></tr>"
+            return "<tr><td colspan='9'><em>No conversation files found</em></td></tr>"
+
+        # Load AI summaries if available
+        summaries_path = output_dir / 'summaries.json'
+        summaries = {}
+        if summaries_path.exists():
+            try:
+                with open(summaries_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    summaries = data.get('summaries', {})
+                    logger.debug(f"Loaded {len(summaries)} AI summaries from summaries.json")
+            except Exception as e:
+                logger.warning(f"Could not load summaries.json: {e}")
 
         rows = []
         for file_path in conv_files:
@@ -493,6 +506,11 @@ class IndexGenerationStage(PipelineStage):
 
             file_size = meta.get('file_size', 0)
             file_size_str = f"{file_size / 1024:.1f} KB" if file_size > 0 else "0 KB"
+
+            # Get AI summary
+            summary_text = "No AI summary available"
+            if conversation_id in summaries:
+                summary_text = summaries[conversation_id]['summary']
 
             row = f"""
                 <tr>
@@ -504,6 +522,7 @@ class IndexGenerationStage(PipelineStage):
                     <td>{meta.get('voicemail_count', 0)}</td>
                     <td>{meta.get('attachment_count', 0)}</td>
                     <td>{meta.get('latest_message_timestamp', 'N/A')}</td>
+                    <td class='summary-cell'>{summary_text}</td>
                 </tr>"""
             rows.append(row)
 
@@ -530,7 +549,7 @@ class IndexGenerationStage(PipelineStage):
             'num_img': 0,
             'num_vcf': 0,
             'total_messages': 0,
-            'conversation_rows': "<tr><td colspan='8'><em>No conversation files found</em></td></tr>",
+            'conversation_rows': "<tr><td colspan='9'><em>No conversation files found</em></td></tr>",
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
