@@ -250,13 +250,15 @@ class TestSummaryGenerator:
                 'summary': 'This is a test summary about Alice and Bob.',
                 'generated_at': '2024-01-01T12:00:00',
                 'message_count': 10,
-                'date_range': '2024-01-01 to 2024-01-05'
+                'date_range': '2024-01-01 to 2024-01-05',
+                'model': 'gemini-2.5-pro'
             },
             'Carol_Dave': {
                 'summary': 'This is another test summary.',
                 'generated_at': '2024-01-02T14:30:00',
                 'message_count': 5,
-                'date_range': '2024-01-02 to 2024-01-03'
+                'date_range': '2024-01-02 to 2024-01-03',
+                'model': 'gemini-2.5-pro'
             }
         }
 
@@ -271,12 +273,13 @@ class TestSummaryGenerator:
             data = json.load(f)
 
         assert 'version' in data, "Should have version"
-        assert data['version'] == '1.0'
+        assert data['version'] == '1.1', "Version should be 1.1 with model tracking"
         assert 'generated_at' in data, "Should have generation timestamp"
         assert 'generated_by' in data, "Should have generator info"
         assert 'Gemini CLI' in data['generated_by']
         assert 'stats' in data, "Should have stats"
         assert data['stats']['total_conversations'] == 2
+        assert 'model_usage' in data, "Should have model_usage section"
         assert 'summaries' in data, "Should have summaries"
         assert 'Alice_Bob' in data['summaries']
 
@@ -363,3 +366,131 @@ class TestSummaryGenerator:
         ]
         date_range = generator._calculate_date_range(single_day)
         assert date_range == '2024-01-15 to 2024-01-15', "Should handle single day"
+
+    def test_full_conversation_no_sampling(self):
+        """Test 12: Verify ALL messages included in prompt (no sampling)."""
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator()
+
+        # Create 200 messages to test that ALL are included (not sampled)
+        messages = []
+        for i in range(200):
+            messages.append({
+                'timestamp': f'2024-01-01 {i % 24:02d}:{i % 60:02d}:00',
+                'sender': 'Alice' if i % 2 == 0 else 'Bob',
+                'text': f'Message number {i}'
+            })
+
+        prompt = generator.build_gemini_prompt(messages, "Large_Conversation")
+
+        # Verify ALL messages are included (not sampled)
+        assert 'showing all 200 messages' in prompt, "Should say 'showing all 200 messages'"
+        assert 'first 25 and last 25' not in prompt, "Should NOT mention sampling"
+
+        # Verify messages from beginning, middle, and end are all present
+        assert 'Message number 0' in prompt, "Should include first message"
+        assert 'Message number 100' in prompt, "Should include middle message (would be missing if sampled)"
+        assert 'Message number 199' in prompt, "Should include last message"
+
+        # Count how many messages are actually in the prompt
+        # Each message should appear as "Sender: Message number X"
+        message_count = sum(1 for i in range(200) if f'Message number {i}' in prompt)
+        assert message_count == 200, f"Should include all 200 messages, but only found {message_count}"
+
+    def test_adaptive_timeout_calculation(self):
+        """Test 13: Verify timeout scales based on conversation size."""
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator()
+
+        # Test timeout calculation for different conversation sizes
+        # Expected formula:
+        # - Small (1-100 messages): 120s (2 min)
+        # - Medium (101-500 messages): 300s (5 min)
+        # - Large (501-1000 messages): 600s (10 min)
+        # - Mega (1000+ messages): 900s (15 min)
+
+        assert generator.get_timeout_for_conversation(10) == 120, "Small conversation should get 2min timeout"
+        assert generator.get_timeout_for_conversation(100) == 120, "Small conversation should get 2min timeout"
+        assert generator.get_timeout_for_conversation(250) == 300, "Medium conversation should get 5min timeout"
+        assert generator.get_timeout_for_conversation(750) == 600, "Large conversation should get 10min timeout"
+        assert generator.get_timeout_for_conversation(1500) == 900, "Mega conversation should get 15min timeout"
+
+    @patch('subprocess.run')
+    def test_model_tracking_in_result(self, mock_run):
+        """Test 14: Verify model field included in summary result."""
+        # Mock successful Gemini response
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "This is a professional conversation with comprehensive details."
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator()
+
+        # Create test file
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+            f.write("""<table><tbody>
+                <tr><td>2024-01-01 10:00</td><td>Alice</td><td>Hello there</td><td></td></tr>
+            </tbody></table>""")
+            test_file = Path(f.name)
+
+        try:
+            result = generator.generate_summary(test_file)
+
+            # Verify model field is present
+            assert result is not None, "Should return result"
+            assert 'model' in result, "Should have 'model' field in result"
+            assert result['model'] == 'gemini-2.5-pro', "Should track model as gemini-2.5-pro"
+        finally:
+            test_file.unlink()
+
+    def test_json_includes_model_usage(self, tmp_path):
+        """Test 15: Verify JSON output includes model_usage stats."""
+        with patch.object(SummaryGenerator, 'verify_gemini_available'):
+            generator = SummaryGenerator()
+
+        # Create summaries with model tracking
+        summaries = {
+            'Conv1': {
+                'summary': 'Summary 1',
+                'generated_at': '2024-01-01T12:00:00',
+                'message_count': 10,
+                'date_range': '2024-01-01 to 2024-01-05',
+                'model': 'gemini-2.5-pro'
+            },
+            'Conv2': {
+                'summary': 'Summary 2',
+                'generated_at': '2024-01-02T14:00:00',
+                'message_count': 5,
+                'date_range': '2024-01-02 to 2024-01-03',
+                'model': 'gemini-2.5-pro'
+            },
+            'Conv3': {
+                'summary': 'Summary 3',
+                'generated_at': '2024-01-03T16:00:00',
+                'message_count': 8,
+                'date_range': '2024-01-03 to 2024-01-04',
+                'model': 'gemini-2.0-flash-exp'
+            }
+        }
+
+        output_file = tmp_path / "summaries.json"
+        generator.save_summaries(summaries, output_file)
+
+        # Load and verify structure
+        with open(output_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Verify version bumped to 1.1
+        assert data['version'] == '1.1', "Version should be 1.1 with model tracking"
+
+        # Verify model_usage section exists
+        assert 'model_usage' in data, "Should have model_usage section"
+        assert 'gemini-2.5-pro' in data['model_usage'], "Should track Pro model usage"
+        assert 'gemini-2.0-flash-exp' in data['model_usage'], "Should track Flash model usage"
+
+        # Verify counts
+        assert data['model_usage']['gemini-2.5-pro'] == 2, "Should count 2 Pro summaries"
+        assert data['model_usage']['gemini-2.0-flash-exp'] == 1, "Should count 1 Flash summary"

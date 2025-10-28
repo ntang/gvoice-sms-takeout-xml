@@ -72,6 +72,32 @@ class SummaryGenerator:
         except Exception as e:
             raise RuntimeError(f"Failed to verify gemini installation: {e}")
 
+    def get_timeout_for_conversation(self, message_count: int) -> int:
+        """
+        Calculate adaptive timeout based on conversation size.
+
+        Scales timeout to handle large conversations without hitting
+        timeout errors on mega conversations.
+
+        Args:
+            message_count: Number of messages in the conversation
+
+        Returns:
+            Timeout in seconds:
+            - Small (1-100 messages): 120s (2 min)
+            - Medium (101-500 messages): 300s (5 min)
+            - Large (501-1000 messages): 600s (10 min)
+            - Mega (1000+ messages): 900s (15 min)
+        """
+        if message_count <= 100:
+            return 120  # 2 minutes
+        elif message_count <= 500:
+            return 300  # 5 minutes
+        elif message_count <= 1000:
+            return 600  # 10 minutes
+        else:
+            return 900  # 15 minutes
+
     def extract_messages_from_html(self, html_path: Path) -> List[Dict]:
         """
         Parse conversation HTML and extract messages from TABLE structure.
@@ -177,8 +203,8 @@ class SummaryGenerator:
         """
         Build prompt string for Gemini CLI.
 
-        Limits message count to avoid token limits. For conversations with
-        >50 messages, includes first 25 and last 25 messages.
+        Includes ALL messages in the conversation (no sampling).
+        Uses adaptive timeout to handle large conversations.
 
         Args:
             messages: List of message dicts
@@ -187,23 +213,15 @@ class SummaryGenerator:
         Returns:
             Formatted prompt string for Gemini
         """
-        # Truncate messages if too many (to avoid token limits)
-        max_messages = 50
-        if len(messages) > max_messages:
-            sample_messages = messages[:25] + messages[-25:]
-            message_text = f"(showing first 25 and last 25 of {len(messages)} messages)"
-        else:
-            sample_messages = messages
-            message_text = f"(showing all {len(messages)} messages)"
-
-        # Build message list
+        # Build message list - include ALL messages (no sampling)
         message_lines = []
-        for msg in sample_messages:
+        for msg in messages:
             sender = msg.get('sender', 'Unknown')
-            text = msg.get('text', '')[:200]  # Truncate very long messages
+            text = msg.get('text', '')  # Full message text, no truncation
             message_lines.append(f"{sender}: {text}")
 
         date_range = self._calculate_date_range(messages)
+        message_text = f"(showing all {len(messages)} messages)"
 
         prompt = f"""Generate a detailed summary for this conversation with "{conversation_id}".
 
@@ -227,7 +245,7 @@ Focus on facts and substance. Be specific and informative."""
         This method:
         1. Extracts messages from HTML
         2. Builds a prompt
-        3. Calls Gemini CLI via subprocess
+        3. Calls Gemini CLI via subprocess with adaptive timeout
         4. Validates the output
         5. Returns summary dict or None on failure
 
@@ -235,7 +253,7 @@ Focus on facts and substance. Be specific and informative."""
             html_path: Path to conversation HTML file
 
         Returns:
-            Dict with keys: summary, generated_at, message_count, date_range
+            Dict with keys: summary, generated_at, message_count, date_range, model
             Returns None if generation fails (errors are logged)
         """
         try:
@@ -245,22 +263,26 @@ Focus on facts and substance. Be specific and informative."""
                 logger.warning(f"No messages found in {html_path.name}")
                 return None
 
+            # Calculate adaptive timeout based on conversation size
+            adaptive_timeout = self.get_timeout_for_conversation(len(messages))
+
             # Build prompt
             prompt = self.build_gemini_prompt(messages, html_path.stem)
 
             # Call Gemini CLI
             # Format: gemini -o text "prompt"
-            # Note: Not specifying model - let Gemini use default
+            # Note: Not specifying model - let Gemini use default (gemini-2.5-pro)
             cmd = ['gemini', '-o', 'text', prompt]
 
             logger.debug(f"Calling Gemini for {html_path.name}...")
             logger.debug(f"Command: {' '.join(cmd[:4])} [prompt_length={len(prompt)}]")
+            logger.debug(f"Message count: {len(messages)}, adaptive timeout: {adaptive_timeout}s")
 
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=self.timeout
+                timeout=adaptive_timeout
             )
 
             # Check return code
@@ -300,11 +322,14 @@ Focus on facts and substance. Be specific and informative."""
                 'summary': summary,
                 'generated_at': datetime.now().isoformat(),
                 'message_count': len(messages),
-                'date_range': self._calculate_date_range(messages)
+                'date_range': self._calculate_date_range(messages),
+                'model': 'gemini-2.5-pro'  # Track which model generated this summary
             }
 
-        except subprocess.TimeoutExpired:
-            logger.error(f"Gemini timeout ({self.timeout}s) for {html_path.name}")
+        except subprocess.TimeoutExpired as e:
+            # Use adaptive timeout in error message
+            timeout_used = self.get_timeout_for_conversation(len(messages)) if messages else self.timeout
+            logger.error(f"Gemini timeout ({timeout_used}s) for {html_path.name}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error for {html_path.name}: {e}")
@@ -315,18 +340,25 @@ Focus on facts and substance. Be specific and informative."""
         Save summaries to JSON file with metadata.
 
         JSON structure includes:
-        - version: Format version
+        - version: Format version (1.1 with model tracking)
         - generated_at: Timestamp
         - generated_by: Tool info
         - stats: Statistics about summaries
+        - model_usage: Count of summaries per model
         - summaries: The actual summary data
 
         Args:
             summaries_dict: Dict mapping conversation_id to summary dict
             output_path: Path to output JSON file
         """
+        # Calculate model usage statistics
+        model_usage = {}
+        for summary_data in summaries_dict.values():
+            model = summary_data.get('model', 'unknown')
+            model_usage[model] = model_usage.get(model, 0) + 1
+
         output_dict = {
-            'version': '1.0',
+            'version': '1.1',  # Bumped for model tracking support
             'generated_at': datetime.now().isoformat(),
             'generated_by': 'Gemini CLI',
             'stats': {
@@ -335,6 +367,7 @@ Focus on facts and substance. Be specific and informative."""
                     len(s['summary']) for s in summaries_dict.values()
                 )
             },
+            'model_usage': model_usage,  # Track which models generated summaries
             'summaries': summaries_dict
         }
 
