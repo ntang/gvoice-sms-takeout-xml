@@ -243,6 +243,57 @@ class TestVerySafePatterns:
         assert "banking" in reason.lower() or "account" in reason.lower()
         assert confidence == 0.95
 
+    def test_vendor_scheduling_followups(self, keyword_protection):
+        """Pattern 5a: Vendor delivery/installation scheduling follow-ups (Bug fix for +17326389287)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Designer Appliances - repetitive voicemails requesting delivery scheduling
+        messages = [
+            {
+                "text": "This is designer appliances. Just reaching out regarding some updates on your job site status.",
+                "sender": "+17326389287",
+                "timestamp": 1000
+            },
+            {
+                "text": "Hi Nicholas, this is Robin from designer appliances. We wanted to see how your project was going, "
+                       "and if you were ready to schedule a delivery date for your order.",
+                "sender": "+17326389287",
+                "timestamp": 1001
+            },
+            {"text": "📞 Missed call from Unknown", "sender": "+17326389287", "timestamp": 1002},
+            {"text": "📞 Missed call from Unknown", "sender": "+17326389287", "timestamp": 1003},
+            {"text": "📞 Incoming call from Unknown (Duration: 01:58)", "sender": "+17326389287", "timestamp": 1004},
+            {
+                "text": "Hi Nicholas, it's Robin from designer appliances. We just wanted to see if you were "
+                       "ready to set up a delivery day for your order.",
+                "sender": "+17326389287",
+                "timestamp": 1005
+            },
+            {"text": "Hi regarding scheduling the delivery/ install we're still at least 3 weeks out.",
+             "sender": "Me", "timestamp": 1006},
+            {"text": "📞 Incoming call from Unknown (Duration: 59s)", "sender": "+17326389287", "timestamp": 1007},
+            {"text": "📞 Incoming call from Unknown (Duration: 02:36)", "sender": "+17326389287", "timestamp": 1008},
+            {
+                "text": "We wanted to see if you were ready to place the delivery date for your appliances and installations.",
+                "sender": "+17326389287",
+                "timestamp": 1009
+            },
+            {
+                "text": "Hi Nicholas, this is Robin from designer appliances. We just wanted to see if you were "
+                       "ready for all your installations.",
+                "sender": "+17326389287",
+                "timestamp": 1010
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+17326389287", has_alias=False
+        )
+
+        assert should_archive is True, "Vendor scheduling follow-ups should be archived"
+        assert "vendor" in reason.lower() or "scheduling" in reason.lower(), f"Expected 'vendor' or 'scheduling' in reason, got: {reason}"
+        assert confidence == 0.90
+
 
 class TestSafePatterns:
     """Test safe filtering patterns (confidence 0.85-0.94)."""

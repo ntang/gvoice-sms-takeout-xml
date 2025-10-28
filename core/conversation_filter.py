@@ -119,6 +119,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_vendor_scheduling_followups(messages)
+        if result:
+            return result
+
         # Safe Patterns (0.85-0.94)
         result = self._check_political_campaigns(messages)
         if result:
@@ -412,6 +416,46 @@ class ConversationFilter:
             for pattern in patterns:
                 if re.search(pattern, text, re.IGNORECASE):
                     return True, "Banking/financial alert pattern", 0.95
+
+        return None
+
+    def _check_vendor_scheduling_followups(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 5a: Vendor delivery/installation scheduling follow-ups (0.90 confidence)
+
+        Matches high-volume vendor conversations requesting delivery/installation scheduling:
+        - "ready to schedule a delivery date for your order"
+        - "schedule a delivery date for your appliances"
+        - "ready to set up a delivery day"
+        - "ready for all your installations"
+        - Repetitive voicemails/calls over extended period
+
+        Requirements:
+        - 10+ total messages
+        - Patterns related to scheduling delivery/installation
+        """
+        if len(messages) < 10:
+            return None
+
+        patterns = [
+            r'\bschedule\s+(a\s+)?delivery\s+date\b',       # "schedule a delivery date"
+            r'\bready\s+to\s+schedule\b',                    # "ready to schedule"
+            r'\bset\s+up\s+a\s+delivery\s+(date|day)\b',    # "set up a delivery date/day"
+            r'\bdelivery\s+date\s+for\s+your\s+(order|appliances)\b', # "delivery date for your order"
+            r'\bready\s+for\s+(all\s+)?your\s+installations?\b', # "ready for your installation"
+            r'\bschedule.*installation\b',                   # "schedule installation"
+            r'\bplace\s+the\s+delivery\s+date\b',           # "place the delivery date"
+            r'\bconfirm.*delivery\s+date\b',                # "confirm delivery date"
+        ]
+
+        for msg in messages:
+            text = msg.get("text", "").lower()
+            for pattern in patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    return True, "Vendor delivery/installation scheduling follow-up", 0.90
 
         return None
 
