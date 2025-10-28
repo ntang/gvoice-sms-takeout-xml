@@ -106,6 +106,41 @@ class TestVerySafePatterns:
         assert "appointment" in reason.lower() or "reminder" in reason.lower()
         assert confidence == 0.95
 
+    def test_appointment_reminders_one_medical_style(self, keyword_protection):
+        """Pattern 4: One Medical style appointment reminders (Bug fix for +14159428664)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Real One Medical message that was previously missed
+        messages = [
+            {
+                "text": "Hi Nicholas, this is a message about your upcoming appointment at One Medical.\n\n"
+                       "You have an appointment on Wed, April 26 at 8:00 AM EDT at 5 Columbus Circle, Suite 1802, New York, NY 10019 with Paul.\n\n"
+                       "To Confirm: Reply Y\nTo Reschedule: https://app.onemedical.com/appointments/list?nid=2095802\nTo Cancel: Reply N",
+                "sender": "+14159428664",
+                "timestamp": 1000
+            },
+            {"text": "Y", "sender": "Me", "timestamp": 1001},
+            {
+                "text": "Great, see you on Wednesday, 4/26/23, at 8:00 AM EDT! Save time during your appointment by checking in with the One Medical Mobile app - www.onemedical.com/technology",
+                "sender": "+14159428664",
+                "timestamp": 1002
+            },
+            {
+                "text": "Hi Nicholas, you have an appointment today at 8:00 AM EDT at 5 Columbus Circle, Suite 1802, New York, NY 10019 with Paul. Please arrive 5 mins early.\n\n"
+                       "To Reschedule: https://app.onemedical.com/appointments/list?nid=2107835\nTo Cancel: Reply N\n\nRunning late? Reply LATE",
+                "sender": "+14159428664",
+                "timestamp": 1003
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+14159428664", has_alias=False
+        )
+
+        assert should_archive is True, "One Medical appointment reminders should be archived"
+        assert "appointment" in reason.lower(), f"Expected 'appointment' in reason, got: {reason}"
+        assert confidence == 0.95
+
     def test_banking_alerts(self, keyword_protection):
         """Pattern 5: Banking alerts (0.95 confidence)."""
         filter = ConversationFilter(keyword_protection)

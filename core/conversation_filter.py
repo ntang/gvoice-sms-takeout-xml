@@ -312,13 +312,26 @@ class ConversationFilter:
         Matches:
         - "Reminder: Your appointment on 12/15 at 3pm"
         - "Confirm your appointment"
+        - "You have an appointment on Wed, April 26"
+        - "To Confirm: Reply Y"
+        - "upcoming appointment at One Medical"
         """
         patterns = [
+            # Original patterns
             r'\bappointment\s+reminder\b',
             r'\bconfirm your appointment\b',
             r'\bscheduled for\b',
             r'\breply\s+y\s+to\s+confirm\b',
-            r'\bappointment\s+on\s+\d{1,2}[/\-]\d{1,2}'
+            r'\bappointment\s+on\s+\d{1,2}[/\-]\d{1,2}',
+
+            # Improved patterns (catch One Medical and similar)
+            r'\bto\s+confirm.*reply\s+[yn]\b',                  # "To Confirm: Reply Y"
+            r'\bupcoming\s+appointment\b',                       # "upcoming appointment"
+            r'\byou\s+have\s+an?\s+appointment\b',              # "You have an appointment"
+            r'\bappointment\s+on\s+\w+,?\s+\w+\s+\d{1,2}\b',   # "appointment on Wed, April 26"
+            r'\bto\s+reschedule.*reply\b',                       # "To Reschedule: Reply..."
+            r'\bappointment\s+today\s+at\b',                     # "appointment today at 8:00 AM"
+            r'\breply\s+late\b',                                 # "Running late? Reply LATE"
         ]
 
         for msg in messages:
