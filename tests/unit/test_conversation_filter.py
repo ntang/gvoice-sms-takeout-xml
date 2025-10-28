@@ -349,6 +349,37 @@ class TestSafePatterns:
         assert "33%" in reason, f"Expected duplicate percentage in reason, got: {reason}"
         assert confidence == 0.85
 
+    def test_real_estate_services(self, keyword_protection):
+        """Pattern 10b: Real estate commercial services (Bug fix for +16469339052)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # Real Compass Collections real estate message
+        messages = [
+            {
+                "text": "📞 Incoming call from Unknown (Duration: 06:55)",
+                "sender": "+16469339052",
+                "timestamp": 1000
+            },
+            {
+                "text": "Hi! Just wanted to let you know that I sent Susan an invite to Compass Collections. :)",
+                "sender": "+16469339052",
+                "timestamp": 1001
+            },
+            {
+                "text": "Ok great thanks",
+                "sender": "Me",
+                "timestamp": 1002
+            }
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+16469339052", has_alias=False
+        )
+
+        assert should_archive is True, "Real estate commercial services should be archived"
+        assert "real estate" in reason.lower(), f"Expected 'real estate' in reason, got: {reason}"
+        assert confidence == 0.85
+
 
 class TestAggressivePatterns:
     """Test aggressive filtering patterns (confidence 0.75-0.84)."""
@@ -409,6 +440,28 @@ class TestAggressivePatterns:
 
         assert should_archive is True
         assert "link" in reason.lower() or "url" in reason.lower()
+        assert confidence == 0.78
+
+    def test_minimal_engagement(self, keyword_protection):
+        """Pattern 17b: Minimal engagement (brief acknowledgments only)."""
+        filter = ConversationFilter(keyword_protection)
+
+        # 6 messages: 5 from sender, 1 brief user reply
+        messages = [
+            {"text": "Hey, we have a new offer for you!", "sender": "+15551234567", "timestamp": 1000},
+            {"text": "It's about our premium service", "sender": "+15551234567", "timestamp": 1001},
+            {"text": "Ok great thanks", "sender": "Me", "timestamp": 1002},  # Brief acknowledgment
+            {"text": "Let me know if you want details", "sender": "+15551234567", "timestamp": 1003},
+            {"text": "We can schedule a call", "sender": "+15551234567", "timestamp": 1004},
+            {"text": "Looking forward to hearing from you", "sender": "+15551234567", "timestamp": 1005}
+        ]
+
+        should_archive, reason, confidence = filter.should_archive_conversation(
+            messages, "+15551234567", has_alias=False
+        )
+
+        assert should_archive is True, "Minimal engagement conversations should be archived"
+        assert "minimal engagement" in reason.lower() or "brief" in reason.lower(), f"Expected 'minimal engagement' in reason, got: {reason}"
         assert confidence == 0.78
 
     def test_no_alias_commercial_keywords(self, keyword_protection):

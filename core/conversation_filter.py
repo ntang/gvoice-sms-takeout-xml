@@ -144,6 +144,10 @@ class ConversationFilter:
         if result:
             return result
 
+        result = self._check_real_estate_services(messages)
+        if result:
+            return result
+
         # Aggressive Patterns (0.75-0.84)
         result = self._check_one_way_broadcast(messages)
         if result:
@@ -170,6 +174,10 @@ class ConversationFilter:
             return result
 
         result = self._check_casual_delivery_acknowledgment(messages)
+        if result:
+            return result
+
+        result = self._check_minimal_engagement(messages)
         if result:
             return result
 
@@ -623,6 +631,50 @@ class ConversationFilter:
 
         return None
 
+    def _check_real_estate_services(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 10b: Real estate commercial services (0.85 confidence)
+
+        Matches:
+        - Real estate platforms and services
+        - Property listings and invites
+        - MLS, Compass, Zillow, Redfin, etc.
+        - Open house notifications
+        - Showing invitations
+        """
+        patterns = [
+            # Real estate platforms
+            r'\bcompass\s+(collections|real\s+estate)\b',
+            r'\bzillow\b',
+            r'\bredfin\b',
+            r'\brealtor\.com\b',
+            r'\btrulia\b',
+            r'\brocket\s+homes\b',
+
+            # Real estate specific terms
+            r'\bopen\s+house\b',
+            r'\bproperty\s+(listing|showing)\b',
+            r'\bmls\s+(listing|number)\b',
+            r'\bshowing\s+(appointment|request)\b',
+            r'\binvite\s+to\s+(view|see)\s+propert(y|ies)\b',
+            r'\bhome\s+for\s+sale\b',
+            r'\blisting\s+alert\b',
+            r'\bprice\s+(reduction|drop)\b',
+            r'\bvirtual\s+tour\b',
+            r'\breal\s+estate\s+agent\b',
+        ]
+
+        for msg in messages:
+            text = msg.get("text", "").lower()
+            for pattern in patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    return True, "Real estate commercial service", 0.85
+
+        return None
+
     # -------------------------------------------------------------------------
     # Aggressive Patterns (0.75-0.84 confidence)
     # -------------------------------------------------------------------------
@@ -882,6 +934,68 @@ class ConversationFilter:
                 return True, "Casual delivery acknowledgment (brief replies only)", 0.78
 
         return None
+
+    def _check_minimal_engagement(
+        self,
+        messages: List[Dict[str, Any]]
+    ) -> Optional[Tuple[bool, str, float]]:
+        """
+        Pattern 17b: Minimal engagement conversation (0.78 confidence)
+
+        Matches conversations where user only provides brief acknowledgments:
+        - "Ok", "Thanks", "Ok great thanks", "Sounds good", "Got it"
+        - Suggests low-value commercial interaction
+        - User isn't truly engaged, just being polite
+
+        Different from casual delivery: doesn't require delivery keywords,
+        broader application to any commercial conversation with minimal engagement.
+
+        Requirements:
+        - 3-10 messages total
+        - 1-2 user replies
+        - ALL user replies are brief (<= 25 chars OR match acknowledgment pattern)
+        """
+        total_messages = len(messages)
+
+        # Must be 3-10 messages
+        if total_messages < 3 or total_messages > 10:
+            return None
+
+        # Get user messages
+        user_messages = [m for m in messages if m.get("sender") == "Me"]
+
+        # Must have 1-2 user replies (minimal engagement)
+        if len(user_messages) < 1 or len(user_messages) > 2:
+            return None
+
+        # Check if ALL user messages are brief acknowledgments
+        acknowledgment_patterns = [
+            r'^(thanks?|thank you|ty|thx|ok|okay|got it|great|perfect|cool|awesome|👍)[\s!.]*$',
+            r'^(yes|yep|yeah|yup|sure|alright|all right)[\s!.]*$',
+            r'^(sounds?\s+good|will\s+do|no\s+problem|np)[\s!.]*$',
+            r'^ok\s+(great|good|perfect|thanks)[\s!.]*$',  # "ok great thanks"
+            r'^(great|good|perfect)\s+thanks?[\s!.]*$',    # "great thanks"
+        ]
+
+        for user_msg in user_messages:
+            text = user_msg.get("text", "").strip().lower()
+
+            # Check if it's very short (likely acknowledgment)
+            if len(text) > 25:
+                return None
+
+            # Check if it matches acknowledgment pattern
+            is_acknowledgment = False
+            for pattern in acknowledgment_patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    is_acknowledgment = True
+                    break
+
+            # If any user message is NOT a brief acknowledgment, bail
+            if not is_acknowledgment and len(text) > 15:
+                return None
+
+        return True, "Minimal engagement (brief acknowledgments only)", 0.78
 
     def _check_commercial_customer_service(
         self,
